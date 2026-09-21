@@ -7,9 +7,10 @@ import NetworkList from '../components/NetworkList';
 
 interface NetworksProps {
   onNavigateToContainers?: () => void;
+  onSelectStack?: (stackName: string) => void;
 }
 
-export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers }) => {
+export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSelectStack }) => {
   const [graph, setGraph] = useState<NetworkGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -80,6 +81,7 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers }) =>
             graph={graph}
             onNetworkDeleted={fetchNetworks}
             onNavigateToContainers={onNavigateToContainers}
+            onSelectStack={onSelectStack}
           />
         )}
       </div>

@@ -5,9 +5,10 @@ import { ContainerNode } from '../types';
 interface ContainerHeaderProps {
   container: ContainerNode;
   onNavigateToContainers?: () => void;
+  onSelectStack?: (stackName: string) => void;
 }
 
-const ContainerHeader: React.FC<ContainerHeaderProps> = ({ container, onNavigateToContainers }) => (
+const ContainerHeader: React.FC<ContainerHeaderProps> = ({ container, onNavigateToContainers, onSelectStack }) => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
       <div
@@ -33,7 +34,18 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({ container, onNavigate
             {container.state}
           </span>
           {container.stack && (
-            <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>
+            <span
+              className="font-mono"
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--primary)',
+                cursor: onSelectStack ? 'pointer' : 'default',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (container.stack) onSelectStack?.(container.stack);
+              }}
+            >
               {container.stack}
             </span>
           )}

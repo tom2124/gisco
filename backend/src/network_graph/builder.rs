@@ -82,6 +82,32 @@ pub struct NetworkGraph {
 
 pub struct NetworkGraphBuilder;
 
+/// Sort key for stable ascending IP order (numeric octets, not lexical,
+/// so .10 sorts after .2). Empty/non-IPv4 values sort last.
+fn ip_sort_key(ip: &str) -> (u8, [u8; 4], &str) {
+    if ip.is_empty() {
+        return (2, [0; 4], "");
+    }
+    let parts: Vec<&str> = ip.split('.').collect();
+    if parts.len() == 4 {
+        let mut octets = [0u8; 4];
+        let mut ok = true;
+        for (i, p) in parts.iter().enumerate() {
+            match p.parse::<u8>() {
+                Ok(n) => octets[i] = n,
+                Err(_) => {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if ok {
+            return (0, octets, "");
+        }
+    }
+    (1, [0; 4], ip)
+}
+
 impl NetworkGraphBuilder {
     pub async fn build(docker: &DockerService) -> Result<NetworkGraph> {
         let raw_networks = docker.list_networks().await.unwrap_or_default();
@@ -127,26 +153,47 @@ impl NetworkGraphBuilder {
         let mut host_port_nodes: Vec<HostPortNode> = Vec::new();
         let mut links: Vec<NetworkLink> = Vec::new();
 
-        // Hostname/domainname only come from inspect; fetch concurrently so
-        // large hosts don't pay N sequential round-trips. Failures map to None.
+        // Hostname/domainname/aliases only come from inspect (the list
+        // endpoint omits Aliases entirely); fetch concurrently so large hosts
+        // don't pay N sequential round-trips. Failures map to empty.
         let inspects = futures_util::future::join_all(raw_containers.iter().map(|c| {
             let id = c.id.clone().unwrap_or_default();
             let docker = docker.clone();
             async move {
-                let info = docker
-                    .inspect_container(&id)
-                    .await
-                    .ok()
-                    .and_then(|insp| insp.config)
-                    .map(|cfg| (cfg.hostname, cfg.domainname));
+                let info = docker.inspect_container(&id).await.ok().map(|insp| {
+                    let hostname = insp.config.as_ref().and_then(|cfg| cfg.hostname.clone());
+                    let domainname = insp.config.as_ref().and_then(|cfg| cfg.domainname.clone());
+                    // Keyed by both network id and name; the interface loop
+                    // below matches on either.
+                    let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
+                    if let Some(settings) = insp.network_settings {
+                        if let Some(nets) = settings.networks {
+                            for (net_name, ep) in nets {
+                                let ep_aliases = ep.aliases.clone().unwrap_or_default();
+                                if ep_aliases.is_empty() {
+                                    continue;
+                                }
+                                aliases
+                                    .entry(net_name.clone())
+                                    .or_default()
+                                    .extend(ep_aliases.clone());
+                                if let Some(nid) = ep.network_id.clone() {
+                                    aliases.entry(nid).or_default().extend(ep_aliases);
+                                }
+                            }
+                        }
+                    }
+                    (hostname, domainname, aliases)
+                });
                 (id, info)
             }
         }))
         .await;
-        let host_info: HashMap<String, (Option<String>, Option<String>)> = inspects
-            .into_iter()
-            .filter_map(|(id, info)| info.map(|i| (id, i)))
-            .collect();
+        let host_info: HashMap<String, (Option<String>, Option<String>, HashMap<String, Vec<String>>)> =
+            inspects
+                .into_iter()
+                .filter_map(|(id, info)| info.map(|i| (id, i)))
+                .collect();
 
         for c in &raw_containers {
             let id = c.id.clone().unwrap_or_default();
@@ -177,7 +224,18 @@ impl NetworkGraphBuilder {
                         let ip = endpoint.ip_address.clone().unwrap_or_default();
                         let mac = endpoint.mac_address.clone().unwrap_or_default();
                         let gw = endpoint.gateway.clone().unwrap_or_default();
-                        let aliases = endpoint.aliases.clone().unwrap_or_default();
+                        // Union list aliases (usually empty; the list endpoint
+                        // omits them) with the inspect aliases for this network.
+                        let mut aliases = endpoint.aliases.clone().unwrap_or_default();
+                        if let Some(inspected) = host_info.get(&id) {
+                            for key in [&net_id, net_name] {
+                                if let Some(extra) = inspected.2.get(key) {
+                                    aliases.extend(extra.iter().cloned());
+                                }
+                            }
+                        }
+                        aliases.sort();
+                        aliases.dedup();
 
                         if !ip.is_empty() || !net_id.is_empty() {
                             *network_container_counts.entry(net_id.clone()).or_default() += 1;
@@ -249,10 +307,16 @@ impl NetworkGraphBuilder {
             }
 
             let labels = c.labels.clone().unwrap_or_default();
-            let (hostname, domainname) = host_info
+            let (hostname, domainname, _) = host_info
                 .get(&id)
                 .cloned()
-                .unwrap_or((None, None));
+                .unwrap_or((None, None, HashMap::new()));
+
+            // Stable ascending IP order: network_settings comes from a
+            // HashMap, so interface order would otherwise vary per request.
+            interfaces.sort_by(|a, b| {
+                ip_sort_key(&a.ip_address).cmp(&ip_sort_key(&b.ip_address))
+            });
 
             container_nodes.push(ContainerNode {
                 id,
@@ -281,5 +345,20 @@ impl NetworkGraphBuilder {
             host_ports: host_port_nodes,
             links,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ip_sort_key_numeric_not_lexical() {
+        let mut ips = vec!["172.22.0.4", "", "172.18.0.10", "172.18.0.2", "fe80::1", "10.0.0.1"];
+        ips.sort_by(|a, b| ip_sort_key(a).cmp(&ip_sort_key(b)));
+        assert_eq!(
+            ips,
+            vec!["10.0.0.1", "172.18.0.2", "172.18.0.10", "172.22.0.4", "fe80::1", ""]
+        );
     }
 }

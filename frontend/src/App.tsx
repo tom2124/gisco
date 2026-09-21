@@ -122,6 +122,7 @@ export const App: React.FC = () => {
         {currentTab === 'networks' && (
           <Networks
             onNavigateToContainers={() => handleSelectTab('containers')}
+            onSelectStack={handleSelectStack}
           />
         )}
 

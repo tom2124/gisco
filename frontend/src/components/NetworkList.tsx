@@ -8,12 +8,14 @@ interface NetworkListProps {
   graph: NetworkGraph;
   onNetworkDeleted?: () => void;
   onNavigateToContainers?: () => void;
+  onSelectStack?: (stackName: string) => void;
 }
 
 export const NetworkList: React.FC<NetworkListProps> = ({
   graph,
   onNetworkDeleted,
   onNavigateToContainers,
+  onSelectStack,
 }) => {
   const [expandedNetworks, setExpandedNetworks] = useState<Set<string>>(new Set());
 
@@ -182,6 +184,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                         container={c}
                         containerHostPorts={containerHostPorts}
                         onNavigateToContainers={onNavigateToContainers}
+                        onSelectStack={onSelectStack}
                       />
                     );
                   })}
