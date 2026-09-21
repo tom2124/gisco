@@ -15,11 +15,12 @@ import {
 } from '@codemirror/commands';
 import {
   StreamLanguage,
+  HighlightStyle,
   bracketMatching,
-  defaultHighlightStyle,
   indentOnInput,
   syntaxHighlighting,
 } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
 import { searchKeymap } from '@codemirror/search';
 import { yaml } from '@codemirror/legacy-modes/mode/yaml';
 import { properties } from '@codemirror/legacy-modes/mode/properties';
@@ -37,7 +38,29 @@ interface CodeEditorProps {
 
 const yamlLanguage = StreamLanguage.define(yaml);
 // .env files are KEY=value lines; the properties mode highlights those.
-const envLanguage = StreamLanguage.define(properties);
+// It emits values as "quote" (unstyleable custom tag), so remap to "string".
+const envLanguage = StreamLanguage.define({
+  ...properties,
+  token(stream: any, state: any) {
+    const style = (properties as any).token(stream, state);
+    return style === 'quote' ? 'string' : style;
+  },
+});
+
+// Pastel-on-dark palette (Catppuccin-inspired): bright enough to read
+// against the dark editor background in both yaml and env modes.
+const pastelHighlight = HighlightStyle.define([
+  { tag: t.comment, color: '#9399b2' },
+  { tag: t.keyword, color: '#cba6f7' },
+  { tag: [t.atom, t.number, t.bool, t.unit], color: '#fab387' },
+  { tag: t.string, color: '#a6e3a1' },
+  { tag: [t.variableName, t.propertyName, t.attributeName], color: '#89dceb' },
+  { tag: t.definition(t.variableName), color: '#f9e2af', fontWeight: '600' },
+  { tag: [t.meta, t.documentMeta], color: '#f9e2af' },
+  { tag: [t.punctuation, t.operator, t.separator], color: '#bac2de' },
+  { tag: t.heading, color: '#f5c2e7', fontWeight: '600' },
+  { tag: t.invalid, color: '#f38ba8' },
+]);
 
 const giscoTheme = EditorView.theme({
   '&': {
@@ -92,7 +115,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         bracketMatching(),
         history(),
         indentOnInput(),
-        syntaxHighlighting(defaultHighlightStyle),
+        syntaxHighlighting(pastelHighlight),
         giscoTheme,
         languageConf.current.of(language === 'env' ? envLanguage : yamlLanguage),
         readOnlyConf.current.of(EditorState.readOnly.of(readOnly)),
