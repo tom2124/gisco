@@ -1,0 +1,52 @@
+/* CodeEditor.css - Container + scrollbar styles for the CodeMirror editor */
+
+.cm-editor {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-code);
+  overflow: hidden;
+  text-align: left;
+}
+
+.cm-editor .cm-scroller {
+  overflow: auto;
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+
+/* Dark styling for the built-in search panel (Mod-F) */
+.cm-editor .cm-panel.cm-search {
+  background: var(--bg-code);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+}
+
+.cm-editor .cm-panel.cm-search input[type='text'] {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+}
+
+.cm-editor .cm-panel.cm-search button {
+  color: var(--text-muted);
+}
+
+/* Scrollbar styling */
+.cm-editor ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.cm-editor ::-webkit-scrollbar-track {
+  background: var(--bg-code);
+}
+
+.cm-editor ::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+
+.cm-editor ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
