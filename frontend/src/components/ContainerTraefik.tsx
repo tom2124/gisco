@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { parseTraefikLabels } from '../utils/traefik';
 import Copyable from './Copyable';
 
@@ -63,9 +64,23 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                 {router.hosts.length > 0 ? (
                   <div className="font-mono" style={{ color: '#a7f3d0', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
                     {router.hosts.map((host) => (
-                      <Copyable key={host} text={host}>
-                        <span>{host}</span>
-                      </Copyable>
+                      <span key={host} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Copyable text={host}>
+                          <span>{host}</span>
+                        </Copyable>
+                        {router.protocol === 'http' && !host.includes('*') && (
+                          <a
+                            href={`${router.tls ? 'https' : 'http'}://${host}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`Open ${host} in new tab`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ display: 'inline-flex', color: 'var(--text-dim)' }}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </span>
                     ))}
                   </div>
                 ) : router.rule ? (
