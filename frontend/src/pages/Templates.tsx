@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Edit,
   FileCode,
   Plus,
   Sparkles,
@@ -10,6 +11,7 @@ import { TemplateDetails, TemplateSummary } from '../types';
 import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
+import DeleteButton from '../components/DeleteButton';
 
 interface TemplatesProps {
   onRefresh: () => void;
@@ -42,6 +44,11 @@ export const Templates: React.FC<TemplatesProps> = ({
     ports:
       - "\${SERVICE_PORT:-8080}:80"
 `);
+
+  // Edit template modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<TemplateDetails | null>(null);
+  const [editTemplateYaml, setEditTemplateYaml] = useState('');
 
   const fetchTemplates = async () => {
     try {
@@ -97,6 +104,38 @@ export const Templates: React.FC<TemplatesProps> = ({
       await api.saveTemplate(newTemplateId.trim(), newTemplateYaml);
       setShowNewTemplateModal(false);
       setNewTemplateId('');
+      fetchTemplates();
+    } catch (err: any) {
+      alert(`Failed to save template: ${err.message}`);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteTemplate(id);
+      fetchTemplates();
+    } catch (err: any) {
+      alert(`Failed to delete template: ${err.message}`);
+    }
+  };
+
+  const handleOpenEdit = async (id: string) => {
+    try {
+      const details = await api.getTemplate(id);
+      setEditTemplate(details);
+      setEditTemplateYaml(details.raw_content);
+      setShowEditModal(true);
+    } catch (err: any) {
+      alert(`Error loading template: ${err.message}`);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTemplate) return;
+    try {
+      await api.saveTemplate(editTemplate.id, editTemplateYaml);
+      setShowEditModal(false);
+      setEditTemplate(null);
       fetchTemplates();
     } catch (err: any) {
       alert(`Failed to save template: ${err.message}`);
@@ -174,11 +213,28 @@ export const Templates: React.FC<TemplatesProps> = ({
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'flex-end',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                   paddingTop: '12px',
                   borderTop: '1px solid var(--border-subtle)',
                 }}
               >
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn btn-secondary btn-icon"
+                    title="Edit template"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenEdit(tpl.id);
+                    }}
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <DeleteButton
+                    title="Delete template"
+                    onConfirm={() => handleDelete(tpl.id)}
+                  />
+                </div>
                 <button
                   className="btn btn-primary"
                   style={{ padding: '6px 14px', fontSize: '0.82rem' }}
@@ -259,6 +315,52 @@ export const Templates: React.FC<TemplatesProps> = ({
               </button>
               <button className="btn btn-primary" onClick={handleCreateTemplate}>
                 Save Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Template Modal */}
+      {showEditModal && editTemplate && (
+        <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px' }}>
+            <div className="modal-header">
+              <div>
+                <h3>Edit {editTemplate.name}</h3>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                  {editTemplate.filename}
+                </div>
+              </div>
+              <button
+                className="btn btn-secondary btn-icon"
+                onClick={() => setShowEditModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+                  Compose File
+                </label>
+                <CodeEditor
+                  value={editTemplateYaml}
+                  onChange={setEditTemplateYaml}
+                  language="yaml"
+                  height="400px"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleSaveEdit}>
+                Save Changes
               </button>
             </div>
           </div>
