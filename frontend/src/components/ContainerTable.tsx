@@ -25,6 +25,8 @@ interface ContainerTableProps {
   isStackView?: boolean;
   /** Group rows under per-stack headers (Containers page). Off for single-stack views. */
   groupByStack?: boolean;
+  /** Stack names to badge as external (same indicator as Stacks/StackDetail). */
+  externalStackNames?: Set<string>;
 }
 
 const formatBytes = (bytes: number): string => {
@@ -94,6 +96,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   onSelectStack,
   isStackView = false,
   groupByStack = true,
+  externalStackNames = new Set<string>(),
 }) => {
   const handleExecAction = (containerId: string, containerName: string) => {
     // No explicit shell: backend prefers bash, falls back to POSIX sh
@@ -357,17 +360,24 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                           }}
                         />
                         {group.stack ? (
-                          <span
-                            style={{
-                              fontWeight: 700,
-                              fontSize: '0.9rem',
-                              color: color.accent,
-                              cursor: onSelectStack ? 'pointer' : 'default',
-                            }}
-                            onClick={() => group.stack && onSelectStack?.(group.stack)}
-                          >
-                            {group.stack}
-                          </span>
+                          <>
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                fontSize: '0.9rem',
+                                color: color.accent,
+                                cursor: onSelectStack ? 'pointer' : 'default',
+                              }}
+                              onClick={() => group.stack && onSelectStack?.(group.stack)}
+                            >
+                              {group.stack}
+                            </span>
+                            {externalStackNames.has(group.stack) && (
+                              <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                                External
+                              </span>
+                            )}
+                          </>
                         ) : (
                           <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                             Standalone containers

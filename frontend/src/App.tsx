@@ -110,6 +110,7 @@ export const App: React.FC = () => {
 
         {currentTab === 'containers' && (
           <Containers
+            stacks={stacks}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
             onOpenTerminal={(id, name, command = '') => setTerminalTarget({ id, name, command })}

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Header } from '../components/Header';
-import { ContainerMetrics, ContainerSummary } from '../types';
+import { ContainerMetrics, ContainerSummary, StackSummary } from '../types';
 import { api } from '../api/client';
 import { ContainerTable } from '../components/ContainerTable';
 
 interface ContainersProps {
+  stacks: StackSummary[];
   onRefresh: () => void;
   isRefreshing: boolean;
   onOpenTerminal: (containerId: string, containerName: string, command?: string, interactive?: boolean) => void;
@@ -13,6 +14,7 @@ interface ContainersProps {
 }
 
 export const Containers: React.FC<ContainersProps> = ({
+  stacks,
   onRefresh,
   isRefreshing,
   onOpenTerminal,
@@ -105,6 +107,11 @@ export const Containers: React.FC<ContainersProps> = ({
     });
   }, [containers, search]);
 
+  const externalStackNames = useMemo(
+    () => new Set(stacks.filter((s) => s.external).map((s) => s.name as string)),
+    [stacks]
+  );
+
   return (
     <div>
       <Header
@@ -138,6 +145,7 @@ export const Containers: React.FC<ContainersProps> = ({
         showStackColumn={true}
         onSelectStack={onSelectStack}
         isStackView={false}
+        externalStackNames={externalStackNames}
       />
     </div>
   );
