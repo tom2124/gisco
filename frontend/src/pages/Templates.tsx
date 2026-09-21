@@ -107,7 +107,7 @@ export const Templates: React.FC<TemplatesProps> = ({
     <div>
       <Header
         title="Templates"
-        subtitle="Plain compose files — deploy with a .env"
+        subtitle="Reusable compose files with parameters"
         onRefresh={fetchTemplates}
         isRefreshing={loading || isRefreshing}
         actions={
@@ -120,6 +120,13 @@ export const Templates: React.FC<TemplatesProps> = ({
           </button>
         }
       />
+
+      <div style={{ marginBottom: '20px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        Templates are user-supplied: drop compose files named <code>&lt;name&gt;.yml</code> into
+        the template directory to add your own. Parameters use normal environment variable
+        substitution (<code>{'${VAR}'}</code> / <code>{'${VAR:-default}'}</code>) and are
+        filled in when you deploy.
+      </div>
 
       {templates.length === 0 && !loading ? (
         <div className="card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
