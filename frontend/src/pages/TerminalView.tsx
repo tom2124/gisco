@@ -133,10 +133,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   };
 
   useEffect(() => {
-    // Auto-start the terminal on mount
-    initTerminal(initialCommand);
+    // Auto-start the terminal on mount, deferred one task so React
+    // StrictMode's mount-cleanup-mount cycle in dev doesn't open (and abort)
+    // a throwaway connection on every open.
+    const timer = window.setTimeout(() => initTerminal(initialCommand), 0);
     // Cleanup on unmount
     return () => {
+      window.clearTimeout(timer);
       if (wsRef.current) wsRef.current.close();
       if (termInstanceRef.current) termInstanceRef.current.dispose();
     };

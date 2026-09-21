@@ -40,8 +40,12 @@ export const LogsView: React.FC<LogsViewProps> = ({
   };
 
   useEffect(() => {
-    connectWs();
+    // Defer one task so React StrictMode's mount-cleanup-mount cycle in dev
+    // doesn't open (and abort) a throwaway connection on every open — that
+    // abort surfaces as a vite "ws proxy socket error" (ECONNRESET).
+    const timer = window.setTimeout(() => connectWs(), 0);
     return () => {
+      window.clearTimeout(timer);
       if (wsRef.current) wsRef.current.close();
     };
   }, [containerId, tail]);
