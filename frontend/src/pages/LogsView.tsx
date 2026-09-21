@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Search, ArrowDown, Trash2 } from 'lucide-react';
+import { X, Search, ArrowDown, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { api } from '../api/client';
 
 interface LogsViewProps {
@@ -18,6 +18,7 @@ export const LogsView: React.FC<LogsViewProps> = ({
   const [autoScroll, setAutoScroll] = useState(true);
   const [tail, setTail] = useState('150');
   const [connected, setConnected] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -65,7 +66,13 @@ export const LogsView: React.FC<LogsViewProps> = ({
       <div
         className="modal-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '900px', height: '620px' }}
+        style={{
+          maxWidth: isMaximized ? '96vw' : '900px',
+          height: isMaximized ? '92vh' : '620px',
+          transition: 'all 0.2s ease',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
         <div className="modal-header" style={{ padding: '12px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -131,6 +138,14 @@ export const LogsView: React.FC<LogsViewProps> = ({
               onClick={() => setLogs([])}
             >
               <Trash2 size={14} />
+            </button>
+
+            <button
+              className="btn btn-secondary btn-icon"
+              title={isMaximized ? 'Restore' : 'Maximize'}
+              onClick={() => setIsMaximized(!isMaximized)}
+            >
+              {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
 
             <button className="btn btn-secondary btn-icon" onClick={onClose}>
