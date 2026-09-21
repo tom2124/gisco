@@ -49,6 +49,14 @@ const getContainerState = (c: ContainerSummary | StackContainerInfo): string => 
   return 'State' in c ? c.State : c.state;
 };
 
+/** Daemon-reported uptime ("Up 5 hours (healthy)" -> "5 hours"); empty unless running. */
+const getContainerUptime = (c: ContainerSummary | StackContainerInfo): string => {
+  const state = getContainerState(c);
+  if (state !== 'running') return '';
+  const status = 'Status' in c ? c.Status : (c as StackContainerInfo).status;
+  return (status || '').replace(/^Up\s+/, '').replace(/\s*\(.*\)\s*$/, '');
+};
+
 const getContainerImage = (c: ContainerSummary | StackContainerInfo): string => {
   return 'Image' in c ? c.Image : c.image;
 };
@@ -115,7 +123,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   // carries the stack name, so the column would just repeat it.
   const grouped = groupByStack && !isStackView;
   const showStackCol = showStackColumn && !grouped;
-  const colCount = (showStackCol ? 6 : 5);
+  const colCount = (showStackCol ? 7 : 6);
 
   const sorted = [...containers].sort((a, b) =>
     getContainerName(a).localeCompare(getContainerName(b))
@@ -181,6 +189,10 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           >
             {state}
           </span>
+        </td>
+
+        <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          {getContainerUptime(c) || <span style={{ color: 'var(--text-dim)' }}>—</span>}
         </td>
 
         {showStackCol && (
@@ -327,6 +339,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           <tr>
             <th>Container</th>
             <th>State</th>
+            <th>Uptime</th>
             {showStackCol && <th>Stack</th>}
             <th>CPU / Memory</th>
             <th>Ports</th>
