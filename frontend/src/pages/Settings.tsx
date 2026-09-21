@@ -114,34 +114,26 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
-        {/* Philosophy & Architecture Note */}
+        {/* About */}
         <div className="card" style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
             <Shield size={20} color="var(--status-running)" />
-            <h3>Philosophy & Data Integrity</h3>
+            <h3>About Gisco</h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
             <div>
-              <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
-                Compose-Centric & No Internal Database
-              </strong>
-              gisco has no hidden internal database to fight with. Your host filesystem is the sole source of truth. Any compose file created or edited manually on the host is picked up automatically.
+              <a
+                href="https://github.com/tom2124/gisco"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--primary)', fontWeight: 600 }}
+              >
+                github.com/tom2124/gisco
+              </a>
             </div>
-
-            <div>
-              <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
-                Permission Preservation
-              </strong>
-              When editing existing stacks, gisco strictly preserves the existing UID, GID, and file permission mode bits. New stacks are created with your configured default owner.
-            </div>
-
-            <div>
-              <strong style={{ color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>
-                Lightweight & Docker Socket Access
-              </strong>
-              Deployed as a single lightweight container requiring only read/write access to `/var/run/docker.sock` and an open port for the web interface.
-            </div>
+            <div>By Tom Campbell</div>
+            <div>MIT License</div>
           </div>
         </div>
       </div>
