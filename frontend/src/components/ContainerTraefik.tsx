@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { parseTraefikLabels } from '../utils/traefik';
+import Copyable from './Copyable';
 
 interface ContainerTraefikProps {
   labels?: Record<string, string>;
@@ -52,19 +53,27 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                     <span className="badge badge-running" style={{ fontSize: '0.65rem' }}>TLS</span>
                   )}
                   {router.entrypoints.map((ep) => (
-                    <span key={ep} className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                      {ep}
-                    </span>
+                    <Copyable key={ep} text={ep}>
+                      <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                        {ep}
+                      </span>
+                    </Copyable>
                   ))}
                 </div>
                 {router.hosts.length > 0 ? (
-                  <div className="font-mono" style={{ color: '#a7f3d0', fontSize: '0.8rem' }}>
-                    {router.hosts.join(', ')}
+                  <div className="font-mono" style={{ color: '#a7f3d0', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                    {router.hosts.map((host) => (
+                      <Copyable key={host} text={host}>
+                        <span>{host}</span>
+                      </Copyable>
+                    ))}
                   </div>
                 ) : router.rule ? (
-                  <div className="font-mono" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                    {router.rule}
-                  </div>
+                  <Copyable text={router.rule}>
+                    <div className="font-mono" style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                      {router.rule}
+                    </div>
+                  </Copyable>
                 ) : null}
                 {(router.service || router.middlewares.length > 0) && (
                   <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-dim)' }}>

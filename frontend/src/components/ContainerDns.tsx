@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { ContainerNode } from '../types';
+import Copyable from './Copyable';
 
 interface DnsEntry {
   value: string;
@@ -45,20 +46,24 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {entries.map((entry) => (
-          <div key={`${entry.context}:${entry.value}`} style={{
-            background: 'rgba(56, 189, 248, 0.1)',
-            border: '1px solid rgba(56, 189, 248, 0.2)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.75rem',
-            color: '#7dd3fc',
-          }}>
+          <Copyable
+            key={`${entry.context}:${entry.value}`}
+            text={entry.value}
+            style={{
+              background: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              borderRadius: 'var(--radius-md)',
+              padding: '8px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
+              color: '#7dd3fc',
+            }}
+          >
             {entry.value}
             <span style={{ color: 'var(--text-dim)', marginLeft: '8px', fontSize: '0.7rem' }}>
               {entry.context}
             </span>
-          </div>
+          </Copyable>
         ))}
       </div>
     </div>
