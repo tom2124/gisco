@@ -14,9 +14,30 @@ import { LogsView } from './pages/LogsView';
 import { StackSummary, SystemStatus } from './types';
 import { api } from './api/client';
 
+const VALID_TABS = new Set([
+  'dashboard',
+  'stacks',
+  'templates',
+  'containers',
+  'images',
+  'networks',
+  'volumes',
+  'settings',
+]);
+
+function parseHash(): { tab: string; stackName: string | null } {
+  const parts = window.location.hash.replace(/^#\/?/, '').split('/');
+  const tab = VALID_TABS.has(parts[0]) ? parts[0] : 'dashboard';
+  const stackName =
+    tab === 'stacks' && parts[1] ? decodeURIComponent(parts[1]) : null;
+  return { tab, stackName };
+}
+
 export const App: React.FC = () => {
-  const [currentTab, setCurrentTab] = useState('dashboard');
-  const [selectedStackName, setSelectedStackName] = useState<string | null>(null);
+  // Hash routing (#/stacks/foo): the fragment never reaches the server, so
+  // this survives refresh and back/forward with zero backend changes.
+  const [route, setRoute] = useState(parseHash);
+  const { tab: currentTab, stackName: selectedStackName } = route;
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [stacks, setStacks] = useState<StackSummary[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -52,14 +73,30 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const onHashChange = () => setRoute(parseHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const navigate = (tab: string, stackName: string | null = null) => {
+    const hash =
+      tab === 'stacks' && stackName
+        ? `#/stacks/${encodeURIComponent(stackName)}`
+        : `#/${tab}`;
+    if (window.location.hash === hash) {
+      setRoute({ tab, stackName });
+    } else {
+      window.location.hash = hash;
+    }
+  };
+
   const handleSelectTab = (tab: string) => {
-    setSelectedStackName(null);
-    setCurrentTab(tab);
+    navigate(tab);
   };
 
   const handleSelectStack = (stackName: string) => {
-    setSelectedStackName(stackName);
-    setCurrentTab('stacks');
+    navigate('stacks', stackName);
   };
 
   return (
@@ -86,7 +123,7 @@ export const App: React.FC = () => {
           (selectedStackName ? (
             <StackDetail
               stackName={selectedStackName}
-              onBack={() => setSelectedStackName(null)}
+              onBack={() => handleSelectTab('stacks')}
               onOpenTerminal={(id, name, command = '') => setTerminalTarget({ id, name, command })}
               onOpenLogs={(id, name) => setLogsTarget({ id, name })}
             />
