@@ -45,6 +45,16 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
 
   const vars = useMemo(() => extractEnvVars(compose), [compose]);
 
+  // Effective values: auto-supplied vars (compose/docker pre-defined) are
+  // left out while empty so compose resolves them itself; an explicit value
+  // overrides. Used for both the preview and the .env body.
+  const effectiveValues = useMemo(() => {
+    const eff: Record<string, string> = { ...values, [STACK_NAME_VAR]: name.trim() };
+    for (const v of vars) {
+      if (v.auto && !(eff[v.name] ?? '').trim()) delete eff[v.name];
+    }
+    return eff;
+  }, [vars, values, name]);
   // Keep a value slot per referenced var: preserve user input, seed new
   // vars with their compose defaults, drop unreferenced ones.
   useEffect(() => {
@@ -65,8 +75,8 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
   }, [vars]);
 
   const preview = useMemo(
-    () => interpolateCompose(compose, { ...values, [STACK_NAME_VAR]: name.trim() }),
-    [compose, values, name]
+    () => interpolateCompose(compose, effectiveValues),
+    [compose, effectiveValues]
   );
 
   const handleSubmit = () => {
@@ -74,15 +84,15 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
       alert('Please provide a stack name');
       return;
     }
+    const names = vars
+      .map((v) => v.name)
+      .filter((n) => n === STACK_NAME_VAR || n in effectiveValues);
     onSubmit({
       name: name.trim(),
       compose,
       envContent:
-        vars.length > 0
-          ? buildEnvContent(
-              [STACK_NAME_VAR, ...vars.map((v) => v.name).filter((n) => n !== STACK_NAME_VAR)],
-              { ...values, [STACK_NAME_VAR]: name.trim() }
-            )
+        names.length > 0
+          ? buildEnvContent([STACK_NAME_VAR, ...names.filter((n) => n !== STACK_NAME_VAR)], effectiveValues)
           : undefined,
     });
   };
@@ -165,6 +175,11 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
                         style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}
                       >
                         {v.name}
+                        {v.auto && (
+                          <span className="badge" style={{ fontSize: '0.62rem', marginLeft: '6px' }}>
+                            auto · {v.autoSource}
+                          </span>
+                        )}
                         {v.defaultValue && (
                           <span style={{ opacity: 0.7 }}> (default: {v.defaultValue})</span>
                         )}
@@ -172,7 +187,16 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
                       <input
                         type="text"
                         value={values[v.name] ?? ''}
-                        placeholder={v.defaultValue || 'required — no default'}
+                        placeholder={
+                          v.auto
+                            ? `provided by ${v.autoSource} — fill to override`
+                            : v.defaultValue || 'required — no default'
+                        }
+                        title={
+                          v.auto
+                            ? `Supplied automatically by ${v.autoSource}; left empty it stays out of .env so the automatic value applies`
+                            : undefined
+                        }
                         onChange={(e) =>
                           setValues((prev) => ({ ...prev, [v.name]: e.target.value }))
                         }
@@ -183,7 +207,9 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '6px' }}>
                 Written to the stack&apos;s <code>.env</code> file and interpolated by compose
-                into the file above.
+                into the file above. Variables marked <span className="badge" style={{ fontSize: '0.62rem' }}>auto</span> are
+                supplied by compose/docker themselves and stay out of <code>.env</code> unless
+                you fill in an override.
               </div>
             </div>
           )}
