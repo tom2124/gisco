@@ -276,6 +276,12 @@ impl StacksManager {
         let stack_path = self.stack_dir.join(name);
 
         let is_new = !stack_path.exists();
+        if is_new && !valid_stack_name(name) {
+            anyhow::bail!(
+                "Invalid stack name '{}': use lowercase letters, digits, dashes and underscores, starting with a letter or digit (docker compose project name rules)",
+                name
+            );
+        }
         if is_new {
             fs::create_dir_all(&stack_path)
                 .with_context(|| format!("Creating stack directory for '{}'", name))?;
@@ -421,6 +427,15 @@ fn external_services(containers: &[ContainerSummary]) -> Vec<String> {
     services
 }
 
+/// Docker compose project names must be lowercase (compose silently
+/// lowercases anything else, which would split a gisco stack from its
+/// containers: dir `Foo` vs project label `foo`).
+pub fn valid_stack_name(name: &str) -> bool {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new("^[a-z0-9][a-z0-9_-]*$").unwrap());
+    re.is_match(name)
+}
+
 pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {    for filename in COMPOSE_FILENAMES {
         let p = dir.join(filename);
         if p.exists() && p.is_file() {
@@ -454,6 +469,16 @@ fn extract_services_from_yaml(yaml_content: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_valid_stack_name() {
+        for ok in ["foo", "a-1_b", "0abc", "ignition-1", "x"] {
+            assert!(valid_stack_name(ok), "{}", ok);
+        }
+        for bad in ["", "Ignition-1", "Foo", "a b", "-a", "_a", "a/b", "a.b"] {
+            assert!(!valid_stack_name(bad), "{}", bad);
+        }
+    }
 
     #[test]
     fn test_stack_status() {

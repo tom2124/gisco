@@ -84,16 +84,22 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
       alert('Please provide a stack name');
       return;
     }
+    // Compose lowercases project names; an uppercase stack name would split
+    // the stack from its containers (managed-but-empty + external duplicate).
+    if (!/^[a-z0-9][a-z0-9_-]*$/.test(name.trim())) {
+      alert(
+        'Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit (docker compose project name rules)'
+      );
+      return;
+    }
     const names = vars
       .map((v) => v.name)
-      .filter((n) => n === STACK_NAME_VAR || n in effectiveValues);
+      .filter((n) => n in effectiveValues);
     onSubmit({
       name: name.trim(),
       compose,
       envContent:
-        names.length > 0
-          ? buildEnvContent([STACK_NAME_VAR, ...names.filter((n) => n !== STACK_NAME_VAR)], effectiveValues)
-          : undefined,
+        names.length > 0 ? buildEnvContent(names, effectiveValues) : undefined,
     });
   };
 
