@@ -4,6 +4,10 @@ import { Header } from '../components/Header';
 import { ImageSummary } from '../types';
 import { api } from '../api/client';
 import DeleteButton from '../components/DeleteButton';
+import SortSelect from '../components/SortSelect';
+import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
+
+const imageTag = (img: ImageSummary) => img.RepoTags?.[0] || '<none>:<none>';
 
 export const Images: React.FC = () => {
   const [images, setImages] = useState<ImageSummary[]>([]);
@@ -11,6 +15,12 @@ export const Images: React.FC = () => {
   const [pullImageName, setPullImageName] = useState('');
   const [pulling, setPulling] = useState(false);
   const [showPullModal, setShowPullModal] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('size-desc');
+
+  const visibleImages = sorted(images, sortMode, {
+    getName: imageTag,
+    getSize: (img) => img.Size,
+  });
 
   const fetchImages = async () => {
     try {
@@ -86,53 +96,58 @@ export const Images: React.FC = () => {
           <h3>No Images Found</h3>
         </div>
       ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Image Tag / Repo</th>
-                <th>Image ID</th>
-                <th>Size</th>
-                <th>Containers</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {images.map((img) => {
-                const tag = img.RepoTags?.[0] || '<none>:<none>';
-                return (
-                  <tr key={img.Id}>
-                    <td>
-                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{tag}</div>
-                      {img.RepoTags && img.RepoTags.length > 1 && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                          also: {img.RepoTags.slice(1).join(', ')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                      {img.Id.replace('sha256:', '').substring(0, 12)}
-                    </td>
-                    <td className="font-mono" style={{ fontSize: '0.85rem' }}>
-                      {formatBytes(img.Size)}
-                    </td>
-                    <td>
-                      <span className="badge badge-stopped">
-                        {img.Containers} container(s)
-                      </span>
-                    </td>
-                    <td>
-                      <DeleteButton
-                        title="Delete Image"
-                        onConfirm={() => handleDelete(img.Id)}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Image Tag / Repo</th>
+                  <th>Image ID</th>
+                  <th>Size</th>
+                  <th>Containers</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleImages.map((img) => {
+                  const tag = imageTag(img);
+                  return (
+                    <tr key={img.Id}>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{tag}</div>
+                        {img.RepoTags && img.RepoTags.length > 1 && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            also: {img.RepoTags.slice(1).join(', ')}
+                          </div>
+                        )}
+                      </td>
+                      <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                        {img.Id.replace('sha256:', '').substring(0, 12)}
+                      </td>
+                      <td className="font-mono" style={{ fontSize: '0.85rem' }}>
+                        {formatBytes(img.Size)}
+                      </td>
+                      <td>
+                        <span className="badge badge-stopped">
+                          {img.Containers} container(s)
+                        </span>
+                      </td>
+                      <td>
+                        <DeleteButton
+                          title="Delete Image"
+                          onConfirm={() => handleDelete(img.Id)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pull Image Modal */}
