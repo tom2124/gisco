@@ -24,12 +24,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'stacks', label: 'Stacks (Compose)', icon: Layers },
-    { id: 'templates', label: 'Templates', icon: FileCode },
-    { id: 'containers', label: 'Containers', icon: Box },
-    { id: 'images', label: 'Images', icon: Disc },
+    { id: 'stacks', label: 'Stacks', icon: Layers },
     { id: 'networks', label: 'Networks', icon: Database },
+    { id: 'containers', label: 'Containers', icon: Box },
+    { id: 'templates', label: 'Templates', icon: FileCode },
     { id: 'volumes', label: 'Volumes', icon: HardDrive },
+    { id: 'images', label: 'Images', icon: Disc },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
