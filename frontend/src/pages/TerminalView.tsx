@@ -26,11 +26,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [inputShellCmd, setInputShellCmd] = useState(initialCommand);
+  const [inputUser, setInputUser] = useState('');
   const [isMaximized, setIsMaximized] = useState(false);
   const [connected, setConnected] = useState(false);
   const [started, setStarted] = useState(false);
 
-  const initTerminal = (cmd: string) => {
+  const initTerminal = (cmd: string, user: string) => {
     if (!terminalRef.current) return;
 
     // Cleanup previous
@@ -74,10 +75,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     termInstanceRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    term.writeln(`\x1b[36m[gisco]\x1b[0m Connecting to container \x1b[32m${containerName}\x1b[0m via ${cmd || 'auto (bash → sh)'}...`);
+    term.writeln(`\x1b[36m[gisco]\x1b[0m Connecting to container \x1b[32m${containerName}\x1b[0m via ${cmd || 'auto (bash → sh)'}${user ? ` as ${user}` : ''}...`);
 
     // Connect WebSocket
-    const wsUrl = api.getTerminalWsUrl(containerId, cmd);
+    const wsUrl = api.getTerminalWsUrl(containerId, cmd, undefined, user);
     const ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
@@ -138,7 +139,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     // Auto-start the terminal on mount, deferred one task so React
     // StrictMode's mount-cleanup-mount cycle in dev doesn't open (and abort)
     // a throwaway connection on every open.
-    const timer = window.setTimeout(() => initTerminal(initialCommand), 0);
+    const timer = window.setTimeout(() => initTerminal(initialCommand, ''), 0);
     // Cleanup on unmount
     return () => {
       window.clearTimeout(timer);
@@ -187,13 +188,14 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                       e.preventDefault();
                       const newCmd = e.currentTarget.value;
                       setInputShellCmd(newCmd);
-                      initTerminal(newCmd);
+                      initTerminal(newCmd, inputUser);
                     }
                   }}
-                  placeholder="auto (bash → sh)"
+                  placeholder="Shell (auto: bash → sh)"
+                  title="Shell to execute (empty = auto: bash, fallback sh)"
                   style={{
                     width: 'auto',
-                    minWidth: '140px',
+                    minWidth: '130px',
                     padding: '4px 8px',
                     fontSize: '0.78rem',
                     height: 'auto',
@@ -209,11 +211,42 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   <option value="/bin/bash" />
                   <option value="/bin/zsh" />
                 </datalist>
+                <input
+                  type="text"
+                  list="user-options"
+                  value={inputUser}
+                  onChange={(e) => setInputUser(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const newUser = e.currentTarget.value;
+                      setInputUser(newUser);
+                      initTerminal(inputShellCmd, newUser);
+                    }
+                  }}
+                  placeholder="User (auto)"
+                  title="User to execute as (empty = container default)"
+                  style={{
+                    width: 'auto',
+                    minWidth: '90px',
+                    padding: '4px 8px',
+                    fontSize: '0.78rem',
+                    height: 'auto',
+                    fontFamily: 'var(--font-mono)',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-main)',
+                  }}
+                />
+                <datalist id="user-options">
+                  <option value="root" />
+                </datalist>
                 <button
                   className="btn btn-primary"
                   title={started ? 'Restart Shell' : 'Start Shell'}
                   onClick={() => {
-                    initTerminal(inputShellCmd);
+                    initTerminal(inputShellCmd, inputUser);
                   }}
                   style={{ padding: '4px 10px', fontSize: '0.78rem', height: 'auto' }}
                 >

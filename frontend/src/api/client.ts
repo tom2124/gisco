@@ -156,12 +156,13 @@ export const api = {
     }),
 
   // WebSocket URL helpers
-  getTerminalWsUrl: (containerId: string, cmd?: string, interactive?: boolean) => {
+  getTerminalWsUrl: (containerId: string, cmd?: string, interactive?: boolean, user?: string) => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     const params = new URLSearchParams();
     if (cmd) params.append('cmd', cmd);
     if (interactive !== undefined) params.append('interactive', interactive.toString());
+    if (user) params.append('user', user);
     const query = params.toString() ? `?${params.toString()}` : '';
     return `${proto}//${host}/api/ws/containers/${containerId}/terminal${query}`;
   },

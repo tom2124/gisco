@@ -22,9 +22,19 @@ pub async fn handle_exec_terminal(
     container_id: String,
     cmd: Option<String>,
     interactive: Option<bool>,
+    user: Option<String>,
     mut ws: WebSocket,
 ) -> Result<()> {
     let use_tty = interactive.unwrap_or(true);
+    // Empty user = container default (usually root, or the image USER).
+    let exec_user = user.and_then(|u| {
+        let trimmed = u.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
 
     // No explicit shell requested: prefer bash, fall back to POSIX sh.
     // Runs under /bin/sh -c so a single exec covers both cases.
@@ -53,6 +63,7 @@ pub async fn handle_exec_terminal(
         attach_stderr: Some(true),
         tty: Some(use_tty),
         cmd: Some(exec_cmd),
+        user: exec_user,
         ..Default::default()
     };
 
