@@ -11,6 +11,7 @@ import {
 import { ContainerMetrics, ContainerSummary, StackContainerInfo } from '../types';
 import DeleteButton from './DeleteButton';
 import { stackColor, STANDALONE_COLOR } from '../utils/stackColors';
+import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 
 interface ContainerTableProps {
   containers: (ContainerSummary | StackContainerInfo)[];
@@ -27,6 +28,8 @@ interface ContainerTableProps {
   groupByStack?: boolean;
   /** Stack names to badge as external (same indicator as Stacks/StackDetail). */
   externalStackNames?: Set<string>;
+  /** Row ordering within each group (or the flat list). Defaults to state, then name. */
+  sortMode?: SortMode;
 }
 
 const formatBytes = (bytes: number): string => {
@@ -105,6 +108,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   isStackView = false,
   groupByStack = true,
   externalStackNames = new Set<string>(),
+  sortMode = 'state',
 }) => {
   const handleExecAction = (containerId: string, containerName: string) => {
     // No explicit shell: backend prefers bash, falls back to POSIX sh
@@ -125,15 +129,17 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   const showStackCol = showStackColumn && !grouped;
   const colCount = (showStackCol ? 7 : 6);
 
-  const sorted = [...containers].sort((a, b) =>
-    getContainerName(a).localeCompare(getContainerName(b))
-  );
+  const sortedItems = sorted(containers, sortMode, {
+    stateRank: rankOf(CONTAINER_STATE_RANK),
+    getState: getContainerState,
+    getName: getContainerName,
+  });
 
-  const groups: { key: string; stack?: string; items: typeof sorted }[] = [];
+  const groups: { key: string; stack?: string; items: typeof sortedItems }[] = [];
   if (grouped) {
-    const byStack = new Map<string, typeof sorted>();
-    const standalone: typeof sorted = [];
-    for (const c of sorted) {
+    const byStack = new Map<string, typeof sortedItems>();
+    const standalone: typeof sortedItems = [];
+    for (const c of sortedItems) {
       const stack = getContainerStack(c);
       if (stack) {
         if (!byStack.has(stack)) byStack.set(stack, []);

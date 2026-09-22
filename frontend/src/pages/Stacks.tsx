@@ -10,8 +10,10 @@ import {
 import { Header } from '../components/Header';
 import { StackSummary } from '../types';
 import { api } from '../api/client';
+import { STACK_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
 import DeleteButton from '../components/DeleteButton';
+import SortSelect from '../components/SortSelect';
 
 interface StacksProps {
   stacks: StackSummary[];
@@ -29,15 +31,21 @@ export const Stacks: React.FC<StacksProps> = ({
   onSelectTab,
 }) => {
   const [search, setSearch] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('state');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const filtered = stacks
-    .filter((s) =>
+  const filtered = sorted(
+    stacks.filter((s) =>
       (s.name as string).toLowerCase().includes(search.toLowerCase())
-    )
-    // Managed stacks first, then externals (backend already sorts by name).
-    .sort((a, b) => Number(a.external ?? false) - Number(b.external ?? false));
+    ),
+    sortMode,
+    {
+      stateRank: rankOf(STACK_STATE_RANK),
+      getState: (s) => s.status,
+      getName: (s) => s.name as string,
+    }
+  );
 
   const handleAction = async (name: string, action: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,13 +112,15 @@ export const Stacks: React.FC<StacksProps> = ({
       />
 
       {/* Filter bar */}
-      <div style={{ marginBottom: '24px', maxWidth: '350px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search stacks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: '350px' }}
         />
+        <SortSelect value={sortMode} onChange={setSortMode} />
       </div>
 
       {filtered.length === 0 ? (

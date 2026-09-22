@@ -1,5 +1,6 @@
 # custom
 ._*
+.env
 
 # rust
 debug

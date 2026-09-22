@@ -3,6 +3,8 @@ import { Header } from '../components/Header';
 import { ContainerMetrics, ContainerSummary, StackSummary } from '../types';
 import { api } from '../api/client';
 import { ContainerTable } from '../components/ContainerTable';
+import SortSelect from '../components/SortSelect';
+import type { SortMode } from '../utils/sort';
 
 interface ContainersProps {
   stacks: StackSummary[];
@@ -24,6 +26,7 @@ export const Containers: React.FC<ContainersProps> = ({
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('state');
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -125,13 +128,15 @@ export const Containers: React.FC<ContainersProps> = ({
       />
 
       {/* Filter */}
-      <div style={{ marginBottom: '24px', maxWidth: '360px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search by container, image, or stack..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: '360px' }}
         />
+        <SortSelect value={sortMode} onChange={setSortMode} />
       </div>
 
       <ContainerTable
@@ -146,6 +151,7 @@ export const Containers: React.FC<ContainersProps> = ({
         onSelectStack={onSelectStack}
         isStackView={false}
         externalStackNames={externalStackNames}
+        sortMode={sortMode}
       />
     </div>
   );
