@@ -210,6 +210,11 @@ export const Templates: React.FC<TemplatesProps> = ({
                   <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
                     {tpl.filename}
                   </span>
+                  {tpl.description && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {tpl.description}
+                    </div>
+                  )}
                 </div>
               </div>
 

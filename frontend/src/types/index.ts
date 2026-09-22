@@ -10,6 +10,7 @@ export interface StackSummary {
   has_env: boolean;
   updated_at: string;
   external: boolean;
+  description?: string;
 }
 
 export interface StackContainerInfo {
@@ -45,12 +46,14 @@ export interface StackDetails {
   file_gid: number;
   file_mode: number;
   external: boolean;
+  description?: string;
 }
 
 export interface TemplateSummary {
   id: string;
   name: string;
   filename: string;
+  description?: string;
 }
 
 export interface TemplateDetails extends TemplateSummary {

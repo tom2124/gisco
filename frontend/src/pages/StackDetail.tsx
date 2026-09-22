@@ -206,6 +206,11 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               ? 'External compose project · not managed by gisco'
               : <>{details?.path} · Owner UID: {details?.file_uid}:{details?.file_gid}</>}
           </div>
+          {details?.description && (
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              {details.description}
+            </div>
+          )}
         </div>
 
         {/* Action Controls */}

@@ -4,13 +4,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::compose::StacksManager;
+use crate::compose::{extract_description, strip_description, StacksManager};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TemplateSummary {
     pub id: String,
     pub name: String,
     pub filename: String,
+    /// From a top-level `# desc: ...` comment in the template, if any.
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -120,7 +123,7 @@ impl TemplatesManager {
 
         self.stacks_manager.save_stack(
             stack_name,
-            &template.raw_content,
+            &strip_description(&template.raw_content),
             env_content,
             custom_uid,
             custom_gid,
@@ -137,9 +140,13 @@ impl TemplatesManager {
 fn template_summary_from_path(path: &Path) -> Option<TemplateSummary> {
     let filename = path.file_name()?.to_string_lossy().to_string();
     let stem = path.file_stem()?.to_string_lossy().to_string();
+    let description = fs::read_to_string(path)
+        .ok()
+        .and_then(|content| extract_description(&content));
     Some(TemplateSummary {
         id: stem.clone(),
         name: stem,
         filename,
+        description,
     })
 }

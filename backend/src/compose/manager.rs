@@ -39,6 +39,9 @@ pub struct StackSummary {
     /// `stack_dir` (not managed by gisco; operated via `docker compose -p`).
     #[serde(default)]
     pub external: bool,
+    /// From a top-level `# desc: ...` comment in the compose file, if any.
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -68,6 +71,9 @@ pub struct StackDetails {
     /// True when the project has no directory in `stack_dir`.
     #[serde(default)]
     pub external: bool,
+    /// From a top-level `# desc: ...` comment in the compose file, if any.
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Clone)]
@@ -151,6 +157,9 @@ impl StacksManager {
                         has_env,
                         updated_at,
                         external: false,
+                        description: fs::read_to_string(&c_file)
+                            .ok()
+                            .and_then(|content| extract_description(&content)),
                     });
                 }
             }
@@ -179,6 +188,7 @@ impl StacksManager {
                 has_env: false,
                 updated_at: String::new(),
                 external: true,
+                description: None,
             });
         }
 
@@ -213,6 +223,7 @@ impl StacksManager {
                 file_gid: 0,
                 file_mode: 0,
                 external: true,
+                description: None,
             });
         }
 
@@ -248,6 +259,7 @@ impl StacksManager {
 
         let total = containers_info.len();
         let status = stack_status(total, running_count);
+        let description = extract_description(&compose_content);
 
         Ok(StackDetails {
             name: name.to_string(),
@@ -262,6 +274,7 @@ impl StacksManager {
             file_gid,
             file_mode,
             external: false,
+            description,
         })
     }
 
@@ -436,6 +449,42 @@ pub fn valid_stack_name(name: &str) -> bool {
     re.is_match(name)
 }
 
+/// Extract a `# desc: ...` top-level comment (column 0) from compose text.
+/// Only the first match counts; empty descriptions yield None.
+pub fn extract_description(content: &str) -> Option<String> {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new(r"^#[ \t]*desc[ \t]*:(.*)$").unwrap());
+    content.lines().find_map(|line| {
+        if !line.starts_with('#') {
+            return None;
+        }
+        re.captures(line).and_then(|caps| {
+            let desc = caps[1].trim().to_string();
+            if desc.is_empty() {
+                None
+            } else {
+                Some(desc)
+            }
+        })
+    })
+}
+
+/// Remove all top-level `# desc: ...` lines (used when instantiating a
+/// template so the deployed compose file doesn't carry the blurb).
+pub fn strip_description(content: &str) -> String {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| regex::Regex::new(r"^#[ \t]*desc[ \t]*:.*$").unwrap());
+    let kept: Vec<&str> = content
+        .lines()
+        .filter(|line| !(line.starts_with('#') && re.is_match(line)))
+        .collect();
+    let mut out = kept.join("\n");
+    if content.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
 pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {    for filename in COMPOSE_FILENAMES {
         let p = dir.join(filename);
         if p.exists() && p.is_file() {
@@ -469,6 +518,35 @@ fn extract_services_from_yaml(yaml_content: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_extract_description() {
+        assert_eq!(
+            extract_description("# desc: My cool stack\nservices:\n  a:\n    image: x\n"),
+            Some("My cool stack".to_string())
+        );
+        // Indented comments are nested, not top-level.
+        assert_eq!(
+            extract_description("services:\n  a:\n    # desc: nested\n    image: x\n"),
+            None
+        );
+        // First match wins; empty descs are ignored.
+        assert_eq!(
+            extract_description("# desc:\n# desc: Second\n"),
+            Some("Second".to_string())
+        );
+        assert_eq!(extract_description("# description: nope\n"), None);
+        assert_eq!(extract_description("services: {}\n"), None);
+    }
+
+    #[test]
+    fn test_strip_description() {
+        let stripped = strip_description("# desc: Blurb\nservices:\n  a:\n    image: x\n");
+        assert_eq!(stripped, "services:\n  a:\n    image: x\n");
+        // Nested desc comments are left alone.
+        let nested = "services:\n  a:\n    # desc: keep me\n    image: x\n";
+        assert_eq!(strip_description(nested), nested);
+    }
 
     #[test]
     fn test_valid_stack_name() {

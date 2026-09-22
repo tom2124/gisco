@@ -199,6 +199,11 @@ export const Stacks: React.FC<StacksProps> = ({
                         {stack.running_services}/{stack.total_services} active
                       </span>
                     </div>
+                    {stack.description && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {stack.description}
+                      </div>
+                    )}
                   </div>
                 </div>
 
