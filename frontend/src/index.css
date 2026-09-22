@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
+  color-scheme: dark;
   --bg-main: #090d16;
   --bg-sidebar: #0f1523;
   --bg-card: rgba(19, 27, 43, 0.7);
@@ -145,7 +146,9 @@ code, pre, .font-mono {
   gap: 12px;
   padding: 10px 14px;
   border-radius: var(--radius-md);
+  background: transparent;
   color: var(--text-muted);
+  font-family: inherit;
   text-decoration: none;
   font-size: 0.95rem;
   font-weight: 500;
