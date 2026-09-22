@@ -176,65 +176,58 @@ export const Templates: React.FC<TemplatesProps> = ({
           </p>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '16px',
-          }}
-        >
-          {templates.map((tpl) => (
+        <div className="card" style={{ overflow: 'hidden' }}>
+          {templates.map((tpl, idx) => (
             <div
               key={tpl.id}
-              className="card interactive"
               onClick={() => handleOpenDeploy(tpl.id)}
-              style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+                padding: '12px 16px',
+                cursor: 'pointer',
+                borderBottom: idx === templates.length - 1 ? 'none' : '1px solid var(--border-subtle)',
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                 <div
                   style={{
                     background: 'rgba(255,255,255,0.04)',
-                    padding: '10px',
+                    padding: '8px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-subtle)',
                     flexShrink: 0,
+                    display: 'flex',
                   }}
                 >
-                  <FileCode size={20} color="var(--primary)" />
+                  <FileCode size={16} color="var(--primary)" />
                 </div>
-                <div>
-                  <h3 style={{ fontSize: '1.05rem', marginBottom: '2px' }}>{tpl.name}</h3>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 600 }}>{tpl.name}</div>
                   <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
                     {tpl.filename}
                   </span>
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '12px',
-                  borderTop: '1px solid var(--border-subtle)',
-                }}
-              >
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    className="btn btn-secondary btn-icon"
-                    title="Edit template"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenEdit(tpl.id);
-                    }}
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <DeleteButton
-                    title="Delete template"
-                    onConfirm={() => handleDelete(tpl.id)}
-                  />
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  className="btn btn-secondary btn-icon"
+                  title="Edit template"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(tpl.id);
+                  }}
+                >
+                  <Edit size={14} />
+                </button>
+                <DeleteButton
+                  title="Delete template"
+                  onConfirm={() => handleDelete(tpl.id)}
+                />
                 <button
                   className="btn btn-primary"
                   style={{ padding: '6px 14px', fontSize: '0.82rem' }}

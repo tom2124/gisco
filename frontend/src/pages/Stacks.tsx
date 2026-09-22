@@ -142,85 +142,78 @@ export const Stacks: React.FC<StacksProps> = ({
           </button>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-            gap: '20px',
-          }}
-        >
-          {filtered.map((stack) => {
+        <div className="card" style={{ overflow: 'hidden' }}>
+          {filtered.map((stack, idx) => {
             const name = stack.name as string;
+            const isLast = idx === filtered.length - 1;
             return (
               <div
                 key={name}
-                className="card interactive"
                 onClick={() => onSelectStack(name)}
                 style={{
                   display: 'flex',
-                  flexDirection: 'column',
+                  alignItems: 'center',
                   justifyContent: 'space-between',
-                  minHeight: '190px',
+                  gap: '16px',
+                  flexWrap: 'wrap',
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
                 }}
               >
-                <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <div
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <h3 style={{ fontSize: '1.2rem', margin: 0 }}>
-                          {name}
-                        </h3>
-                        {stack.external && (
-                          <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
-                            External
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="font-mono"
-                        style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}
-                      >
-                        {stack.external
-                          ? 'Not managed by gisco'
-                          : <>{stack.compose_file} {stack.has_env && '· .env'}</>}
-                      </div>
-                    </div>
-
-                    <span
-                      className={`badge ${
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      background:
                         stack.status === 'Running'
-                          ? 'badge-running'
+                          ? 'var(--status-running)'
                           : stack.status === 'Partial'
-                          ? 'badge-partial'
-                          : 'badge-stopped'
-                      }`}
+                          ? 'var(--status-warning)'
+                          : 'var(--status-stopped)',
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 600 }}>{name}</span>
+                      {stack.external && (
+                        <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                          External
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="font-mono"
+                      style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px' }}
                     >
-                      {stack.status}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    <strong>{stack.running_services}</strong> of{' '}
-                    <strong>{stack.total_services}</strong> services active
+                      {stack.external ? (
+                        'Not managed by gisco'
+                      ) : (
+                        <>{stack.compose_file} {stack.has_env && '· .env'}</>
+                      )}
+                      {' · '}
+                      <span>
+                        {stack.running_services}/{stack.total_services} active
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '16px',
-                    borderTop: '1px solid var(--border-subtle)',
-                  }}
-                >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span
+                    className={`badge ${
+                      stack.status === 'Running'
+                        ? 'badge-running'
+                        : stack.status === 'Partial'
+                        ? 'badge-partial'
+                        : 'badge-stopped'
+                    }`}
+                  >
+                    {stack.status}
+                  </span>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {/* Up needs a compose file; externals are operated via -p only */}
                     {!stack.external && (
@@ -249,9 +242,6 @@ export const Stacks: React.FC<StacksProps> = ({
                     >
                       <Square size={15} color="var(--status-error)" />
                     </button>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
                     <DeleteButton
                       title={stack.external ? 'Stop and remove stack containers' : 'Delete stack'}
                       size={15}
