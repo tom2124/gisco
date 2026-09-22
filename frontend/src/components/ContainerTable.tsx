@@ -155,7 +155,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
       groups.push({ key: 'stack:__standalone__', items: standalone });
     }
   } else {
-    groups.push({ key: 'all', items: sorted });
+    groups.push({ key: 'all', items: sortedItems });
   }
 
   const renderRow = (c: ContainerSummary | StackContainerInfo, accent: string) => {

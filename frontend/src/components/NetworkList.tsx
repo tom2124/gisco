@@ -3,12 +3,15 @@ import { Network, ChevronDown, ChevronUp } from 'lucide-react';
 import { NetworkGraph, ContainerNode, HostPortNode } from '../types';
 import ContainerCard from './ContainerCard';
 import NetworkDeleteButton from './NetworkDeleteButton';
+import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 
 interface NetworkListProps {
   graph: NetworkGraph;
   onNetworkDeleted?: () => void;
   onNavigateToContainers?: () => void;
   onSelectStack?: (stackName: string) => void;
+  /** Ordering of the container cards inside each expanded network. */
+  sortMode?: SortMode;
 }
 
 export const NetworkList: React.FC<NetworkListProps> = ({
@@ -16,6 +19,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
   onNetworkDeleted,
   onNavigateToContainers,
   onSelectStack,
+  sortMode = 'state',
 }) => {
   const [expandedNetworks, setExpandedNetworks] = useState<Set<string>>(new Set());
 
@@ -46,7 +50,11 @@ export const NetworkList: React.FC<NetworkListProps> = ({
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
       {sortedNetworks.map((net, netIdx) => {
-        const containers = networkContainers.get(net.id) || [];
+        const containers = sorted(networkContainers.get(net.id) || [], sortMode, {
+          stateRank: rankOf(CONTAINER_STATE_RANK),
+          getState: (c) => c.state,
+          getName: (c) => c.name,
+        });
         const hasContainers = containers.length > 0;
         const isExpanded = hasContainers && expandedNetworks.has(net.id);
         const containerCount = net.container_count ?? containers.length;

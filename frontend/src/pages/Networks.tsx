@@ -4,6 +4,8 @@ import { Header } from '../components/Header';
 import { NetworkGraph } from '../types';
 import { api } from '../api/client';
 import NetworkList from '../components/NetworkList';
+import SortSelect from '../components/SortSelect';
+import type { SortMode } from '../utils/sort';
 
 interface NetworksProps {
   onNavigateToContainers?: () => void;
@@ -16,6 +18,7 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [netName, setNetName] = useState('');
   const [netDriver, setNetDriver] = useState('bridge');
+  const [sortMode, setSortMode] = useState<SortMode>('state');
 
   const fetchNetworks = async () => {
     try {
@@ -65,6 +68,9 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
       />
 
       <div style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <SortSelect value={sortMode} onChange={setSortMode} />
+        </div>
         {loading && !graph ? (
           <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
             <Network size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
@@ -82,6 +88,7 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
             onNetworkDeleted={fetchNetworks}
             onNavigateToContainers={onNavigateToContainers}
             onSelectStack={onSelectStack}
+            sortMode={sortMode}
           />
         )}
       </div>
