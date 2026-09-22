@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { StackSummary, SystemStatus } from '../types';
+import { STACK_STATE_RANK, rankOf, sorted } from '../utils/sort';
 
 interface DashboardProps {
   status: SystemStatus | null;
@@ -29,6 +30,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const runningStacks = stacks.filter((s) => s.status === 'Running').length;
   const partialStacks = stacks.filter((s) => s.status === 'Partial').length;
   const managedStacks = stacks.filter((s) => !s.external);
+  const orderedStacks = sorted(managedStacks, 'state', {
+    stateRank: rankOf(STACK_STATE_RANK),
+    getState: (s) => s.status,
+    getName: (s) => s.name as string,
+  });
 
   return (
     <div>
@@ -125,8 +131,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {managedStacks.slice(0, 5).map((stack) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
+              {orderedStacks.map((stack) => (
                 <div
                   key={stack.name as string}
                   onClick={() => onSelectStack(stack.name as string)}
