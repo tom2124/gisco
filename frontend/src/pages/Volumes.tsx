@@ -85,7 +85,7 @@ export const Volumes: React.FC = () => {
               <tbody>
                 {visibleVolumes.map((v) => (
                   <tr key={v.Name}>
-                    <td>
+                    <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{v.Name}</div>
                       {v.CreatedAt && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
@@ -96,7 +96,7 @@ export const Volumes: React.FC = () => {
                     <td>
                       <span className="badge badge-stopped">{v.Driver || 'local'}</span>
                     </td>
-                    <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                    <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', wordBreak: 'break-all', minWidth: 0 }}>
                       {v.Mountpoint}
                     </td>
                     <td className="font-mono" style={{ fontSize: '0.85rem' }}>
