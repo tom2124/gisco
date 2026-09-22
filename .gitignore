@@ -26,3 +26,6 @@ templates
 
 # typescript
 *.tsbuildinfo
+
+# generated build version
+frontend/src/generated/

@@ -2,6 +2,7 @@ import React from 'react';
 import { Server, Folder, Shield } from 'lucide-react';
 import { Header } from '../components/Header';
 import { SystemStatus } from '../types';
+import { APP_VERSION } from '../generated/version';
 
 interface SettingsProps {
   status: SystemStatus | null;
@@ -134,6 +135,13 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
             <div>By Tom Campbell</div>
             <div>MIT License</div>
+            <div
+              className="font-mono"
+              title="Commit tag this build was made from, or the commit hash if there is no tag"
+              style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}
+            >
+              Build {APP_VERSION}
+            </div>
           </div>
         </div>
       </div>

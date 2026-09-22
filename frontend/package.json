@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/gen-version.cjs",
     "build": "tsc -b && vite build",
+    "prebuild": "node scripts/gen-version.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

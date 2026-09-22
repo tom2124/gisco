@@ -1,5 +1,8 @@
 # Stage 1: Build React frontend
 FROM node:22-alpine AS frontend-builder
+# Baked into the UI About section (tag or commit hash); release CI passes this.
+ARG APP_VERSION
+ENV APP_VERSION=${APP_VERSION}
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm install
