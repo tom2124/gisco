@@ -3,6 +3,8 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+import '@fontsource/iosevka/400.css';
+import '@fontsource/iosevka/600.css';
 import { X, Maximize2, Minimize2, RotateCw, Play } from 'lucide-react';
 import { api } from '../api/client';
 
@@ -44,7 +46,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     // Terminal instance
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: "'JetBrains Mono', monospace",
+      fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
       fontSize: 14,
       theme: {
         background: '#090d16',

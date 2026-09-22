@@ -371,6 +371,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               fontSize: '0.85rem',
               color: '#38bdf8',
               whiteSpace: 'pre-wrap',
+              fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
             }}
           >
             {actionLogs.length === 0 ? (
