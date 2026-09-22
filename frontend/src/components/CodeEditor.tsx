@@ -31,7 +31,10 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
   language?: 'yaml' | 'env';
   placeholder?: string;
+  /** Fixed height (e.g. '300px'), or 'auto' to grow with content. */
   height?: string;
+  /** Cap for 'auto' mode (e.g. '75vh'); the editor scrolls past it. */
+  maxHeight?: string;
   readOnly?: boolean;
   autoFocus?: boolean;
 }
@@ -92,6 +95,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   language = 'yaml',
   placeholder = '',
   height = '300px',
+  maxHeight = '75vh',
   readOnly = false,
   autoFocus = false,
 }) => {
@@ -164,7 +168,17 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     });
   }, [readOnly]);
 
-  return <div ref={containerRef} className="cm-editor" style={{ height }} />;
+  return (
+    <div
+      ref={containerRef}
+      className="cm-editor"
+      style={
+        height === 'auto'
+          ? { height: 'auto', maxHeight, overflowY: 'auto' }
+          : { height }
+      }
+    />
+  );
 };
 
 export default CodeEditor;

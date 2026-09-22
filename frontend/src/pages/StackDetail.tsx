@@ -311,7 +311,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             value={composeText}
             onChange={setComposeText}
             language="yaml"
-            height="500px"
+            height="auto"
           />
         </div>
       )}
@@ -326,7 +326,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             value={envText}
             onChange={setEnvText}
             language="env"
-            height="400px"
+            height="auto"
             placeholder="# KEY=value"
           />
         </div>
