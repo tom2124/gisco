@@ -67,18 +67,18 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
         }
       />
 
-      <div style={{ padding: '24px' }}>
+      <div style={{ padding: '16px 0 0' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
           <SortSelect value={sortMode} onChange={setSortMode} />
         </div>
         {loading && !graph ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Network size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <p>Loading networks...</p>
           </div>
         ) : !graph || graph.networks.length === 0 ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Network size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <h3>No Networks Found</h3>
             <p style={{ marginTop: '6px' }}>No Docker networks found.</p>
           </div>

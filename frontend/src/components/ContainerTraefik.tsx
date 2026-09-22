@@ -42,7 +42,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                 background: 'rgba(16, 185, 129, 0.07)',
                 border: '1px solid rgba(16, 185, 129, 0.2)',
                 borderRadius: 'var(--radius-md)',
-                padding: '8px 12px',
+                padding: '6px 10px',
                 fontSize: '0.78rem',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>

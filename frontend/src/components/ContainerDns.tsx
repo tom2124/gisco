@@ -53,7 +53,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
               background: 'rgba(56, 189, 248, 0.1)',
               border: '1px solid rgba(56, 189, 248, 0.2)',
               borderRadius: 'var(--radius-md)',
-              padding: '8px 12px',
+              padding: '6px 10px',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
               color: '#7dd3fc',

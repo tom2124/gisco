@@ -128,7 +128,7 @@ export const Containers: React.FC<ContainersProps> = ({
       />
 
       {/* Filter */}
-      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search by container, image, or stack..."

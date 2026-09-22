@@ -92,7 +92,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 20px',
+                padding: '10px 12px',
                 cursor: hasContainers ? 'pointer' : 'default',
                 background: isExpanded ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
               }}
@@ -101,8 +101,8 @@ export const NetworkList: React.FC<NetworkListProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div
                   style={{
-                    width: '44px',
-                    height: '44px',
+                    width: '34px',
+                    height: '34px',
                     borderRadius: 'var(--radius-md)',
                     background: hasContainers
                       ? 'linear-gradient(135deg, #10b981, #059669)'
@@ -114,11 +114,11 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                     color: hasContainers ? '#000' : 'var(--text-dim)',
                   }}
                 >
-                  <Network size={22} />
+                  <Network size={18} />
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>{net.name}</h3>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>{net.name}</h3>
                     <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
                       {net.driver} · {net.scope}
                     </span>
@@ -170,7 +170,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
 
             {/* Expanded Containers */}
             {isExpanded && (
-              <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.15)' }}>
+              <div style={{ padding: '12px', borderTop: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.15)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <h4 style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-muted)' }}>
                     {containers.length} container(s) in this network
@@ -182,7 +182,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {containers.map((c: ContainerNode) => {
                     const containerHostPorts = graph.host_ports.filter(hp => hp.target_container_id === c.id);
 

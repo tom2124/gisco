@@ -91,8 +91,8 @@ export const Images: React.FC = () => {
       />
 
       {images.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <Disc size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Disc size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Images Found</h3>
         </div>
       ) : (

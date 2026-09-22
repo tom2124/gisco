@@ -19,7 +19,7 @@ export const ContainerCard: React.FC<ContainerCardProps> = ({
   onNavigateToContainers,
   onSelectStack,
 }) => (
-  <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+  <div className="card" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
     <ContainerHeader container={container} onNavigateToContainers={onNavigateToContainers} onSelectStack={onSelectStack} />
     <ContainerInterfaces container={container} />
     <ContainerDns container={container} />

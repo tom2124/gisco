@@ -116,8 +116,8 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   };
   if (containers.length === 0) {
     return (
-      <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <Box size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+      <div className="card" style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <Box size={28} style={{ opacity: 0.3, marginBottom: '8px' }} />
         <p>No containers to display.</p>
       </div>
     );
@@ -230,7 +230,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                 <td>
                   {isRunning && m ? (
                     <div style={{ fontSize: '0.82rem' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
                           {m.cpu_percent.toFixed(1)}% CPU
                         </span>

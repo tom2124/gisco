@@ -22,7 +22,7 @@ export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containe
             background: 'rgba(245, 158, 11, 0.1)',
             border: '1px solid rgba(245, 158, 11, 0.2)',
             borderRadius: 'var(--radius-md)',
-            padding: '8px 12px',
+            padding: '6px 10px',
             fontFamily: 'var(--font-mono)',
             fontSize: '0.75rem',
             color: '#f59e0b',

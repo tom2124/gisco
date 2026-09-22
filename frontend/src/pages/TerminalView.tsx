@@ -167,7 +167,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
           flexDirection: 'column',
         }}
       >
-        <div className="modal-header" style={{ padding: '12px 20px', flexShrink: 0 }}>
+        <div className="modal-header" style={{ padding: '10px 12px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span

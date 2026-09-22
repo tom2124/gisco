@@ -61,8 +61,8 @@ export const Volumes: React.FC = () => {
       />
 
       {volumes.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <HardDrive size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <HardDrive size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Volumes Found</h3>
         </div>
       ) : (

@@ -25,7 +25,7 @@ export function stackColor(stackName: string): StackColor {
   const hue = hashString(stackName) % 360;
   return {
     accent: `hsl(${hue} 75% 65%)`,
-    soft: `hsl(${hue} 75% 60% / 0.12)`,
+    soft: `hsl(${hue} 75% 60% / 0.05)`,
     border: `hsl(${hue} 75% 60% / 0.35)`,
   };
 }
@@ -33,6 +33,6 @@ export function stackColor(stackName: string): StackColor {
 /** Neutral styling for standalone (non-stack) containers. */
 export const STANDALONE_COLOR: StackColor = {
   accent: 'var(--text-dim)',
-  soft: 'rgba(148, 163, 184, 0.08)',
+  soft: 'rgba(148, 163, 184, 0.05)',
   border: 'var(--border-subtle)',
 };

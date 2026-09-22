@@ -112,7 +112,7 @@ export const Stacks: React.FC<StacksProps> = ({
       />
 
       {/* Filter bar */}
-      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search stacks..."
@@ -126,9 +126,9 @@ export const Stacks: React.FC<StacksProps> = ({
       {filtered.length === 0 ? (
         <div
           className="card"
-          style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}
+          style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}
         >
-          <Layers size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+          <Layers size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Stacks Found</h3>
           <p style={{ marginTop: '6px', marginBottom: '20px' }}>
             No compose projects found in your stack directory.

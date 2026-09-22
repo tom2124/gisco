@@ -24,10 +24,10 @@ export const Settings: React.FC<SettingsProps> = ({
         isRefreshing={isRefreshing}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
         {/* Docker Daemon Status */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <Server size={20} color="var(--primary)" />
             <h3>Docker Daemon Connection</h3>
           </div>
@@ -64,7 +64,7 @@ export const Settings: React.FC<SettingsProps> = ({
 
         {/* Storage & Ownership Configuration */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <Folder size={20} color="var(--accent-cyan)" />
             <h3>Storage & Ownership</h3>
           </div>

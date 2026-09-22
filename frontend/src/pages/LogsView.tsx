@@ -74,7 +74,7 @@ export const LogsView: React.FC<LogsViewProps> = ({
           flexDirection: 'column',
         }}
       >
-        <div className="modal-header" style={{ padding: '12px 20px' }}>
+        <div className="modal-header" style={{ padding: '10px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span
               className={`status-dot ${connected ? 'online' : ''}`}

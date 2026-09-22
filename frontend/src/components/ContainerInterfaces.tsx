@@ -23,7 +23,7 @@ export const ContainerInterfaces: React.FC<ContainerInterfacesProps> = ({ contai
           background: 'rgba(16, 185, 129, 0.1)',
           border: '1px solid rgba(16, 185, 129, 0.2)',
           borderRadius: 'var(--radius-md)',
-          padding: '8px 12px',
+          padding: '6px 10px',
           minWidth: '240px',
           flex: 1,
         }}>

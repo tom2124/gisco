@@ -13,8 +13,8 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({ container, onNavigate
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
       <div
         style={{
-          width: '40px',
-          height: '40px',
+          width: '34px',
+          height: '34px',
           borderRadius: 'var(--radius-md)',
           background: container.state === 'running'
             ? 'linear-gradient(135deg, #10b981, #059669)'
@@ -25,7 +25,7 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({ container, onNavigate
           color: '#000',
         }}
       >
-        <Server size={20} />
+        <Server size={17} />
       </div>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

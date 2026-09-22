@@ -58,17 +58,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '20px',
-          marginBottom: '32px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '12px',
+          marginBottom: '20px',
         }}
       >
         <div className="card interactive" onClick={() => onSelectTab('stacks')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>Compose Stacks</span>
-            <Layers size={20} color="var(--primary)" />
+            <Layers size={17} color="var(--primary)" />
           </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 700, margin: '12px 0 6px' }}>
+          <div style={{ fontSize: '1.7rem', fontWeight: 700, margin: '8px 0 4px' }}>
             {stacks.length}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -80,9 +80,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="card interactive" onClick={() => onSelectTab('containers')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>Containers</span>
-            <Box size={20} color="var(--status-running)" />
+            <Box size={17} color="var(--status-running)" />
           </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 700, margin: '12px 0 6px' }}>
+          <div style={{ fontSize: '1.7rem', fontWeight: 700, margin: '8px 0 4px' }}>
             {status?.containers_total ?? 0}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -96,9 +96,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="card interactive" onClick={() => onSelectTab('images')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>Docker Images</span>
-            <Disc size={20} color="var(--accent-indigo)" />
+            <Disc size={17} color="var(--accent-indigo)" />
           </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 700, margin: '12px 0 6px' }}>
+          <div style={{ fontSize: '1.7rem', fontWeight: 700, margin: '8px 0 4px' }}>
             {status?.images_count ?? 0}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -108,7 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Two column layout: Stacks preview + Host specs */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
         {/* Recent Stacks */}
         <div className="card">
           <div
@@ -140,7 +140,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
+                    padding: '8px 12px',
                     background: 'rgba(255, 255, 255, 0.02)',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-subtle)',
