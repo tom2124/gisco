@@ -176,11 +176,12 @@ export const Templates: React.FC<TemplatesProps> = ({
           </p>
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
           {templates.map((tpl, idx) => (
             <div
               key={tpl.id}
               onClick={() => handleOpenDeploy(tpl.id)}
+              className={`list-row${idx % 2 === 1 ? ' list-row-alt' : ''}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -206,19 +207,31 @@ export const Templates: React.FC<TemplatesProps> = ({
                   <FileCode size={16} color="var(--primary)" />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 600 }}>{tpl.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{tpl.name}</div>
+                    {tpl.description && (
+                      <span
+                        title={tpl.description}
+                        style={{
+                          fontSize: '0.8rem',
+                          color: 'var(--text-muted)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          minWidth: 0,
+                        }}
+                      >
+                        {tpl.description}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
                     {tpl.filename}
                   </span>
-                  {tpl.description && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {tpl.description}
-                    </div>
-                  )}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px', flexShrink: 0 }}>
                 <button
                   className="btn btn-secondary btn-icon"
                   title="Edit template"

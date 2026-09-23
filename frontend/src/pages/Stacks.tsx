@@ -146,7 +146,7 @@ export const Stacks: React.FC<StacksProps> = ({
           </button>
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
           {filtered.map((stack, idx) => {
             const name = stack.name as string;
             const isLast = idx === filtered.length - 1;
@@ -154,6 +154,7 @@ export const Stacks: React.FC<StacksProps> = ({
               <div
                 key={name}
                 onClick={() => onSelectStack(name)}
+                className={`list-row${idx % 2 === 1 ? ' list-row-alt' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -181,11 +182,26 @@ export const Stacks: React.FC<StacksProps> = ({
                     }}
                   />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1rem', fontWeight: 600 }}>{name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{name}</span>
                       {stack.external && (
-                        <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                        <span className="badge badge-warning" style={{ fontSize: '0.7rem', flexShrink: 0 }}>
                           External
+                        </span>
+                      )}
+                      {stack.description && (
+                        <span
+                          title={stack.description}
+                          style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--text-muted)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            minWidth: 0,
+                          }}
+                        >
+                          {stack.description}
                         </span>
                       )}
                     </div>
@@ -203,15 +219,10 @@ export const Stacks: React.FC<StacksProps> = ({
                         {stack.running_services}/{stack.total_services} active
                       </span>
                     </div>
-                    {stack.description && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        {stack.description}
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px', flexShrink: 0 }}>
                   <span
                     className={`badge ${
                       stack.status === 'Running'

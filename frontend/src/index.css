@@ -458,6 +458,19 @@ input:focus, select:focus, textarea:focus {
   background: rgba(0, 0, 0, 0.15);
 }
 
+/* Lists */
+.list-row {
+  transition: background 0.15s ease;
+}
+
+.list-row-alt {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.list-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
 /* Terminal & Console */
 .terminal-window {
   background: #000;
