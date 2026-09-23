@@ -7,6 +7,8 @@
   background: var(--bg-code);
   overflow: hidden;
   text-align: left;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cm-editor .cm-scroller {

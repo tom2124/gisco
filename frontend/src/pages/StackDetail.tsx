@@ -177,7 +177,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   return (
     <div>
       {/* Navigation & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <button className="btn btn-secondary btn-icon" onClick={onBack}>
           <ArrowLeft size={18} />
         </button>
@@ -317,6 +317,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             onChange={setComposeText}
             language="yaml"
             height="auto"
+            maxHeight="max(240px, calc(100vh - 245px))"
           />
         </div>
       )}
@@ -332,6 +333,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             onChange={setEnvText}
             language="env"
             height="auto"
+            maxHeight="max(240px, calc(100vh - 245px))"
             placeholder="# KEY=value"
           />
         </div>
