@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Network, ChevronDown, ChevronUp } from 'lucide-react';
+import { Network, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { NetworkGraph, ContainerNode, HostPortNode } from '../types';
 import NetworkContainerDetail from './NetworkContainerDetail';
 import NetworkDeleteButton from './NetworkDeleteButton';
+import Copyable from './Copyable';
 import { parseTraefikLabels } from '../utils/traefik';
 import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 
@@ -212,11 +213,10 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                             const containerHostPorts = graph.host_ports.filter(
                               (hp) => hp.target_container_id === c.id
                             );
-                            const traefikHosts = [
-                              ...new Set(
-                                (parseTraefikLabels(c.labels)?.routers ?? []).flatMap((r) => r.hosts)
-                              ),
-                            ];
+                            const traefik = parseTraefikLabels(c.labels);
+                            const traefikRouters = (traefik?.routers ?? []).filter(
+                              (r) => r.hosts.length > 0
+                            );
                             const detailKey = `${net.id}:${c.id}`;
                             const showDetail = expandedContainer === detailKey;
 
@@ -276,7 +276,31 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                     })()}
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem', color: '#a7f3d0' }}>
-                                    {traefikHosts.length > 0 ? traefikHosts.join(', ') : (
+                                    {traefikRouters.length > 0 ? (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                                        {traefikRouters.flatMap((r) =>
+                                          r.hosts.map((host) => (
+                                            <span key={`${r.name}:${host}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                              <Copyable text={host}>
+                                                <span>{host}</span>
+                                              </Copyable>
+                                              {r.protocol === 'http' && !host.includes('*') && (
+                                                <a
+                                                  href={`${r.tls ? 'https' : 'http'}://${host}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  title={`Open ${host} in new tab`}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  style={{ display: 'inline-flex', color: 'var(--text-dim)' }}
+                                                >
+                                                  <ExternalLink size={12} />
+                                                </a>
+                                              )}
+                                            </span>
+                                          ))
+                                        )}
+                                      </div>
+                                    ) : (
                                       <span style={{ color: 'var(--text-dim)' }}>—</span>
                                     )}
                                   </td>

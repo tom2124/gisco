@@ -54,11 +54,9 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                     <span className="badge badge-running" style={{ fontSize: '0.65rem' }}>TLS</span>
                   )}
                   {router.entrypoints.map((ep) => (
-                    <Copyable key={ep} text={ep}>
-                      <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                        {ep}
-                      </span>
-                    </Copyable>
+                    <span key={ep} className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                      {ep}
+                    </span>
                   ))}
                 </div>
                 {router.hosts.length > 0 ? (
