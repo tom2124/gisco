@@ -252,17 +252,28 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                     {iface && iface.aliases.length > 0 ? iface.aliases.join(', ') : '—'}
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem' }}>
-                                    {containerHostPorts.length > 0 ? (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                        {containerHostPorts.map((hp, idx) => (
-                                          <span key={idx} style={{ color: '#f59e0b' }}>
-                                            {hp.host_port}→{hp.target_container_port}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span style={{ color: 'var(--text-dim)' }}>—</span>
-                                    )}
+                                    {(() => {
+                                      // v4 + v6 publish the same mapping twice (0.0.0.0 vs ::);
+                                      // collapse identical port mappings, keeping protocol distinct.
+                                      const seen = new Set<string>();
+                                      const unique = containerHostPorts.filter((hp) => {
+                                        const key = `${hp.host_port}→${hp.target_container_port}/${hp.protocol}`;
+                                        if (seen.has(key)) return false;
+                                        seen.add(key);
+                                        return true;
+                                      });
+                                      return unique.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                          {unique.map((hp, idx) => (
+                                            <span key={idx} style={{ color: '#f59e0b' }}>
+                                              {hp.host_port}→{hp.target_container_port}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-dim)' }}>—</span>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem', color: '#a7f3d0' }}>
                                     {traefikHosts.length > 0 ? traefikHosts.join(', ') : (
