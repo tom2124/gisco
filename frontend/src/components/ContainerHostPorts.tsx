@@ -26,6 +26,7 @@ export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containe
             fontFamily: 'var(--font-mono)',
             fontSize: '0.75rem',
             color: '#f59e0b',
+            whiteSpace: 'nowrap',
           }}>
             {hp.host_ip}:{hp.host_port} → {hp.target_container_port}/{hp.protocol}
           </div>

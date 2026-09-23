@@ -280,13 +280,22 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                 <td className="font-mono" style={{ fontSize: '0.8rem' }}>
                   {ports && ports.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      {ports.map((p, idx) => (
-                        <span key={idx}>
-                          {p.PublicPort
-                            ? `${p.IP || '0.0.0.0'}:${p.PublicPort}->${p.PrivatePort}/${p.Type || 'tcp'}`
-                            : `${p.PrivatePort}/${p.Type || 'tcp'}`}
-                        </span>
-                      ))}
+                      {ports
+                        .filter((p, idx, arr) => {
+                          // v4 + v6 publish the same mapping twice (0.0.0.0 vs ::);
+                          // collapse identical mappings, keeping protocol distinct.
+                          const key = `${p.PublicPort}->${p.PrivatePort}/${p.Type || 'tcp'}`;
+                          return arr.findIndex(
+                            (q) => `${q.PublicPort}->${q.PrivatePort}/${q.Type || 'tcp'}` === key
+                          ) === idx;
+                        })
+                        .map((p, idx) => (
+                          <span key={idx} style={{ whiteSpace: 'nowrap' }}>
+                            {p.PublicPort
+                              ? `${p.IP || '0.0.0.0'}:${p.PublicPort}->${p.PrivatePort}/${p.Type || 'tcp'}`
+                              : `${p.PrivatePort}/${p.Type || 'tcp'}`}
+                          </span>
+                        ))}
                     </div>
                   ) : (
                     '—'

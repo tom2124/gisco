@@ -1,6 +1,47 @@
 # gisco
 
+<p align="center">
+  <img src="frontend/public/logo.svg" width="96" alt="gisco logo — a Phoenician giml">
+</p>
+
+<p align="center">
+  Self-hosted web UI for managing Docker containers and Compose stacks.<br>
+  Named for the Punic general Gisco — the logo is a Phoenician giml (𐤂).
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/docker-compose-v2-blue.svg" alt="Docker Compose v2">
+</p>
+
 Gisco is a web interface for managing Docker containers and Compose stacks, viewing and editing containers, images, networks, volumes, stack templates, plus terminal, logs, and stats streaming.
+
+## Screenshots
+
+### Stacks
+
+![Stacks list](docs/screenshots/stacks.png)
+
+### Networks
+
+![Network topology](docs/screenshots/networks.png)
+
+### Containers
+
+![Containers list](docs/screenshots/containers.png)
+
+### Stack detail
+
+![Stack detail with compose editor](docs/screenshots/stack-detail.png)
+
+## Features
+
+- **Stacks** — create/edit/delete compose stacks with `.env` support; external projects detected automatically
+- **Containers** — grouped by stack, with state, uptime, metrics, terminal, logs and actions
+- **Networks** — live topology with interfaces, DNS names, port mappings and Traefik routing
+- **Images & volumes** — sizes, pull, prune
+- **Templates** — parameterized compose files with a deploy dialog
+- **Terminal & logs** — xterm.js exec terminals and live log streaming over WebSockets
 
 ## Quickstart
 

@@ -265,7 +265,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                       return unique.length > 0 ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                           {unique.map((hp, idx) => (
-                                            <span key={idx} style={{ color: '#f59e0b' }}>
+                                            <span key={idx} style={{ color: '#f59e0b', whiteSpace: 'nowrap' }}>
                                               {hp.host_port}→{hp.target_container_port}
                                             </span>
                                           ))}
