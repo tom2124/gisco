@@ -84,7 +84,7 @@ pub struct NetworkGraphBuilder;
 
 /// Sort key for stable ascending IP order (numeric octets, not lexical,
 /// so .10 sorts after .2). Empty/non-IPv4 values sort last.
-fn ip_sort_key(ip: &str) -> (u8, [u8; 4], &str) {
+pub(crate) fn ip_sort_key(ip: &str) -> (u8, [u8; 4], &str) {
     if ip.is_empty() {
         return (2, [0; 4], "");
     }

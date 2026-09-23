@@ -31,6 +31,10 @@ export interface StackContainerInfo {
     gateway: string;
     aliases: string[];
   }>;
+  hostname?: string;
+  domainname?: string;
+  labels?: Record<string, string>;
+  host_ports?: HostPortNode[];
 }
 
 export interface StackDetails {

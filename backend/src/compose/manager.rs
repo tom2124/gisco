@@ -53,6 +53,18 @@ pub struct StackContainerInfo {
     pub status: String,
     pub image: String,
     pub ports: Vec<String>,
+    #[serde(default)]
+    pub interfaces: Vec<crate::network_graph::builder::ContainerInterface>,
+    /// Container labels (drives Traefik detection on the frontend).
+    #[serde(default)]
+    pub labels: std::collections::HashMap<String, String>,
+    /// Host port mappings derived from published ports.
+    #[serde(default)]
+    pub host_ports: Vec<crate::network_graph::builder::HostPortNode>,
+    #[serde(default)]
+    pub hostname: Option<String>,
+    #[serde(default)]
+    pub domainname: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -206,7 +218,8 @@ impl StacksManager {
             if stack_containers.is_empty() {
                 anyhow::bail!("Stack '{}' not found", name);
             }
-            let (containers_info, running_count) = container_infos(&stack_containers);
+            let hostnames = inspect_hostnames(docker, &stack_containers).await;
+            let (containers_info, running_count) = container_infos(&stack_containers, &hostnames);
             let services = external_services(&stack_containers);
             let total = containers_info.len();
             let status = stack_status(total, running_count);
@@ -255,7 +268,8 @@ impl StacksManager {
 
         // Correlate with running containers
         let stack_containers = docker.list_containers_for_stack(name).await.unwrap_or_default();
-        let (containers_info, running_count) = container_infos(&stack_containers);
+        let hostnames = inspect_hostnames(docker, &stack_containers).await;
+        let (containers_info, running_count) = container_infos(&stack_containers, &hostnames);
 
         let total = containers_info.len();
         let status = stack_status(total, running_count);
@@ -354,6 +368,31 @@ impl StacksManager {
     }
 }
 
+/// Hostname/domainname per container id, fetched concurrently.
+/// Inspect failures map to absent entries (callers treat those as None).
+async fn inspect_hostnames(
+    docker: &DockerService,
+    containers: &[ContainerSummary],
+) -> HashMap<String, (Option<String>, Option<String>)> {
+    futures_util::future::join_all(containers.iter().map(|c| {
+        let id = c.id.clone().unwrap_or_default();
+        let docker = docker.clone();
+        async move {
+            let info = docker
+                .inspect_container(&id)
+                .await
+                .ok()
+                .and_then(|insp| insp.config)
+                .map(|cfg| (cfg.hostname, cfg.domainname));
+            (id, info)
+        }
+    }))
+    .await
+    .into_iter()
+    .filter_map(|(id, info)| info.map(|i| (id, i)))
+    .collect()
+}
+
 fn stack_status(total: usize, running: usize) -> StackStatus {
     if total == 0 {
         StackStatus::Stopped
@@ -366,7 +405,10 @@ fn stack_status(total: usize, running: usize) -> StackStatus {
     }
 }
 
-fn container_infos(containers: &[ContainerSummary]) -> (Vec<StackContainerInfo>, usize) {
+fn container_infos(
+    containers: &[ContainerSummary],
+    hostnames: &HashMap<String, (Option<String>, Option<String>)>,
+) -> (Vec<StackContainerInfo>, usize) {
     let mut infos = Vec::new();
     let mut running_count = 0;
 
@@ -391,6 +433,7 @@ fn container_infos(containers: &[ContainerSummary]) -> (Vec<StackContainerInfo>,
         let status = c.status.clone().unwrap_or_default();
         let image = c.image.clone().unwrap_or_default();
 
+        let mut host_ports = Vec::new();
         let ports = c
             .ports
             .as_ref()
@@ -398,6 +441,24 @@ fn container_infos(containers: &[ContainerSummary]) -> (Vec<StackContainerInfo>,
                 ports
                     .iter()
                     .map(|p| {
+                        if let Some(hp) = p.public_port {
+                            let hip = p.ip.clone().unwrap_or_else(|| "0.0.0.0".to_string());
+                            let proto = p
+                                .typ
+                                .as_ref()
+                                .map(|t| t.to_string())
+                                .unwrap_or_else(|| "tcp".to_string());
+                            host_ports.push(
+                                crate::network_graph::builder::HostPortNode {
+                                    id: format!("host_port_{}_{}_{}", hip, hp, proto),
+                                    host_ip: hip.clone(),
+                                    host_port: hp,
+                                    protocol: proto.clone(),
+                                    target_container_id: id.clone(),
+                                    target_container_port: p.private_port,
+                                },
+                            );
+                        }
                         format!(
                             "{}:{}->{}/{}",
                             p.ip.as_deref().unwrap_or("0.0.0.0"),
@@ -410,6 +471,34 @@ fn container_infos(containers: &[ContainerSummary]) -> (Vec<StackContainerInfo>,
             })
             .unwrap_or_default();
 
+        let mut interfaces = Vec::new();
+        if let Some(settings) = &c.network_settings {
+            if let Some(nets) = &settings.networks {
+                for (net_name, endpoint) in nets {
+                    interfaces.push(crate::network_graph::builder::ContainerInterface {
+                        network_id: endpoint
+                            .network_id
+                            .clone()
+                            .unwrap_or_else(|| net_name.clone()),
+                        network_name: net_name.clone(),
+                        ip_address: endpoint.ip_address.clone().unwrap_or_default(),
+                        mac_address: endpoint.mac_address.clone().unwrap_or_default(),
+                        gateway: endpoint.gateway.clone().unwrap_or_default(),
+                        aliases: endpoint.aliases.clone().unwrap_or_default(),
+                    });
+                }
+            }
+        }
+        interfaces.sort_by(|a, b| {
+            crate::network_graph::builder::ip_sort_key(&a.ip_address)
+                .cmp(&crate::network_graph::builder::ip_sort_key(&b.ip_address))
+        });
+
+        let (hostname, domainname) = hostnames
+            .get(&id)
+            .cloned()
+            .unwrap_or((None, None));
+
         infos.push(StackContainerInfo {
             id,
             name: c_name,
@@ -418,6 +507,11 @@ fn container_infos(containers: &[ContainerSummary]) -> (Vec<StackContainerInfo>,
             status,
             image,
             ports,
+            interfaces,
+            labels: c.labels.clone().unwrap_or_default(),
+            host_ports,
+            hostname,
+            domainname,
         });
     }
 
@@ -521,13 +615,25 @@ mod tests {
 
     #[test]
     fn test_container_infos() {
-        use bollard::models::{ContainerSummary, Port};
+        use bollard::models::{ContainerSummary, ContainerSummaryNetworkSettings, EndpointSettings, Port};
         use std::collections::HashMap;
 
         let mut labels = HashMap::new();
         labels.insert(
             "com.docker.compose.service".to_string(),
             "web".to_string(),
+        );
+        let mut networks = HashMap::new();
+        networks.insert(
+            "demo_default".to_string(),
+            EndpointSettings {
+                network_id: Some("net123".to_string()),
+                ip_address: Some("10.0.0.2".to_string()),
+                mac_address: Some("aa:bb:cc".to_string()),
+                gateway: Some("10.0.0.1".to_string()),
+                aliases: Some(vec!["web".to_string()]),
+                ..Default::default()
+            },
         );
         let containers = vec![
             ContainerSummary {
@@ -543,6 +649,10 @@ mod tests {
                     typ: None,
                 }]),
                 labels: Some(labels),
+                network_settings: Some(ContainerSummaryNetworkSettings {
+                    networks: Some(networks),
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             ContainerSummary {
@@ -557,16 +667,30 @@ mod tests {
             },
         ];
 
-        let (infos, running) = container_infos(&containers);
+        let (infos, running) = container_infos(&containers, &HashMap::new());
         assert_eq!(running, 1);
         assert_eq!(infos.len(), 2);
         assert_eq!(infos[0].name, "myapp-web-1");
         assert_eq!(infos[0].service.as_deref(), Some("web"));
         assert_eq!(infos[0].ports, vec!["0.0.0.0:8080->80/tcp"]);
+        assert_eq!(infos[0].interfaces.len(), 1);
+        assert_eq!(infos[0].interfaces[0].network_id, "net123");
+        assert_eq!(infos[0].interfaces[0].network_name, "demo_default");
+        assert_eq!(infos[0].interfaces[0].ip_address, "10.0.0.2");
+        assert_eq!(infos[0].interfaces[0].aliases, vec!["web"]);
+        assert_eq!(
+            infos[0].labels.get("com.docker.compose.service").map(String::as_str),
+            Some("web")
+        );
+        assert_eq!(infos[0].host_ports.len(), 1);
+        assert_eq!(infos[0].host_ports[0].host_port, 8080);
+        assert_eq!(infos[0].host_ports[0].target_container_port, 80);
+        assert_eq!(infos[0].hostname, None);
         // Missing name falls back to the short id; missing service is None.
         assert_eq!(infos[1].name, "deadbeef");
         assert_eq!(infos[1].service, None);
         assert!(infos[1].ports.is_empty());
+        assert!(infos[1].interfaces.is_empty());
     }
 
     #[test]

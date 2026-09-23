@@ -13,10 +13,11 @@ import {
   Box,
   X,
 } from 'lucide-react';
-import { StackDetails, ContainerMetrics } from '../types';
+import { StackDetails, StackContainerInfo, ContainerMetrics } from '../types';
 import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import { ContainerTable } from '../components/ContainerTable';
+import StackContainerDetail from '../components/StackContainerDetail';
 
 interface StackDetailProps {
   stackName: string;
@@ -349,6 +350,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             isStackView={true}
             showStackColumn={false}
             groupByStack={false}
+            showNetworks={true}
+            detailRenderer={(c) => <StackContainerDetail container={c as StackContainerInfo} />}
           />
         </div>
       )}
