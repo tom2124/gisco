@@ -5,8 +5,7 @@
 </p>
 
 <p align="center">
-  Self-hosted web UI for managing Docker containers and Compose stacks.<br>
-  Named for the Punic general Gisco — the logo is a Phoenician giml (𐤂).
+  Self-hosted web UI for managing Docker containers and Compose stacks
 </p>
 
 <p align="center">
@@ -35,16 +34,16 @@ Gisco is a web interface for managing Docker containers and Compose stacks, view
 
 ## Features
 
-- **Stacks** — create/edit/delete compose stacks with `.env` support; external projects detected automatically
-- **Containers** — grouped by stack, with state, uptime, metrics, terminal, logs and actions
-- **Networks** — live topology with interfaces, DNS names, port mappings and Traefik routing
-- **Images & volumes** — sizes, pull, prune
-- **Templates** — parameterized compose files with a deploy dialog
-- **Terminal & logs** — xterm.js exec terminals and live log streaming over WebSockets
+- **Stacks**: create/edit/delete compose stacks with `.env` support; external projects detected automatically
+- **Containers**: grouped by stack, with state, uptime, metrics, terminal, logs and actions
+- **Networks**: live topology with interfaces, DNS names, port mappings and Traefik routing
+- **Images & volumes**: sizes, pull, prune
+- **Templates**: parameterized compose files with a deploy dialog
+- **Terminal & logs**: xterm.js exec terminals and live log streaming over WebSockets
 
 ## Quickstart
 
-Requirements: Docker Engine with the Compose v2 plugin (`docker compose version` should work), and access to the Docker socket (root-equivalent — see note below).
+Requirements: Docker Engine with the Compose v2 plugin (`docker compose version` should work), and access to the Docker socket (root-equivalent, see note below).
 
 Save one of the compose files below as `compose.yml`, then:
 
@@ -54,7 +53,7 @@ docker compose up -d
 
 Gisco will be running on http://localhost:8080.
 
-### Option 1 — named volumes (simplest)
+### Option 1: named volumes (simplest)
 
 Everything lives inside Docker-managed volumes.
 
@@ -76,7 +75,7 @@ volumes:
   gisco-templates:
 ```
 
-### Option 2 — bind mounts (recommended)
+### Option 2: bind mounts (recommended)
 
 Stacks and templates live in plain directories on your host, so you can create, edit, or back them up outside the interface.
 
@@ -118,7 +117,7 @@ Pin a release instead of `latest` if you prefer stability, e.g.
 ## Security note
 
 Gisco needs `/var/run/docker.sock`, which is root-equivalent access to the
-host. It has no built-in authentication — only expose it on trusted networks,
+host. It has no built-in authentication; only expose it on trusted networks,
 or put authenticated reverse-proxy auth in front of it.
 
 ## Building from source
@@ -128,10 +127,6 @@ git clone https://github.com/tom2124/gisco.git
 cd gisco
 docker build -t gisco:latest .
 ```
-
-Releases are cut manually with `./scripts/release.sh <tag>` (multi-arch
-`linux/amd64` + `linux/arm64` build, pushed to GHCR with the tag baked into
-the UI About page).
 
 ## License
 
