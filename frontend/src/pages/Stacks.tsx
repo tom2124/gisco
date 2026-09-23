@@ -36,9 +36,13 @@ export const Stacks: React.FC<StacksProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filtered = sorted(
-    stacks.filter((s) =>
-      (s.name as string).toLowerCase().includes(search.toLowerCase())
-    ),
+    stacks.filter((s) => {
+      const term = search.toLowerCase();
+      return (
+        (s.name as string).toLowerCase().includes(term) ||
+        (s.description ?? '').toLowerCase().includes(term)
+      );
+    }),
     sortMode,
     {
       stateRank: rankOf(STACK_STATE_RANK),
