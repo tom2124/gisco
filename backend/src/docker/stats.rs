@@ -116,3 +116,102 @@ pub async fn get_single_stats(docker: &Docker, container_id: &str) -> Result<Con
     }
     anyhow::bail!("No stats returned for container {}", container_id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Real `GET /containers/{id}/stats?one-shot=true` payload; per-test
+    /// mutations below only touch the fields under examination.
+    fn fixture() -> serde_json::Value {
+        let raw = include_str!("../../tests/fixtures/container-stats.json");
+        serde_json::from_str(raw).unwrap()
+    }
+
+    fn stats_from(json: serde_json::Value) -> Stats {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn test_cpu_percent_from_deltas() {
+        // 2 CPUs, container used 100 of 1000 system ticks -> 20%.
+        let mut v = fixture();
+        v["cpu_stats"]["cpu_usage"]["total_usage"] = serde_json::json!(200);
+        v["cpu_stats"]["system_cpu_usage"] = serde_json::json!(2000);
+        v["cpu_stats"]["online_cpus"] = serde_json::json!(2);
+        v["precpu_stats"]["cpu_usage"]["total_usage"] = serde_json::json!(100);
+        v["precpu_stats"]["system_cpu_usage"] = serde_json::json!(1000);
+        let m = calculate_metrics("c1", &stats_from(v));
+        assert_eq!(m.cpu_percent, 20.0);
+    }
+
+    #[test]
+    fn test_cpu_percent_zero_without_deltas() {
+        let mut v = fixture();
+        v["cpu_stats"]["cpu_usage"]["total_usage"] = serde_json::json!(0);
+        v["precpu_stats"]["cpu_usage"]["total_usage"] = serde_json::json!(0);
+        v["cpu_stats"]["system_cpu_usage"] = serde_json::json!(0);
+        v["precpu_stats"]["system_cpu_usage"] = serde_json::json!(0);
+        let m = calculate_metrics("c1", &stats_from(v));
+        assert_eq!(m.cpu_percent, 0.0);
+    }
+
+    #[test]
+    fn test_memory_deducts_cache() {
+        // Fixture host uses cgroups v1 or v2; whichever key exists, the
+        // inactive-file amount must be deducted from usage.
+        let mut v = fixture();
+        v["memory_stats"]["usage"] = serde_json::json!(1000);
+        v["memory_stats"]["limit"] = serde_json::json!(2000);
+        let stats = stats_from(v);
+        let cache = stats
+            .memory_stats
+            .stats
+            .as_ref()
+            .map(|s| match s {
+                MemoryStatsStats::V1(v1) => v1.total_inactive_file,
+                MemoryStatsStats::V2(v2) => v2.inactive_file,
+            })
+            .unwrap_or(0);
+        let m = calculate_metrics("c1", &stats);
+        assert_eq!(m.memory_usage_bytes, 1000u64.saturating_sub(cache));
+        assert!(m.memory_percent >= 0.0 && m.memory_percent <= 100.0);
+    }
+
+    #[test]
+    fn test_network_sums_across_interfaces() {
+        let mut v = fixture();
+        // Replace every interface's counters, then expect the exact totals.
+        if let Some(networks) = v.get_mut("networks").and_then(|n| n.as_object_mut()) {
+            let mut rx = 0u64;
+            let mut tx = 0u64;
+            for (i, (_name, net)) in networks.iter_mut().enumerate() {
+                let r = 100u64 + i as u64;
+                let t = 1000u64 + i as u64;
+                net["rx_bytes"] = serde_json::json!(r);
+                net["tx_bytes"] = serde_json::json!(t);
+                rx += r;
+                tx += t;
+            }
+            let m = calculate_metrics("c1", &stats_from(v));
+            assert_eq!(m.network_rx_bytes, rx);
+            assert_eq!(m.network_tx_bytes, tx);
+        } else {
+            panic!("fixture has no networks object");
+        }
+    }
+
+    #[test]
+    fn test_blkio_aggregates_read_write_case_insensitive() {
+        let mut full = fixture();
+        full["blkio_stats"]["io_service_bytes_recursive"] = serde_json::json!([
+            { "op": "read", "value": 10, "major": 8, "minor": 0 },
+            { "op": "Read", "value": 5, "major": 8, "minor": 0 },
+            { "op": "write", "value": 7, "major": 8, "minor": 0 },
+            { "op": "Total", "value": 999, "major": 8, "minor": 0 }
+        ]);
+        let m = calculate_metrics("c1", &stats_from(full));
+        assert_eq!(m.block_read_bytes, 15);
+        assert_eq!(m.block_write_bytes, 7);
+    }
+}

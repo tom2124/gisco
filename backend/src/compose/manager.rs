@@ -520,6 +520,81 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_container_infos() {
+        use bollard::models::{ContainerSummary, Port};
+        use std::collections::HashMap;
+
+        let mut labels = HashMap::new();
+        labels.insert(
+            "com.docker.compose.service".to_string(),
+            "web".to_string(),
+        );
+        let containers = vec![
+            ContainerSummary {
+                id: Some("abc123def456".to_string()),
+                names: Some(vec!["/myapp-web-1".to_string()]),
+                image: Some("nginx:latest".to_string()),
+                state: Some("running".to_string()),
+                status: Some("Up 5 minutes".to_string()),
+                ports: Some(vec![Port {
+                    ip: Some("0.0.0.0".to_string()),
+                    private_port: 80,
+                    public_port: Some(8080),
+                    typ: None,
+                }]),
+                labels: Some(labels),
+                ..Default::default()
+            },
+            ContainerSummary {
+                id: Some("deadbeef".to_string()),
+                names: None,
+                image: None,
+                state: Some("exited".to_string()),
+                status: None,
+                ports: None,
+                labels: None,
+                ..Default::default()
+            },
+        ];
+
+        let (infos, running) = container_infos(&containers);
+        assert_eq!(running, 1);
+        assert_eq!(infos.len(), 2);
+        assert_eq!(infos[0].name, "myapp-web-1");
+        assert_eq!(infos[0].service.as_deref(), Some("web"));
+        assert_eq!(infos[0].ports, vec!["0.0.0.0:8080->80/tcp"]);
+        // Missing name falls back to the short id; missing service is None.
+        assert_eq!(infos[1].name, "deadbeef");
+        assert_eq!(infos[1].service, None);
+        assert!(infos[1].ports.is_empty());
+    }
+
+    #[test]
+    fn test_external_services() {
+        use bollard::models::ContainerSummary;
+        use std::collections::HashMap;
+
+        let labelled = |svc: &str| {
+            let mut labels = HashMap::new();
+            labels.insert("com.docker.compose.service".to_string(), svc.to_string());
+            ContainerSummary {
+                labels: Some(labels),
+                ..Default::default()
+            }
+        };
+        let containers = vec![
+            labelled("worker"),
+            labelled("web"),
+            labelled("web"),
+            ContainerSummary {
+                labels: None,
+                ..Default::default()
+            },
+        ];
+        assert_eq!(external_services(&containers), vec!["web", "worker"]);
+    }
+
+    #[test]
     fn test_extract_description() {
         assert_eq!(
             extract_description("# desc: My cool stack\nservices:\n  a:\n    image: x\n"),
@@ -537,6 +612,17 @@ mod tests {
         );
         assert_eq!(extract_description("# description: nope\n"), None);
         assert_eq!(extract_description("services: {}\n"), None);
+        // No space after # is fine; uppercase DESC does not match.
+        assert_eq!(
+            extract_description("#desc:nospace\n"),
+            Some("nospace".to_string())
+        );
+        assert_eq!(extract_description("# DESC: loud\n"), None);
+        // Colons inside the value are preserved.
+        assert_eq!(
+            extract_description("# desc: a: b\n"),
+            Some("a: b".to_string())
+        );
     }
 
     #[test]
@@ -546,6 +632,11 @@ mod tests {
         // Nested desc comments are left alone.
         let nested = "services:\n  a:\n    # desc: keep me\n    image: x\n";
         assert_eq!(strip_description(nested), nested);
+        // No trailing newline in, none out; every desc line is removed.
+        assert_eq!(
+            strip_description("# desc: one\nservices: {}\n# desc: two"),
+            "services: {}"
+        );
     }
 
     #[test]

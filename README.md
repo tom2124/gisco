@@ -89,9 +89,9 @@ cd gisco
 docker build -t gisco:latest .
 ```
 
-Releases are built automatically: pushing a `v*` tag runs CI (backend tests,
-frontend typecheck + build) and publishes multi-arch images
-(`linux/amd64`, `linux/arm64`) to GHCR.
+Releases are cut manually with `./scripts/release.sh <tag>` (multi-arch
+`linux/amd64` + `linux/arm64` build, pushed to GHCR with the tag baked into
+the UI About page).
 
 ## License
 

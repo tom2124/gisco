@@ -150,3 +150,62 @@ fn template_summary_from_path(path: &Path) -> Option<TemplateSummary> {
         description,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn unique_dir(prefix: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "gisco_{}_{}",
+            prefix,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn test_template_summary_from_path() {
+        let dir = unique_dir("tplsum");
+        let path = dir.join("my-app.yml");
+        fs::write(&path, "# desc: Demo app\nservices: {}\n").unwrap();
+
+        let summary = template_summary_from_path(&path).unwrap();
+        assert_eq!(summary.id, "my-app");
+        assert_eq!(summary.name, "my-app");
+        assert_eq!(summary.filename, "my-app.yml");
+        assert_eq!(summary.description.as_deref(), Some("Demo app"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn test_instantiate_strips_desc_and_writes_env() {
+        let template_dir = unique_dir("tplinst");
+        let stack_dir = unique_dir("tplstacks");
+        fs::write(
+            template_dir.join("demo.yml"),
+            "# desc: Reusable demo\nservices:\n  app:\n    image: alpine\n",
+        )
+        .unwrap();
+
+        let stacks = StacksManager::new(stack_dir.clone(), 1000, 1000);
+        let manager = TemplatesManager::new(template_dir.clone(), stacks);
+        manager
+            .instantiate_template("demo", "demo-1", Some("PORT=9090"), None, None)
+            .unwrap();
+
+        let compose = fs::read_to_string(stack_dir.join("demo-1").join("compose.yml")).unwrap();
+        assert!(!compose.contains("# desc:"));
+        assert!(compose.contains("image: alpine"));
+        let env = fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap();
+        assert_eq!(env, "PORT=9090");
+
+        let _ = fs::remove_dir_all(template_dir);
+        let _ = fs::remove_dir_all(stack_dir);
+    }
+}
