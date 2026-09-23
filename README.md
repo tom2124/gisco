@@ -11,7 +11,6 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/docker-compose-v2-blue.svg" alt="Docker Compose v2">
 </p>
 
 Gisco is a web interface for managing Docker containers and Compose stacks, viewing and editing containers, images, networks, volumes, stack templates, plus terminal, logs, and stats streaming.
