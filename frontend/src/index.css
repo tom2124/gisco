@@ -332,6 +332,61 @@ code, pre, .font-mono {
   user-select: none;
 }
 
+.stack-files-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.file-state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-running);
+}
+
+.file-state-dot.dirty {
+  background: var(--status-warning);
+  box-shadow: 0 0 7px rgba(245, 158, 11, 0.45);
+}
+
+.file-check {
+  font-size: 0.75rem;
+  color: var(--status-running);
+}
+
+.file-check.warning {
+  color: var(--status-warning);
+}
+
+.action-history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.action-history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.action-history-row .badge {
+  flex-shrink: 0;
+}
+
 .stack-file-divider {
   position: relative;
   align-self: stretch;

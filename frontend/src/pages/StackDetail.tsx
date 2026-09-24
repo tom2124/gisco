@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -19,6 +19,7 @@ import { CodeEditor } from '../components/CodeEditor';
 import { ContainerTable } from '../components/ContainerTable';
 import StackContainerDetail from '../components/StackContainerDetail';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
+import { extractEnvVars } from '../utils/composeEnv';
 
 interface StackDetailProps {
   stackName: string;
@@ -41,6 +42,16 @@ interface EditorSplitDrag {
   contentWidth: number;
 }
 
+interface ActionHistoryItem {
+  id: number;
+  action: string;
+  status: 'running' | 'success' | 'error';
+  startedAt: string;
+  finishedAt?: string;
+}
+
+const countLines = (value: string) => (value.length === 0 ? 0 : value.split(/\r?\n/).length);
+
 export const StackDetail: React.FC<StackDetailProps> = ({
   stackName,
   onBack,
@@ -53,8 +64,12 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [saving, setSaving] = useState(false);
   const [composeText, setComposeText] = useState('');
   const [envText, setEnvText] = useState('');
+  const [lastSavedCompose, setLastSavedCompose] = useState('');
+  const [lastSavedEnv, setLastSavedEnv] = useState('');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'containers' | 'logs'>('files');
   const [actionLogs, setActionLogs] = useState<string[]>([]);
+  const [actionHistory, setActionHistory] = useState<ActionHistoryItem[]>([]);
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [saveFeedback, setSaveFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -66,6 +81,19 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const logsEndRef = useRef<HTMLDivElement | null>(null);
   const editorGridRef = useRef<HTMLDivElement | null>(null);
   const editorDragRef = useRef<EditorSplitDrag | null>(null);
+
+  const isDirty = composeText !== lastSavedCompose || envText !== lastSavedEnv;
+  const missingEnvVars = useMemo(() => {
+    const definedNames = new Set(
+      envText
+        .split(/\r?\n/)
+        .map((line) => line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1])
+        .filter((name): name is string => Boolean(name))
+    );
+    return extractEnvVars(composeText).filter(
+      (variable) => !variable.auto && !variable.defaultValue && !definedNames.has(variable.name)
+    );
+  }, [composeText, envText]);
 
   useEffect(() => {
     return () => {
@@ -79,13 +107,21 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     };
   }, [stackName]);
 
-  const fetchDetails = async (resetEditorSplit = false) => {
+  const fetchDetails = async (resetEditorSplit = false, savedAt?: string) => {
     try {
       setLoading(true);
       const data = await api.getStack(stackName);
       setDetails(data);
       setComposeText(data.compose_content);
       setEnvText(data.env_content || '');
+      setLastSavedCompose(data.compose_content);
+      setLastSavedEnv(data.env_content || '');
+      if (resetEditorSplit) {
+        setLastSavedAt(null);
+      }
+      if (savedAt) {
+        setLastSavedAt(savedAt);
+      }
       if (resetEditorSplit) {
         setEditorSplit(data.env_content?.trim() ? DEFAULT_EDITOR_SPLIT : MAX_EDITOR_SPLIT);
       }
@@ -98,6 +134,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   };
 
   useEffect(() => {
+    setActionHistory([]);
+    setActionLogs([]);
     fetchDetails(true);
   }, [stackName]);
 
@@ -147,9 +185,13 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         compose_content: composeText,
         env_content: envText,
       });
+      const savedAt = new Date().toISOString();
+      setLastSavedCompose(composeText);
+      setLastSavedEnv(envText);
+      setLastSavedAt(savedAt);
       showFeedback('success', 'Stack saved — file permissions and ownership preserved.');
       showToast('Stack saved successfully.', 'success');
-      fetchDetails();
+      await fetchDetails(false, savedAt);
     } catch (err: unknown) {
       showFeedback('error', `Save failed: ${getErrorMessage(err, 'Unknown error')}`);
       showToast(`Save failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
@@ -212,7 +254,12 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   });
 
   const handleActionStream = (action: string) => {
+    const runId = Date.now();
     actionFailedRef.current = false;
+    setActionHistory((current) => [
+      ...current,
+      { id: runId, action, status: 'running', startedAt: new Date().toISOString() },
+    ]);
     setActiveTab('logs');
     setIsRunningAction(true);
     setActionLogs((prev) => [...prev, `\r\n--- Executing 'docker compose ${action}' on ${stackName} ---`]);
@@ -232,6 +279,11 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       if (actionWsRef.current === ws && typeof event.data === 'string') {
         if (event.data.includes('[gisco] Error:')) {
           actionFailedRef.current = true;
+          setActionHistory((current) =>
+            current.map((item) =>
+              item.id === runId ? { ...item, status: 'error' } : item
+            )
+          );
           showToast(event.data.replace('[gisco] Error: ', ''), 'error');
         }
         setActionLogs((prev) => [...prev, event.data]);
@@ -242,6 +294,17 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       if (actionWsRef.current !== ws) return;
       actionWsRef.current = null;
       setIsRunningAction(false);
+      setActionHistory((current) =>
+        current.map((item) =>
+          item.id === runId
+            ? {
+                ...item,
+                status: actionFailedRef.current ? 'error' : 'success',
+                finishedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
       if (!actionFailedRef.current) showToast(`docker compose ${action} completed.`, 'success');
       fetchDetails();
     };
@@ -250,6 +313,13 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       if (actionWsRef.current !== ws) return;
       setActionLogs((prev) => [...prev, `[WebSocket Error: could not stream action]`]);
       setIsRunningAction(false);
+      setActionHistory((current) =>
+        current.map((item) =>
+          item.id === runId
+            ? { ...item, status: 'error', finishedAt: new Date().toISOString() }
+            : item
+        )
+      );
       showToast('The action stream connection failed.', 'error');
     };
   };
@@ -385,8 +455,39 @@ export const StackDetail: React.FC<StackDetailProps> = ({
 
       {/* Tab Contents */}
       {activeTab === 'files' && (
-        <div
-          ref={editorGridRef}
+        <>
+          <div className="stack-files-toolbar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span className={`file-state-dot ${isDirty ? 'dirty' : ''}`} />
+              <span style={{ fontSize: '0.8rem', color: isDirty ? 'var(--status-warning)' : 'var(--status-running)' }}>
+                {isDirty ? 'Unsaved changes' : 'All changes saved'}
+              </span>
+              {lastSavedAt && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                  Saved {new Date(lastSavedAt).toLocaleTimeString()}
+                </span>
+              )}
+              <span
+                className={`file-check ${missingEnvVars.length > 0 ? 'warning' : ''}`}
+                title="Checks whether required variables referenced by the compose file are defined in .env"
+              >
+                {missingEnvVars.length > 0
+                  ? `Missing env: ${missingEnvVars.map((variable) => variable.name).join(', ')}`
+                  : 'Environment references resolved'}
+              </span>
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={saving || !isDirty}
+              title={saving ? 'Saving...' : isDirty ? 'Save stack files (Ctrl+S)' : 'No changes to save'}
+            >
+              <Save size={14} />
+              <span>{saving ? 'Saving...' : 'Save changes'}</span>
+            </button>
+          </div>
+          <div
+            ref={editorGridRef}
           className="stack-file-grid"
           data-resizing={isEditorResizing ? 'true' : undefined}
           style={{
@@ -396,7 +497,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
           <div className="card" style={{ padding: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               <span>{details?.compose_file || 'compose.yml'}</span>
-              <span>Compose specification</span>
+              <span>{countLines(composeText)} lines · Compose specification</span>
             </div>
             <CodeEditor
               value={composeText}
@@ -431,7 +532,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
           <div className="card" style={{ padding: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               <span>.env</span>
-              <span>Environment variables</span>
+              <span>{countLines(envText)} lines · Environment variables</span>
             </div>
             <CodeEditor
               value={envText}
@@ -441,8 +542,14 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               maxHeight="max(240px, calc(100vh - 245px))"
               placeholder="# KEY=value"
             />
+            {!envText && (
+              <div style={{ marginTop: '8px', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                No environment variables are currently defined.
+              </div>
+            )}
           </div>
         </div>
+        </>
       )}
 
       {activeTab === 'containers' && (
@@ -473,6 +580,21 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               </span>
             )}
           </div>
+          {actionHistory.length > 0 && (
+            <div className="action-history">
+              {actionHistory.slice(-5).reverse().map((item) => (
+                <div key={item.id} className="action-history-row">
+                  <span className="font-mono" style={{ color: 'var(--text-dim)' }}>
+                    {new Date(item.startedAt).toLocaleTimeString()}
+                  </span>
+                  <span style={{ flex: 1 }}>docker compose {item.action}</span>
+                  <span className={`badge ${item.status === 'success' ? 'badge-running' : item.status === 'error' ? 'badge-error' : 'badge-warning'}`}>
+                    {item.status === 'running' ? 'Running' : item.status === 'success' ? 'Completed' : 'Failed'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <div
             className="terminal-body font-mono"
             style={{
@@ -497,7 +619,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       )}
 
       {/* Floating save button: always reachable while editing, no scroll needed */}
-      {!details?.external && activeTab === 'files' && (
+      {!details?.external && activeTab === 'files' && isDirty && (
         <button
           className="btn btn-primary"
           onClick={handleSave}
