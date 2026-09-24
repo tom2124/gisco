@@ -275,6 +275,18 @@ impl DockerService {
         }
     }
 
+    pub async fn prune_volumes(
+        &self,
+        include_named: bool,
+    ) -> Result<bollard::models::VolumePruneResponse> {
+        // Docker's default volume prune only considers anonymous volumes.
+        // `all=true` additionally includes named volumes.
+        let options = include_named.then(|| bollard::volume::PruneVolumesOptions {
+            filters: HashMap::from([("all".to_string(), vec!["true".to_string()])]),
+        });
+        self.client.prune_volumes(options).await.map_err(Into::into)
+    }
+
     pub async fn remove_volume(&self, name: &str, force: bool) -> Result<()> {
         let options = Some(bollard::volume::RemoveVolumeOptions { force });
         self.client.remove_volume(name, options).await?;

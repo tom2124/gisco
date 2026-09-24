@@ -207,6 +207,11 @@ export interface DockerVolume {
   UsageData?: VolumeUsageData;
 }
 
+export interface VolumePruneResult {
+  VolumesDeleted?: string[];
+  SpaceReclaimed?: number;
+}
+
 export interface SystemStatus {
   docker_connected: boolean;
   docker_version?: string;

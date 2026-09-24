@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { HardDrive } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { HardDrive, Scissors, Search, X } from 'lucide-react';
 import { Header } from '../components/Header';
 import { DockerVolume } from '../types';
 import { api } from '../api/client';
@@ -8,6 +8,9 @@ import SortSelect from '../components/SortSelect';
 import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
 import { formatBytes } from '../utils/docker';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
+import Copyable from '../components/Copyable';
+
+const isAnonymousVolume = (volume: DockerVolume) => /^[a-f0-9]{64}$/i.test(volume.Name);
 
 export const Volumes: React.FC = () => {
   const { showToast } = useToast();
@@ -15,13 +18,48 @@ export const Volumes: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageFailed, setUsageFailed] = useState(false);
+  const [search, setSearch] = useState('');
+  const [expandedVolume, setExpandedVolume] = useState<string | null>(null);
+  const [includeNamedVolumes, setIncludeNamedVolumes] = useState(true);
+  const [showPruneModal, setShowPruneModal] = useState(false);
+  const [pruning, setPruning] = useState(false);
   const refreshIdRef = useRef(0);
   const [sortMode, setSortMode] = useState<SortMode>('size-desc');
 
-  const visibleVolumes = sorted(volumes, sortMode, {
-    getName: (v) => v.Name,
-    getSize: (v) => v.UsageData?.Size ?? -1,
-  });
+  const visibleVolumes = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const filtered = term
+      ? volumes.filter((volume) =>
+          [volume.Name, volume.Driver, volume.Mountpoint, volume.Scope]
+            .filter(Boolean)
+            .some((value) => value.toLowerCase().includes(term))
+        )
+      : volumes;
+
+    return sorted(filtered, sortMode, {
+      getName: (volume) => volume.Name,
+      getSize: (volume) => volume.UsageData?.Size ?? -1,
+    });
+  }, [search, sortMode, volumes]);
+
+  const unusedVolumes = useMemo(
+    () =>
+      volumes.filter(
+        (volume) =>
+          volume.UsageData?.RefCount === 0 &&
+          (includeNamedVolumes || isAnonymousVolume(volume))
+      ),
+    [includeNamedVolumes, volumes]
+  );
+  const estimatedReclaim = unusedVolumes.reduce(
+    (total, volume) => total + Math.max(0, volume.UsageData?.Size ?? 0),
+    0
+  );
+  const unknownUsageCount = volumes.filter(
+    (volume) =>
+      (!volume.UsageData || volume.UsageData.RefCount < 0) &&
+      (includeNamedVolumes || isAnonymousVolume(volume))
+  ).length;
 
   const fetchVolumes = async () => {
     const requestId = ++refreshIdRef.current;
@@ -74,6 +112,28 @@ export const Volumes: React.FC = () => {
     }
   };
 
+  const handlePrune = async () => {
+    if (pruning) return;
+    try {
+      setPruning(true);
+      const result = await api.pruneVolumes(includeNamedVolumes);
+      setShowPruneModal(false);
+      await fetchVolumes();
+      const deleted = result.VolumesDeleted?.length ?? 0;
+      const reclaimed = result.SpaceReclaimed ?? 0;
+      showToast(
+        deleted > 0
+          ? `Pruned ${deleted} unused volume${deleted === 1 ? '' : 's'}; reclaimed ${formatBytes(reclaimed)}.`
+          : 'No unused volumes were removed.',
+        'success'
+      );
+    } catch (err: unknown) {
+      showToast(`Volume prune failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+    } finally {
+      setPruning(false);
+    }
+  };
+
   return (
     <div>
       <Header
@@ -88,20 +148,67 @@ export const Volumes: React.FC = () => {
           <HardDrive size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Volumes Found</h3>
         </div>
+      ) : visibleVolumes.length === 0 && !loading ? (
+        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Search size={28} style={{ opacity: 0.3, marginBottom: '10px' }} />
+          <h3>No Matching Volumes</h3>
+          <p>Try a different name, driver, scope, or mountpoint.</p>
+        </div>
       ) : (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', marginBottom: '12px' }}>
-            {usageLoading && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                Calculating sizes…
-              </span>
-            )}
-            {usageFailed && !usageLoading && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--status-warning)' }}>
-                Sizes unavailable
-              </span>
-            )}
-            <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+              marginBottom: '12px',
+            }}
+          >
+            <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
+              <input
+                type="text"
+                placeholder="Search volumes, drivers, mountpoints..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                style={{ paddingLeft: '34px' }}
+              />
+              <Search
+                size={15}
+                style={{
+                  position: 'absolute',
+                  left: '11px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-dim)',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {usageLoading && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                  Calculating sizes…
+                </span>
+              )}
+              {usageFailed && !usageLoading && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--status-warning)' }}>
+                  Sizes unavailable
+                </span>
+              )}
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowPruneModal(true)}
+                disabled={usageLoading || pruning || (unusedVolumes.length === 0 && unknownUsageCount === 0)}
+                title="Preview and prune unused volumes"
+              >
+                <Scissors size={14} />
+                <span>Prune unused</span>
+              </button>
+              <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
+            </div>
           </div>
           <div className="table-container">
             <table>
@@ -109,45 +216,166 @@ export const Volumes: React.FC = () => {
                 <tr>
                   <th>Volume Name</th>
                   <th>Driver</th>
-                  <th>Mountpoint</th>
                   <th>Size</th>
+                  <th>References</th>
                   <th>Scope</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleVolumes.map((v) => (
-                  <tr key={v.Name}>
-                    <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{v.Name}</div>
-                      {v.CreatedAt && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                          Created: {new Date(v.CreatedAt).toLocaleDateString()}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="badge badge-stopped">{v.Driver || 'local'}</span>
-                    </td>
-                    <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', wordBreak: 'break-all', minWidth: 0 }}>
-                      {v.Mountpoint}
-                    </td>
-                    <td className="font-mono" style={{ fontSize: '0.85rem' }}>
-                      {formatBytes(v.UsageData?.Size ?? -1)}
-                    </td>
-                    <td>{v.Scope || 'local'}</td>
-                    <td>
-                      <DeleteButton
-                        title="Delete Volume"
-                        onConfirm={() => handleDelete(v.Name)}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {visibleVolumes.map((volume) => {
+                  const referenceCount = volume.UsageData?.RefCount;
+                  return (
+                    <tr
+                      key={volume.Name}
+                      onClick={() => setExpandedVolume((current) => current === volume.Name ? null : volume.Name)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{volume.Name}</div>
+                        {volume.CreatedAt && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            Created: {new Date(volume.CreatedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                        {expandedVolume === volume.Name && (
+                          <div
+                            className="font-mono"
+                            style={{
+                              marginTop: '8px',
+                              paddingTop: '7px',
+                              borderTop: '1px solid var(--border-subtle)',
+                              color: 'var(--text-dim)',
+                              fontSize: '0.75rem',
+                              overflowWrap: 'anywhere',
+                            }}
+                          >
+                            <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Mountpoint</span>
+                            <Copyable text={volume.Mountpoint}>
+                              <span>{volume.Mountpoint}</span>
+                            </Copyable>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge badge-stopped">{volume.Driver || 'local'}</span>
+                      </td>
+                      <td className="font-mono" style={{ fontSize: '0.85rem' }}>
+                        {formatBytes(volume.UsageData?.Size ?? -1)}
+                      </td>
+                      <td>
+                        {referenceCount === undefined || referenceCount < 0 ? (
+                          <span className="badge badge-stopped">Unknown</span>
+                        ) : (
+                          <span className={`badge ${referenceCount === 0 ? 'badge-warning' : 'badge-running'}`}>
+                            {referenceCount} container{referenceCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{volume.Scope || 'local'}</td>
+                      <td>
+                        <DeleteButton
+                          title="Delete Volume"
+                          onConfirm={() => handleDelete(volume.Name)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </>
+      )}
+
+      {showPruneModal && (
+        <div className="modal-backdrop" onClick={() => !pruning && setShowPruneModal(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <div className="modal-header">
+              <div>
+                <h3>Prune Unused Volumes</h3>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                  Docker will remove {includeNamedVolumes ? 'named and anonymous' : 'anonymous'} volumes with no container references.
+                </div>
+              </div>
+              <button
+                className="btn btn-secondary btn-icon"
+                onClick={() => setShowPruneModal(false)}
+                disabled={pruning}
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '9px',
+                  marginBottom: '16px',
+                  padding: '10px 12px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={includeNamedVolumes}
+                  onChange={(event) => setIncludeNamedVolumes(event.target.checked)}
+                  style={{ width: 'auto' }}
+                />
+                <span>
+                  <strong>Include named volumes</strong>
+                  <span style={{ display: 'block', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '2px' }}>
+                    Turn off to prune only anonymous volumes.
+                  </span>
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>{unusedVolumes.length}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  known unused volume{unusedVolumes.length === 1 ? '' : 's'}
+                  <br />
+                  Estimated reclaim: <strong>{formatBytes(estimatedReclaim)}</strong>
+                </div>
+              </div>
+
+              {unknownUsageCount > 0 && (
+                <div className="badge badge-warning" style={{ marginBottom: '12px', whiteSpace: 'normal', textAlign: 'left' }}>
+                  {unknownUsageCount} volume{unknownUsageCount === 1 ? '' : 's'} have unavailable usage data. Docker will determine their usage when pruning.
+                </div>
+              )}
+
+              {unusedVolumes.length > 0 ? (
+                <div className="card" style={{ padding: '10px 12px', maxHeight: '220px', overflowY: 'auto' }}>
+                  {unusedVolumes.map((volume) => (
+                    <div key={volume.Name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <span className="font-mono" style={{ fontSize: '0.8rem', overflowWrap: 'anywhere' }}>{volume.Name}</span>
+                      <span className="font-mono" style={{ color: 'var(--text-dim)', fontSize: '0.78rem', flexShrink: 0 }}>
+                        {formatBytes(volume.UsageData?.Size ?? -1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-muted)' }}>No known unused volumes were found.</p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowPruneModal(false)} disabled={pruning}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={handlePrune} disabled={pruning}>
+                <Scissors size={15} />
+                <span>{pruning ? 'Pruning...' : 'Prune Unused Volumes'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import {
   TemplateDetails,
   TemplateSummary,
   VolumeUsageData,
+  VolumePruneResult,
 } from '../types';
 
 const API_BASE = '/api';
@@ -154,6 +155,10 @@ export const api = {
   listVolumes: () => request<DockerVolume[]>(`${API_BASE}/volumes`),
   getVolumeUsage: () =>
     request<Record<string, VolumeUsageData>>(`${API_BASE}/volumes/usage`),
+  pruneVolumes: (includeNamed = true) =>
+    request<VolumePruneResult>(`${API_BASE}/volumes/prune?all=${includeNamed}`, {
+      method: 'POST',
+    }),
   removeVolume: (name: string, force = false) =>
     request<{ status: string; name: string }>(`${API_BASE}/volumes/${pathSegment(name)}?force=${force}`, {
       method: 'DELETE',
