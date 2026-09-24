@@ -62,11 +62,12 @@ async fn create_network(
         );
     }
 
-    match state.docker.create_network(&payload.name, payload.driver.as_deref()).await {
-        Ok(resp) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!(resp)),
-        ),
+    match state
+        .docker
+        .create_network(&payload.name, payload.driver.as_deref())
+        .await
+    {
+        Ok(resp) => (StatusCode::CREATED, Json(serde_json::json!(resp))),
         Err(e) => docker_error(e),
     }
 }

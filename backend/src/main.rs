@@ -1,5 +1,4 @@
 use std::net::SocketAddr;
-use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
@@ -34,20 +33,27 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::from_env();
     if let Err(e) = config.ensure_directories() {
         error!("Failed to ensure stack/template directories: {:?}", e);
+        return Err(e.into());
     }
 
     info!("Configuration:");
     info!("  Port:             {}", config.port);
     info!("  Stack Dir:        {:?}", config.stack_dir);
     info!("  Template Dir:     {:?}", config.template_dir);
-    info!("  Default UID/GID:  {}:{}", config.default_uid, config.default_gid);
+    info!(
+        "  Default UID/GID:  {}:{}",
+        config.default_uid, config.default_gid
+    );
     info!("  Docker Socket:    {}", config.docker_socket);
 
     // Initialize Docker client
     let docker = match DockerService::new(&config.docker_socket) {
         Ok(d) => {
             if d.ping().await {
-                info!("Successfully connected to Docker daemon at {}", config.docker_socket);
+                info!(
+                    "Successfully connected to Docker daemon at {}",
+                    config.docker_socket
+                );
             } else {
                 tracing::warn!(
                     "Docker daemon at {} did not respond to ping. Will keep retrying on request.",
@@ -80,22 +86,17 @@ async fn main() -> anyhow::Result<()> {
         templates,
     };
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    let mut app = api_routes(state)
-        .layer(cors)
-        .layer(TraceLayer::new_for_http());
+    // The UI is served same-origin and Vite proxies `/api` in development.
+    // Avoid permissive CORS on an unauthenticated Docker management API.
+    let mut app = api_routes(state).layer(TraceLayer::new_for_http());
 
     // Serve static files if frontend build is available
     if let Some(static_path) = &config.static_dir {
         if static_path.exists() {
             info!("Serving frontend static files from {:?}", static_path);
             let index_file = static_path.join("index.html");
-            let serve_dir = ServeDir::new(static_path)
-                .not_found_service(ServeFile::new(index_file));
+            let serve_dir =
+                ServeDir::new(static_path).not_found_service(ServeFile::new(index_file));
             app = app.fallback_service(serve_dir);
         }
     }

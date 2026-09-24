@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Search, ArrowDown, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { api } from '../api/client';
 
+const MAX_LOG_CHUNKS = 10_000;
+
 interface LogsViewProps {
   containerId: string;
   containerName: string;
@@ -24,6 +26,8 @@ export const LogsView: React.FC<LogsViewProps> = ({
 
   const connectWs = () => {
     if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       wsRef.current.close();
     }
     setLogs([]);
@@ -32,12 +36,22 @@ export const LogsView: React.FC<LogsViewProps> = ({
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (event) => {
-      setLogs((prev) => [...prev, event.data]);
+    ws.onopen = () => {
+      if (wsRef.current === ws) setConnected(true);
     };
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
+    ws.onmessage = (event) => {
+      if (wsRef.current !== ws || typeof event.data !== 'string') return;
+      setLogs((prev) => {
+        const next = [...prev, event.data];
+        return next.length > MAX_LOG_CHUNKS ? next.slice(-MAX_LOG_CHUNKS) : next;
+      });
+    };
+    ws.onclose = () => {
+      if (wsRef.current === ws) setConnected(false);
+    };
+    ws.onerror = () => {
+      if (wsRef.current === ws) setConnected(false);
+    };
   };
 
   useEffect(() => {
@@ -47,7 +61,12 @@ export const LogsView: React.FC<LogsViewProps> = ({
     const timer = window.setTimeout(() => connectWs(), 0);
     return () => {
       window.clearTimeout(timer);
-      if (wsRef.current) wsRef.current.close();
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [containerId, tail]);
 

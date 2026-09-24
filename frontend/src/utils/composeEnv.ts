@@ -69,7 +69,7 @@ const IDENT = '[A-Za-z_][A-Za-z0-9_]*';
 export function extractEnvVars(compose: string): ComposeEnvVar[] {
   const seen = new Map<string, string>();
 
-  const braced = new RegExp(`\\$\\{(${IDENT})((?::-[^}]*)|(?:-[^}]*)|(?:[^}]*))?\\}`, 'g');
+  const braced = new RegExp(`(?<!\\$)\\$\\{(${IDENT})((?::-[^}]*)|(?:-[^}]*)|(?:[^}]*))?\\}`, 'g');
   let m: RegExpExecArray | null;
   while ((m = braced.exec(compose)) !== null) {
     const name = m[1];

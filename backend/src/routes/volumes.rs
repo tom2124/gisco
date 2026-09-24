@@ -21,7 +21,10 @@ pub fn routes() -> Router<AppState> {
 
 async fn list_volumes(State(state): State<AppState>) -> impl IntoResponse {
     match state.docker.list_volumes().await {
-        Ok(vols) => (StatusCode::OK, Json(serde_json::json!(vols.volumes.unwrap_or_default()))),
+        Ok(vols) => (
+            StatusCode::OK,
+            Json(serde_json::json!(vols.volumes.unwrap_or_default())),
+        ),
         Err(e) => docker_error(e),
     }
 }

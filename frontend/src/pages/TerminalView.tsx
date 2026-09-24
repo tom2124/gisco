@@ -35,8 +35,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   const initTerminal = (cmd: string, user: string) => {
     if (!terminalRef.current) return;
 
-    // Cleanup previous
+    // Cleanup previous. Detach callbacks first so its delayed close/error
+    // event cannot mark a newly initialized terminal as disconnected.
     if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
       wsRef.current.close();
     }
     if (termInstanceRef.current) {
@@ -87,6 +90,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (wsRef.current !== ws) return;
       setConnected(true);
       term.writeln(`\x1b[36m[gisco]\x1b[0m Interactive terminal connected.\r\n`);
 
@@ -96,6 +100,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     };
 
     ws.onmessage = (event) => {
+      if (wsRef.current !== ws) return;
       if (typeof event.data === 'string') {
         term.write(event.data);
       } else {
@@ -105,12 +110,14 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     };
 
     ws.onclose = () => {
+      if (wsRef.current !== ws) return;
       setConnected(false);
       setStarted(false);
       term.writeln(`\r\n\x1b[31m[gisco]\x1b[0m Terminal session disconnected.`);
     };
 
     ws.onerror = () => {
+      if (wsRef.current !== ws) return;
       setConnected(false);
       setStarted(false);
       term.writeln(`\r\n\x1b[31m[gisco]\x1b[0m Connection error. Is the container running?`);
@@ -137,7 +144,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     // Cleanup on unmount
     return () => {
       window.clearTimeout(timer);
-      if (wsRef.current) wsRef.current.close();
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
       if (termInstanceRef.current) termInstanceRef.current.dispose();
     };
   }, []);

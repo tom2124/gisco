@@ -82,6 +82,8 @@ pub struct NetworkGraph {
 
 pub struct NetworkGraphBuilder;
 
+type ContainerInspectInfo = (Option<String>, Option<String>, HashMap<String, Vec<String>>);
+
 /// Sort key for stable ascending IP order (numeric octets, not lexical,
 /// so .10 sorts after .2). Empty/non-IPv4 values sort last.
 pub(crate) fn ip_sort_key(ip: &str) -> (u8, [u8; 4], &str) {
@@ -110,8 +112,8 @@ pub(crate) fn ip_sort_key(ip: &str) -> (u8, [u8; 4], &str) {
 
 impl NetworkGraphBuilder {
     pub async fn build(docker: &DockerService) -> Result<NetworkGraph> {
-        let raw_networks = docker.list_networks().await.unwrap_or_default();
-        let raw_containers = docker.list_containers(true).await.unwrap_or_default();
+        let raw_networks = docker.list_networks().await?;
+        let raw_containers = docker.list_containers(true).await?;
 
         let mut network_nodes: Vec<NetworkNode> = Vec::new();
         let mut network_map: HashMap<String, String> = HashMap::new(); // Name -> Id
@@ -189,11 +191,10 @@ impl NetworkGraphBuilder {
             }
         }))
         .await;
-        let host_info: HashMap<String, (Option<String>, Option<String>, HashMap<String, Vec<String>>)> =
-            inspects
-                .into_iter()
-                .filter_map(|(id, info)| info.map(|i| (id, i)))
-                .collect();
+        let host_info: HashMap<String, ContainerInspectInfo> = inspects
+            .into_iter()
+            .filter_map(|(id, info)| info.map(|i| (id, i)))
+            .collect();
 
         for c in &raw_containers {
             let id = c.id.clone().unwrap_or_default();
@@ -254,7 +255,10 @@ impl NetworkGraphBuilder {
                                 source: id.clone(),
                                 target: net_id,
                                 link_type: "interface".to_string(),
-                                label: format!("veth ({})", if ip.is_empty() { "host" } else { &ip }),
+                                label: format!(
+                                    "veth ({})",
+                                    if ip.is_empty() { "host" } else { &ip }
+                                ),
                                 ip: if ip.is_empty() { None } else { Some(ip) },
                                 mac: if mac.is_empty() { None } else { Some(mac) },
                                 port: None,
@@ -268,7 +272,11 @@ impl NetworkGraphBuilder {
             if let Some(raw_ports) = &c.ports {
                 for p in raw_ports {
                     let private_port = p.private_port;
-                    let proto = p.typ.as_ref().map(|t| t.to_string()).unwrap_or_else(|| "tcp".to_string());
+                    let proto = p
+                        .typ
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_else(|| "tcp".to_string());
                     let host_ip = p.ip.clone();
                     let host_port = p.public_port;
 
@@ -307,16 +315,15 @@ impl NetworkGraphBuilder {
             }
 
             let labels = c.labels.clone().unwrap_or_default();
-            let (hostname, domainname, _) = host_info
-                .get(&id)
-                .cloned()
-                .unwrap_or((None, None, HashMap::new()));
+            let (hostname, domainname, _) =
+                host_info
+                    .get(&id)
+                    .cloned()
+                    .unwrap_or((None, None, HashMap::new()));
 
             // Stable ascending IP order: network_settings comes from a
             // HashMap, so interface order would otherwise vary per request.
-            interfaces.sort_by(|a, b| {
-                ip_sort_key(&a.ip_address).cmp(&ip_sort_key(&b.ip_address))
-            });
+            interfaces.sort_by(|a, b| ip_sort_key(&a.ip_address).cmp(&ip_sort_key(&b.ip_address)));
 
             container_nodes.push(ContainerNode {
                 id,
@@ -354,11 +361,25 @@ mod tests {
 
     #[test]
     fn test_ip_sort_key_numeric_not_lexical() {
-        let mut ips = vec!["172.22.0.4", "", "172.18.0.10", "172.18.0.2", "fe80::1", "10.0.0.1"];
+        let mut ips = vec![
+            "172.22.0.4",
+            "",
+            "172.18.0.10",
+            "172.18.0.2",
+            "fe80::1",
+            "10.0.0.1",
+        ];
         ips.sort_by(|a, b| ip_sort_key(a).cmp(&ip_sort_key(b)));
         assert_eq!(
             ips,
-            vec!["10.0.0.1", "172.18.0.2", "172.18.0.10", "172.22.0.4", "fe80::1", ""]
+            vec![
+                "10.0.0.1",
+                "172.18.0.2",
+                "172.18.0.10",
+                "172.22.0.4",
+                "fe80::1",
+                ""
+            ]
         );
     }
 }

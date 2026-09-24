@@ -5,7 +5,7 @@ use bollard::Docker;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tracing::warn;
 
 #[derive(Deserialize, Debug)]
@@ -15,6 +15,14 @@ pub enum TerminalClientMessage {
     Resize { cols: u16, rows: u16 },
     #[serde(rename = "input")]
     Input { data: String },
+}
+
+async fn write_exec_input<W: AsyncWrite + Unpin>(
+    input: &mut W,
+    data: &[u8],
+) -> std::io::Result<()> {
+    input.write_all(data).await?;
+    input.flush().await
 }
 
 pub async fn handle_exec_terminal(
@@ -44,8 +52,7 @@ pub async fn handle_exec_terminal(
             _ => vec![
                 "/bin/sh".to_string(),
                 "-c".to_string(),
-                "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi"
-                    .to_string(),
+                "if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi".to_string(),
             ],
         }
     } else {
@@ -78,7 +85,14 @@ pub async fn handle_exec_terminal(
 
     let exec_id = exec_res.id;
     let start_res = docker
-        .start_exec(&exec_id, Some(StartExecOptions { detach: false, tty: use_tty, ..Default::default() }))
+        .start_exec(
+            &exec_id,
+            Some(StartExecOptions {
+                detach: false,
+                tty: use_tty,
+                ..Default::default()
+            }),
+        )
         .await
         .context("Failed to start exec session")?;
 
@@ -90,70 +104,74 @@ pub async fn handle_exec_terminal(
             let docker_resize = docker.clone();
             let exec_id_resize = exec_id.clone();
 
-            // Task to read from container exec output and forward to WebSocket
             let (mut ws_sender, mut ws_receiver) = ws.split();
 
-            let forward_out = async move {
-                while let Some(msg_res) = output.next().await {
-                    match msg_res {
-                        Ok(log_output) => {
-                            let bytes = log_output.into_bytes();
-                            if let Err(e) = ws_sender.send(Message::Binary(bytes)).await {
-                                warn!("Error sending exec output to WS: {:?}", e);
+            // Drive both directions in one task so a browser disconnect also
+            // drops the exec input/output streams. Previously logs/stats-style
+            // long-lived streams could remain blocked on Docker output forever.
+            'session: loop {
+                tokio::select! {
+                    output_msg = output.next() => {
+                        match output_msg {
+                            Some(Ok(log_output)) => {
+                                if let Err(e) = ws_sender.send(Message::Binary(log_output.into_bytes())).await {
+                                    warn!("Error sending exec output to WS: {:?}", e);
+                                    break;
+                                }
+                            }
+                            Some(Err(e)) => {
+                                warn!("Exec output stream error: {:?}", e);
+                                break;
+                            }
+                            None => break,
+                        }
+                    }
+                    input_msg = ws_receiver.next() => {
+                        match input_msg {
+                            Some(Ok(Message::Text(text))) => {
+                                if let Ok(client_msg) = serde_json::from_str::<TerminalClientMessage>(&text) {
+                                    match client_msg {
+                                        TerminalClientMessage::Resize { cols, rows } => {
+                                            if cols > 0 && rows > 0 {
+                                                let options = ResizeExecOptions { height: rows, width: cols };
+                                                if let Err(e) = docker_resize.resize_exec(&exec_id_resize, options).await {
+                                                    warn!("Failed to resize exec session: {:?}", e);
+                                                }
+                                            }
+                                        }
+                                        TerminalClientMessage::Input { data } => {
+                                            if let Err(e) = write_exec_input(&mut input, data.as_bytes()).await {
+                                                warn!("Failed to write exec input: {:?}", e);
+                                                break 'session;
+                                            }
+                                        }
+                                    }
+                                } else if let Err(e) = write_exec_input(&mut input, text.as_bytes()).await {
+                                    warn!("Failed to write exec input: {:?}", e);
+                                    break 'session;
+                                }
+                            }
+                            Some(Ok(Message::Binary(bin))) => {
+                                if let Err(e) = write_exec_input(&mut input, &bin).await {
+                                    warn!("Failed to write exec input: {:?}", e);
+                                    break;
+                                }
+                            }
+                            Some(Ok(Message::Close(_))) | None => break,
+                            Some(Ok(Message::Ping(payload))) => {
+                                if let Err(e) = ws_sender.send(Message::Pong(payload)).await {
+                                    warn!("Failed to send WebSocket pong: {:?}", e);
+                                    break;
+                                }
+                            }
+                            Some(Ok(Message::Pong(_))) => {}
+                            Some(Err(e)) => {
+                                warn!("WS receive error: {:?}", e);
                                 break;
                             }
                         }
-                        Err(e) => {
-                            warn!("Exec output stream error: {:?}", e);
-                            break;
-                        }
                     }
                 }
-            };
-
-            // Task to read from WebSocket and forward to container stdin or handle resize
-            let forward_in = async move {
-                while let Some(msg_res) = ws_receiver.next().await {
-                    match msg_res {
-                        Ok(Message::Text(text)) => {
-                            // Could be JSON control message (like resize) or raw input
-                            if let Ok(client_msg) = serde_json::from_str::<TerminalClientMessage>(&text) {
-                                match client_msg {
-                                    TerminalClientMessage::Resize { cols, rows } => {
-                                        let options = ResizeExecOptions {
-                                            height: rows,
-                                            width: cols,
-                                        };
-                                        let _ = docker_resize.resize_exec(&exec_id_resize, options).await;
-                                    }
-                                    TerminalClientMessage::Input { data } => {
-                                        let _ = input.write_all(data.as_bytes()).await;
-                                        let _ = input.flush().await;
-                                    }
-                                }
-                            } else {
-                                // Raw string
-                                let _ = input.write_all(text.as_bytes()).await;
-                                let _ = input.flush().await;
-                            }
-                        }
-                        Ok(Message::Binary(bin)) => {
-                            let _ = input.write_all(&bin).await;
-                            let _ = input.flush().await;
-                        }
-                        Ok(Message::Close(_)) => break,
-                        Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {}
-                        Err(e) => {
-                            warn!("WS receive error: {:?}", e);
-                            break;
-                        }
-                    }
-                }
-            };
-
-            tokio::select! {
-                _ = forward_out => {},
-                _ = forward_in => {},
             }
         }
         StartExecResults::Detached => {

@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import DeleteButton from '../components/DeleteButton';
 import SortSelect from '../components/SortSelect';
 import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
+import { formatBytes, parseImageReference } from '../utils/docker';
 
 const imageTag = (img: ImageSummary) => img.RepoTags?.[0] || '<none>:<none>';
 
@@ -46,8 +47,8 @@ export const Images: React.FC = () => {
 
     try {
       setPulling(true);
-      const [img, tag] = pullImageName.trim().split(':');
-      await api.pullImage(img, tag);
+      const { image, tag } = parseImageReference(pullImageName);
+      await api.pullImage(image, tag);
       setShowPullModal(false);
       setPullImageName('');
       fetchImages();
@@ -65,14 +66,6 @@ export const Images: React.FC = () => {
     } catch (err: any) {
       alert(`Delete failed: ${err.message}`);
     }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (

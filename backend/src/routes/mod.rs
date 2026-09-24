@@ -12,8 +12,8 @@ pub mod ws_terminal;
 
 use axum::Router;
 
-use crate::config::Config;
 use crate::compose::StacksManager;
+use crate::config::Config;
 use crate::docker::DockerService;
 use crate::templates::TemplatesManager;
 
@@ -40,8 +40,20 @@ pub fn api_routes(state: AppState) -> Router {
 
 fn ws_routes() -> Router<AppState> {
     Router::new()
-        .route("/containers/{id}/terminal", axum::routing::get(ws_terminal::terminal_handler))
-        .route("/containers/{id}/logs", axum::routing::get(ws_logs::logs_handler))
-        .route("/containers/{id}/stats", axum::routing::get(ws_stats::stats_handler))
-        .route("/stacks/{name}/action-stream", axum::routing::get(stacks::stack_action_ws_handler))
+        .route(
+            "/containers/{id}/terminal",
+            axum::routing::get(ws_terminal::terminal_handler),
+        )
+        .route(
+            "/containers/{id}/logs",
+            axum::routing::get(ws_logs::logs_handler),
+        )
+        .route(
+            "/containers/{id}/stats",
+            axum::routing::get(ws_stats::stats_handler),
+        )
+        .route(
+            "/stacks/{name}/action-stream",
+            axum::routing::get(stacks::stack_action_ws_handler),
+        )
 }

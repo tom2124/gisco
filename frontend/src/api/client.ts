@@ -13,6 +13,7 @@ import {
 } from '../types';
 
 const API_BASE = '/api';
+const pathSegment = (value: string) => encodeURIComponent(value);
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -44,7 +45,7 @@ export const api = {
 
   // Stacks
   listStacks: () => request<StackSummary[]>(`${API_BASE}/stacks`),
-  getStack: (name: string) => request<StackDetails>(`${API_BASE}/stacks/${name}`),
+  getStack: (name: string) => request<StackDetails>(`${API_BASE}/stacks/${pathSegment(name)}`),
   createStack: (data: {
     name: string;
     compose_content: string;
@@ -60,21 +61,21 @@ export const api = {
     name: string,
     data: {
       compose_content: string;
-      env_content?: string;
+      env_content: string;
       custom_uid?: number;
       custom_gid?: number;
     }
   ) =>
-    request<{ status: string; name: string }>(`${API_BASE}/stacks/${name}`, {
+    request<{ status: string; name: string }>(`${API_BASE}/stacks/${pathSegment(name)}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
   deleteStack: (name: string) =>
-    request<{ status: string; name: string }>(`${API_BASE}/stacks/${name}`, {
+    request<{ status: string; name: string }>(`${API_BASE}/stacks/${pathSegment(name)}`, {
       method: 'DELETE',
     }),
   triggerStackAction: (name: string, action: string) =>
-    request<{ status: string; action: string }>(`${API_BASE}/stacks/${name}/action`, {
+    request<{ status: string; action: string }>(`${API_BASE}/stacks/${pathSegment(name)}/action`, {
       method: 'POST',
       body: JSON.stringify({ action }),
     }),
@@ -82,21 +83,21 @@ export const api = {
   // Containers
   listContainers: (all = true) =>
     request<ContainerSummary[]>(`${API_BASE}/containers?all=${all}`),
-  inspectContainer: (id: string) => request<any>(`${API_BASE}/containers/${id}`),
+  inspectContainer: (id: string) => request<any>(`${API_BASE}/containers/${pathSegment(id)}`),
   containerAction: (id: string, action: 'start' | 'stop' | 'restart' | 'pause' | 'unpause') =>
-    request<{ status: string; action: string }>(`${API_BASE}/containers/${id}/${action}`, {
+    request<{ status: string; action: string }>(`${API_BASE}/containers/${pathSegment(id)}/${action}`, {
       method: 'POST',
     }),
   removeContainer: (id: string, force = false) =>
-    request<{ status: string; id: string }>(`${API_BASE}/containers/${id}?force=${force}`, {
+    request<{ status: string; id: string }>(`${API_BASE}/containers/${pathSegment(id)}?force=${force}`, {
       method: 'DELETE',
     }),
   getContainerMetrics: (id: string) =>
-    request<ContainerMetrics>(`${API_BASE}/containers/${id}/metrics`),
+    request<ContainerMetrics>(`${API_BASE}/containers/${pathSegment(id)}/metrics`),
 
   // Templates
   listTemplates: () => request<TemplateSummary[]>(`${API_BASE}/templates`),
-  getTemplate: (id: string) => request<TemplateDetails>(`${API_BASE}/templates/${id}`),
+  getTemplate: (id: string) => request<TemplateDetails>(`${API_BASE}/templates/${pathSegment(id)}`),
   instantiateTemplate: (
     id: string,
     data: {
@@ -107,19 +108,19 @@ export const api = {
     }
   ) =>
     request<{ status: string; stack_name: string }>(
-      `${API_BASE}/templates/${id}/instantiate`,
+      `${API_BASE}/templates/${pathSegment(id)}/instantiate`,
       {
         method: 'POST',
         body: JSON.stringify(data),
       }
     ),
-  saveTemplate: (id: string, content: string) =>
-    request<{ status: string; id: string }>(`${API_BASE}/templates/${id}`, {
+  saveTemplate: (id: string, content: string, overwrite = true) =>
+    request<{ status: string; id: string }>(`${API_BASE}/templates/${pathSegment(id)}`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, overwrite }),
     }),
   deleteTemplate: (id: string) =>
-    request<{ status: string; id: string }>(`${API_BASE}/templates/${id}`, {
+    request<{ status: string; id: string }>(`${API_BASE}/templates/${pathSegment(id)}`, {
       method: 'DELETE',
     }),
 
@@ -132,7 +133,7 @@ export const api = {
       body: JSON.stringify({ name, driver }),
     }),
   removeNetwork: (id: string) =>
-    request<{ status: string; id: string }>(`${API_BASE}/networks/${id}`, {
+    request<{ status: string; id: string }>(`${API_BASE}/networks/${pathSegment(id)}`, {
       method: 'DELETE',
     }),
 
@@ -144,14 +145,14 @@ export const api = {
       body: JSON.stringify({ image, tag }),
     }),
   removeImage: (id: string, force = false) =>
-    request<{ status: string; id: string }>(`${API_BASE}/images/${id}?force=${force}`, {
+    request<{ status: string; id: string }>(`${API_BASE}/images/${pathSegment(id)}?force=${force}`, {
       method: 'DELETE',
     }),
 
   // Volumes
   listVolumes: () => request<DockerVolume[]>(`${API_BASE}/volumes`),
   removeVolume: (name: string, force = false) =>
-    request<{ status: string; name: string }>(`${API_BASE}/volumes/${name}?force=${force}`, {
+    request<{ status: string; name: string }>(`${API_BASE}/volumes/${pathSegment(name)}?force=${force}`, {
       method: 'DELETE',
     }),
 
@@ -164,21 +165,21 @@ export const api = {
     if (interactive !== undefined) params.append('interactive', interactive.toString());
     if (user) params.append('user', user);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return `${proto}//${host}/api/ws/containers/${containerId}/terminal${query}`;
+    return `${proto}//${host}/api/ws/containers/${pathSegment(containerId)}/terminal${query}`;
   },
   getLogsWsUrl: (containerId: string, tail = '100', timestamps = true) => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    return `${proto}//${host}/api/ws/containers/${containerId}/logs?tail=${tail}&timestamps=${timestamps}`;
+    return `${proto}//${host}/api/ws/containers/${pathSegment(containerId)}/logs?tail=${tail}&timestamps=${timestamps}`;
   },
   getStatsWsUrl: (containerId: string) => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    return `${proto}//${host}/api/ws/containers/${containerId}/stats`;
+    return `${proto}//${host}/api/ws/containers/${pathSegment(containerId)}/stats`;
   },
   getStackActionWsUrl: (stackName: string, action: string) => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    return `${proto}//${host}/api/ws/stacks/${stackName}/action-stream?action=${action}`;
+    return `${proto}//${host}/api/ws/stacks/${pathSegment(stackName)}/action-stream?action=${action}`;
   },
 };

@@ -118,7 +118,10 @@ impl StacksManager {
         for c in &all_containers {
             if let Some(labels) = &c.labels {
                 if let Some(proj) = labels.get("com.docker.compose.project") {
-                    containers_by_project.entry(proj.clone()).or_default().push(c);
+                    containers_by_project
+                        .entry(proj.clone())
+                        .or_default()
+                        .push(c);
                 }
             }
         }
@@ -135,7 +138,8 @@ impl StacksManager {
                 // Find compose file
                 let compose_file = find_compose_file(&path);
                 if let Some(c_file) = compose_file {
-                    let compose_filename = c_file.file_name().unwrap().to_string_lossy().to_string();
+                    let compose_filename =
+                        c_file.file_name().unwrap().to_string_lossy().to_string();
                     let has_env = path.join(".env").exists();
 
                     let metadata = fs::metadata(&c_file).ok();
@@ -148,7 +152,8 @@ impl StacksManager {
                         .unwrap_or_default();
 
                     let stack_containers = containers_by_project.get(&stack_name);
-                    let (status, running_count, total_count) = if let Some(conts) = stack_containers {
+                    let (status, running_count, total_count) = if let Some(conts) = stack_containers
+                    {
                         let total = conts.len();
                         let running = conts
                             .iter()
@@ -209,12 +214,18 @@ impl StacksManager {
     }
 
     pub async fn get_stack(&self, name: &str, docker: &DockerService) -> Result<StackDetails> {
+        if !valid_path_component(name) {
+            anyhow::bail!("Invalid stack name '{}'", name);
+        }
         let stack_path = self.stack_dir.join(name);
 
         // External stack: no directory, but containers carry the project label.
         // Serve a read-only view (no compose content, no file metadata).
         if !stack_path.is_dir() {
-            let stack_containers = docker.list_containers_for_stack(name).await.unwrap_or_default();
+            let stack_containers = docker
+                .list_containers_for_stack(name)
+                .await
+                .unwrap_or_default();
             if stack_containers.is_empty() {
                 anyhow::bail!("Stack '{}' not found", name);
             }
@@ -248,8 +259,8 @@ impl StacksManager {
             .to_string_lossy()
             .to_string();
 
-        let compose_content = fs::read_to_string(&compose_file_path)
-            .context("Reading compose file content")?;
+        let compose_content =
+            fs::read_to_string(&compose_file_path).context("Reading compose file content")?;
 
         let env_path = stack_path.join(".env");
         let env_content = if env_path.exists() {
@@ -267,7 +278,10 @@ impl StacksManager {
         let services = extract_services_from_yaml(&compose_content);
 
         // Correlate with running containers
-        let stack_containers = docker.list_containers_for_stack(name).await.unwrap_or_default();
+        let stack_containers = docker
+            .list_containers_for_stack(name)
+            .await
+            .unwrap_or_default();
         let hostnames = inspect_hostnames(docker, &stack_containers).await;
         let (containers_info, running_count) = container_infos(&stack_containers, &hostnames);
 
@@ -300,6 +314,9 @@ impl StacksManager {
         custom_uid: Option<u32>,
         custom_gid: Option<u32>,
     ) -> Result<()> {
+        if !valid_path_component(name) {
+            anyhow::bail!("Invalid stack name '{}'", name);
+        }
         let stack_path = self.stack_dir.join(name);
 
         let is_new = !stack_path.exists();
@@ -315,8 +332,8 @@ impl StacksManager {
         }
 
         // Determine compose filename
-        let compose_file = find_compose_file(&stack_path)
-            .unwrap_or_else(|| stack_path.join("compose.yml"));
+        let compose_file =
+            find_compose_file(&stack_path).unwrap_or_else(|| stack_path.join("compose.yml"));
 
         // Check if existing file permissions need to be preserved
         let (target_uid, target_gid, target_mode) = if compose_file.exists() {
@@ -357,7 +374,17 @@ impl StacksManager {
         Ok(())
     }
 
+    pub fn stack_exists(&self, name: &str) -> Result<bool> {
+        if !valid_path_component(name) {
+            anyhow::bail!("Invalid stack name '{}'", name);
+        }
+        Ok(self.stack_dir.join(name).exists())
+    }
+
     pub fn delete_stack(&self, name: &str) -> Result<()> {
+        if !valid_path_component(name) {
+            anyhow::bail!("Invalid stack name '{}'", name);
+        }
         let stack_path = self.stack_dir.join(name);
         if stack_path.exists() {
             fs::remove_dir_all(&stack_path)
@@ -448,23 +475,25 @@ fn container_infos(
                                 .as_ref()
                                 .map(|t| t.to_string())
                                 .unwrap_or_else(|| "tcp".to_string());
-                            host_ports.push(
-                                crate::network_graph::builder::HostPortNode {
-                                    id: format!("host_port_{}_{}_{}", hip, hp, proto),
-                                    host_ip: hip.clone(),
-                                    host_port: hp,
-                                    protocol: proto.clone(),
-                                    target_container_id: id.clone(),
-                                    target_container_port: p.private_port,
-                                },
-                            );
+                            host_ports.push(crate::network_graph::builder::HostPortNode {
+                                id: format!("host_port_{}_{}_{}", hip, hp, proto),
+                                host_ip: hip.clone(),
+                                host_port: hp,
+                                protocol: proto.clone(),
+                                target_container_id: id.clone(),
+                                target_container_port: p.private_port,
+                            });
                         }
                         format!(
                             "{}:{}->{}/{}",
                             p.ip.as_deref().unwrap_or("0.0.0.0"),
                             p.public_port.unwrap_or(0),
                             p.private_port,
-                            p.typ.as_ref().map(|t| t.to_string()).as_deref().unwrap_or("tcp")
+                            p.typ
+                                .as_ref()
+                                .map(|t| t.to_string())
+                                .as_deref()
+                                .unwrap_or("tcp")
                         )
                     })
                     .collect()
@@ -494,10 +523,7 @@ fn container_infos(
                 .cmp(&crate::network_graph::builder::ip_sort_key(&b.ip_address))
         });
 
-        let (hostname, domainname) = hostnames
-            .get(&id)
-            .cloned()
-            .unwrap_or((None, None));
+        let (hostname, domainname) = hostnames.get(&id).cloned().unwrap_or((None, None));
 
         infos.push(StackContainerInfo {
             id,
@@ -532,6 +558,13 @@ fn external_services(containers: &[ContainerSummary]) -> Vec<String> {
     services.sort();
     services.dedup();
     services
+}
+
+/// Reject values that could escape their configured parent directory. Existing
+/// stack directories may use characters outside Docker's new-name rules, but a
+/// request name must always remain one filesystem path component.
+pub fn valid_path_component(name: &str) -> bool {
+    !name.is_empty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
 }
 
 /// Docker compose project names must be lowercase (compose silently
@@ -579,7 +612,8 @@ pub fn strip_description(content: &str) -> String {
     out
 }
 
-pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {    for filename in COMPOSE_FILENAMES {
+pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {
+    for filename in COMPOSE_FILENAMES {
         let p = dir.join(filename);
         if p.exists() && p.is_file() {
             return Some(p);
@@ -615,14 +649,13 @@ mod tests {
 
     #[test]
     fn test_container_infos() {
-        use bollard::models::{ContainerSummary, ContainerSummaryNetworkSettings, EndpointSettings, Port};
+        use bollard::models::{
+            ContainerSummary, ContainerSummaryNetworkSettings, EndpointSettings, Port,
+        };
         use std::collections::HashMap;
 
         let mut labels = HashMap::new();
-        labels.insert(
-            "com.docker.compose.service".to_string(),
-            "web".to_string(),
-        );
+        labels.insert("com.docker.compose.service".to_string(), "web".to_string());
         let mut networks = HashMap::new();
         networks.insert(
             "demo_default".to_string(),
@@ -651,7 +684,6 @@ mod tests {
                 labels: Some(labels),
                 network_settings: Some(ContainerSummaryNetworkSettings {
                     networks: Some(networks),
-                    ..Default::default()
                 }),
                 ..Default::default()
             },
@@ -679,7 +711,10 @@ mod tests {
         assert_eq!(infos[0].interfaces[0].ip_address, "10.0.0.2");
         assert_eq!(infos[0].interfaces[0].aliases, vec!["web"]);
         assert_eq!(
-            infos[0].labels.get("com.docker.compose.service").map(String::as_str),
+            infos[0]
+                .labels
+                .get("com.docker.compose.service")
+                .map(String::as_str),
             Some("web")
         );
         assert_eq!(infos[0].host_ports.len(), 1);
@@ -771,6 +806,14 @@ mod tests {
         for bad in ["", "Ignition-1", "Foo", "a b", "-a", "_a", "a/b", "a.b"] {
             assert!(!valid_stack_name(bad), "{}", bad);
         }
+        // Existing names are grandfathered, but filesystem path components
+        // must never be able to escape the configured stack directory.
+        for bad in ["", ".", "..", "a/b", "a\\b"] {
+            assert!(!valid_path_component(bad), "{}", bad);
+        }
+        for ok in ["Foo", "legacy stack", "a.b"] {
+            assert!(valid_path_component(ok), "{}", ok);
+        }
     }
 
     #[test]
@@ -800,7 +843,13 @@ services:
 
     #[test]
     fn test_find_compose_file() {
-        let temp_dir = std::env::temp_dir().join(format!("gisco_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "gisco_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         fs::create_dir_all(&temp_dir).unwrap();
 
         assert!(find_compose_file(&temp_dir).is_none());
@@ -816,11 +865,19 @@ services:
 
     #[test]
     fn test_save_and_preserve_stack() {
-        let temp_dir = std::env::temp_dir().join(format!("gisco_stack_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "gisco_stack_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         let manager = StacksManager::new(temp_dir.clone(), 1000, 1000);
 
         let initial_yaml = "version: '3.8'\nservices:\n  app:\n    image: node";
-        manager.save_stack("my-test-stack", initial_yaml, Some("FOO=bar"), None, None).unwrap();
+        manager
+            .save_stack("my-test-stack", initial_yaml, Some("FOO=bar"), None, None)
+            .unwrap();
 
         let stack_path = temp_dir.join("my-test-stack");
         assert!(stack_path.exists());
@@ -831,10 +888,19 @@ services:
 
         // Update stack
         let updated_yaml = "version: '3.8'\nservices:\n  app:\n    image: node:alpine";
-        manager.save_stack("my-test-stack", updated_yaml, Some("FOO=baz"), None, None).unwrap();
+        manager
+            .save_stack("my-test-stack", updated_yaml, Some("FOO=baz"), None, None)
+            .unwrap();
 
         let read_yaml = fs::read_to_string(&compose_path).unwrap();
         assert_eq!(read_yaml, updated_yaml);
+
+        // An explicitly empty env body removes the file; None means "leave it
+        // unchanged" for callers that do not manage the env file.
+        manager
+            .save_stack("my-test-stack", updated_yaml, Some(""), None, None)
+            .unwrap();
+        assert!(!env_path.exists());
 
         let _ = fs::remove_dir_all(temp_dir);
     }

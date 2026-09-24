@@ -67,8 +67,14 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   useEffect(() => {
     return () => {
       if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
+      if (actionWsRef.current) {
+        actionWsRef.current.onclose = null;
+        actionWsRef.current.onerror = null;
+        actionWsRef.current.close();
+        actionWsRef.current = null;
+      }
     };
-  }, []);
+  }, [stackName]);
 
   const fetchDetails = async (resetEditorSplit = false) => {
     try {
@@ -136,7 +142,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       setSaving(true);
       await api.updateStack(stackName, {
         compose_content: composeText,
-        env_content: envText.trim() ? envText : undefined,
+        env_content: envText,
       });
       showFeedback('success', 'Stack saved — file permissions and ownership preserved.');
       fetchDetails();
@@ -206,6 +212,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     setActionLogs((prev) => [...prev, `\r\n--- Executing 'docker compose ${action}' on ${stackName} ---`]);
 
     if (actionWsRef.current) {
+      actionWsRef.current.onclose = null;
+      actionWsRef.current.onerror = null;
       actionWsRef.current.close();
     }
 
@@ -214,15 +222,20 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     actionWsRef.current = ws;
 
     ws.onmessage = (event) => {
-      setActionLogs((prev) => [...prev, event.data]);
+      if (actionWsRef.current === ws && typeof event.data === 'string') {
+        setActionLogs((prev) => [...prev, event.data]);
+      }
     };
 
     ws.onclose = () => {
+      if (actionWsRef.current !== ws) return;
+      actionWsRef.current = null;
       setIsRunningAction(false);
       fetchDetails();
     };
 
     ws.onerror = () => {
+      if (actionWsRef.current !== ws) return;
       setActionLogs((prev) => [...prev, `[WebSocket Error: could not stream action]`]);
       setIsRunningAction(false);
     };

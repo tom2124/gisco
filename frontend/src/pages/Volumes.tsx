@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import DeleteButton from '../components/DeleteButton';
 import SortSelect from '../components/SortSelect';
 import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
+import { formatBytes } from '../utils/docker';
 
 export const Volumes: React.FC = () => {
   const [volumes, setVolumes] = useState<DockerVolume[]>([]);
@@ -40,15 +41,6 @@ export const Volumes: React.FC = () => {
     } catch (err: any) {
       alert(`Delete failed: ${err.message}`);
     }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes == null || bytes < 0) return '—';
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
   return (

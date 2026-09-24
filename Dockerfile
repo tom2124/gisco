@@ -5,19 +5,19 @@ ARG APP_VERSION
 ENV APP_VERSION=${APP_VERSION}
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build Rust backend
 FROM rust:1.88-slim-bookworm AS backend-builder
 WORKDIR /app
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 COPY backend/Cargo.toml ./backend/
 RUN mkdir -p backend/src && echo "fn main() {}" > backend/src/main.rs
-RUN cargo build --release || true
+RUN cargo build --release --locked || true
 COPY backend/src ./backend/src
-RUN touch backend/src/main.rs && cargo build --release
+RUN touch backend/src/main.rs && cargo build --release --locked
 
 # Stage 3: Minimal production runtime
 FROM debian:bookworm-slim

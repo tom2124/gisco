@@ -1,7 +1,7 @@
 export type StackStatus = 'Running' | 'Partial' | 'Stopped' | 'Empty';
 
 export interface StackSummary {
-  name: String;
+  name: string;
   path: string;
   compose_file: string;
   status: StackStatus;
@@ -21,8 +21,6 @@ export interface StackContainerInfo {
   status: string;
   image: string;
   ports: string[];
-  created: number;
-  stack?: string;
   interfaces: Array<{
     network_id: string;
     network_name: string;

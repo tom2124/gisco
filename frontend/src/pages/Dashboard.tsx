@@ -33,7 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const orderedStacks = sorted(managedStacks, 'state', {
     stateRank: rankOf(STACK_STATE_RANK),
     getState: (s) => s.status,
-    getName: (s) => s.name as string,
+    getName: (s) => s.name,
   });
 
   return (
@@ -134,8 +134,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto', paddingRight: '4px' }}>
               {orderedStacks.map((stack) => (
                 <div
-                  key={stack.name as string}
-                  onClick={() => onSelectStack(stack.name as string)}
+                  key={stack.name}
+                  onClick={() => onSelectStack(stack.name)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -163,7 +163,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     />
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                        {stack.name as string}
+                        {stack.name}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
                         {stack.running_services} / {stack.total_services} services running

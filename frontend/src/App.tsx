@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Stacks } from './pages/Stacks';
@@ -28,8 +28,14 @@ const VALID_TABS = new Set([
 function parseHash(): { tab: string; stackName: string | null } {
   const parts = window.location.hash.replace(/^#\/?/, '').split('/');
   const tab = VALID_TABS.has(parts[0]) ? parts[0] : 'dashboard';
-  const stackName =
-    tab === 'stacks' && parts[1] ? decodeURIComponent(parts[1]) : null;
+  let stackName: string | null = null;
+  if (tab === 'stacks' && parts[1]) {
+    try {
+      stackName = decodeURIComponent(parts[1]);
+    } catch {
+      // Ignore malformed percent escapes and fall back to the stacks list.
+    }
+  }
   return { tab, stackName };
 }
 
@@ -41,6 +47,7 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [stacks, setStacks] = useState<StackSummary[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshInFlightRef = useRef(false);
 
   // Terminal & Logs modals
   const [terminalTarget, setTerminalTarget] = useState<{
@@ -54,6 +61,8 @@ export const App: React.FC = () => {
   } | null>(null);
 
   const fetchGlobalData = async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     try {
       setIsRefreshing(true);
       const [sysStatus, stackList] = await Promise.all([
@@ -63,6 +72,7 @@ export const App: React.FC = () => {
       setStatus(sysStatus);
       setStacks(stackList);
     } finally {
+      refreshInFlightRef.current = false;
       setIsRefreshing(false);
     }
   };

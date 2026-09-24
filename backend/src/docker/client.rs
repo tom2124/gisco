@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use bollard::container::{
-    InspectContainerOptions, ListContainersOptions, RemoveContainerOptions, RestartContainerOptions,
-    StopContainerOptions,
+    InspectContainerOptions, ListContainersOptions, RemoveContainerOptions,
+    RestartContainerOptions, StopContainerOptions,
 };
 use bollard::image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions};
 use bollard::models::{
@@ -27,8 +27,7 @@ impl DockerService {
             Docker::connect_with_unix(path, 120, bollard::API_DEFAULT_VERSION)
                 .context("Failed to connect to Docker unix socket")?
         } else if socket_str.starts_with("tcp://") || socket_str.starts_with("http://") {
-            Docker::connect_with_http_defaults()
-                .context("Failed to connect to Docker HTTP host")?
+            Docker::connect_with_http_defaults().context("Failed to connect to Docker HTTP host")?
         } else {
             Docker::connect_with_local_defaults()
                 .context("Failed to connect with local Docker defaults")?
@@ -63,7 +62,10 @@ impl DockerService {
         Ok(containers)
     }
 
-    pub async fn list_containers_for_stack(&self, stack_name: &str) -> Result<Vec<ContainerSummary>> {
+    pub async fn list_containers_for_stack(
+        &self,
+        stack_name: &str,
+    ) -> Result<Vec<ContainerSummary>> {
         let mut filters = HashMap::new();
         filters.insert(
             "label".to_string(),
@@ -88,7 +90,10 @@ impl DockerService {
 
     pub async fn start_container(&self, id: &str) -> Result<()> {
         self.client
-            .start_container(id, None::<bollard::container::StartContainerOptions<String>>)
+            .start_container(
+                id,
+                None::<bollard::container::StartContainerOptions<String>>,
+            )
             .await?;
         Ok(())
     }

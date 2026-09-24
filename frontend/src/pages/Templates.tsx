@@ -101,7 +101,7 @@ export const Templates: React.FC<TemplatesProps> = ({
       return;
     }
     try {
-      await api.saveTemplate(newTemplateId.trim(), newTemplateYaml);
+      await api.saveTemplate(newTemplateId.trim(), newTemplateYaml, false);
       setShowNewTemplateModal(false);
       setNewTemplateId('');
       fetchTemplates();

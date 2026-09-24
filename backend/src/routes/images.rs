@@ -34,10 +34,7 @@ async fn list_images(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
-async fn inspect_image(
-    Path(id): Path<String>,
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+async fn inspect_image(Path(id): Path<String>, State(state): State<AppState>) -> impl IntoResponse {
     match state.docker.inspect_image(&id).await {
         Ok(img) => (StatusCode::OK, Json(serde_json::json!(img))),
         Err(e) => (
@@ -58,7 +55,11 @@ async fn pull_image(
         );
     }
 
-    match state.docker.pull_image(&payload.image, payload.tag.as_deref()).await {
+    match state
+        .docker
+        .pull_image(&payload.image, payload.tag.as_deref())
+        .await
+    {
         Ok(()) => (
             StatusCode::OK,
             Json(serde_json::json!({

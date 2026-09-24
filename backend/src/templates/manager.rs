@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::compose::{extract_description, strip_description, StacksManager};
+use crate::compose::{extract_description, strip_description, valid_path_component, StacksManager};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TemplateSummary {
@@ -64,6 +64,9 @@ impl TemplatesManager {
     }
 
     pub fn get_template(&self, id: &str) -> Result<TemplateDetails> {
+        if !valid_path_component(id) {
+            anyhow::bail!("Invalid template id '{}'", id);
+        }
         let yml_path = self.template_dir.join(format!("{}.yml", id));
         let yaml_path = self.template_dir.join(format!("{}.yaml", id));
 
@@ -75,11 +78,7 @@ impl TemplatesManager {
             anyhow::bail!("Template '{}' not found", id);
         };
 
-        let filename = file_path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
+        let filename = file_path.file_name().unwrap().to_string_lossy().to_string();
         let raw_content = fs::read_to_string(&file_path)?;
 
         Ok(TemplateDetails {
@@ -90,14 +89,31 @@ impl TemplatesManager {
         })
     }
 
-    pub fn save_template(&self, id: &str, content: &str) -> Result<()> {
-        let file_path = self.template_dir.join(format!("{}.yml", id));
+    pub fn save_template(&self, id: &str, content: &str, overwrite: bool) -> Result<()> {
+        if !valid_path_component(id) {
+            anyhow::bail!("Invalid template id '{}'", id);
+        }
+        let yml_path = self.template_dir.join(format!("{}.yml", id));
+        let yaml_path = self.template_dir.join(format!("{}.yaml", id));
+        // Preserve the extension of user-supplied templates so editing a
+        // `.yaml` file does not leave both extensions behind.
+        let file_path = if !yml_path.exists() && yaml_path.exists() {
+            yaml_path
+        } else {
+            yml_path
+        };
+        if !overwrite && file_path.exists() {
+            anyhow::bail!("Template '{}' already exists", id);
+        }
         fs::write(&file_path, content)?;
         info!("Saved template '{}' at {:?}", id, file_path);
         Ok(())
     }
 
     pub fn delete_template(&self, id: &str) -> Result<()> {
+        if !valid_path_component(id) {
+            anyhow::bail!("Invalid template id '{}'", id);
+        }
         let yml_path = self.template_dir.join(format!("{}.yml", id));
         let yaml_path = self.template_dir.join(format!("{}.yaml", id));
 
@@ -120,6 +136,9 @@ impl TemplatesManager {
         custom_gid: Option<u32>,
     ) -> Result<()> {
         let template = self.get_template(template_id)?;
+        if self.stacks_manager.stack_exists(stack_name)? {
+            anyhow::bail!("Stack '{}' already exists", stack_name);
+        }
 
         self.stacks_manager.save_stack(
             stack_name,
@@ -184,6 +203,31 @@ mod tests {
     }
 
     #[test]
+    fn test_save_preserves_yaml_extension() {
+        let dir = unique_dir("tpl_ext");
+        let yaml_path = dir.join("existing.yaml");
+        fs::write(&yaml_path, "services: {}\n").unwrap();
+
+        let manager = TemplatesManager::new(
+            dir.clone(),
+            StacksManager::new(dir.join("stacks"), 1000, 1000),
+        );
+        manager
+            .save_template("existing", "services:\n  app: {}\n", true)
+            .unwrap();
+
+        assert!(yaml_path.exists());
+        assert!(!dir.join("existing.yml").exists());
+        assert!(manager
+            .save_template("existing", "services: {}\n", false)
+            .unwrap_err()
+            .to_string()
+            .contains("already exists"));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn test_instantiate_strips_desc_and_writes_env() {
         let template_dir = unique_dir("tplinst");
         let stack_dir = unique_dir("tplstacks");
@@ -204,6 +248,15 @@ mod tests {
         assert!(compose.contains("image: alpine"));
         let env = fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap();
         assert_eq!(env, "PORT=9090");
+
+        let overwrite = manager
+            .instantiate_template("demo", "demo-1", Some("PORT=9999"), None, None)
+            .unwrap_err();
+        assert!(overwrite.to_string().contains("already exists"));
+        assert_eq!(
+            fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap(),
+            "PORT=9090"
+        );
 
         let _ = fs::remove_dir_all(template_dir);
         let _ = fs::remove_dir_all(stack_dir);

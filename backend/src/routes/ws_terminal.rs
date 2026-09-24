@@ -20,6 +20,14 @@ pub async fn terminal_handler(
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| async move {
-        let _ = handle_exec_terminal(state.docker.client.clone(), id, query.cmd, query.interactive, query.user, socket).await;
+        let _ = handle_exec_terminal(
+            state.docker.client.clone(),
+            id,
+            query.cmd,
+            query.interactive,
+            query.user,
+            socket,
+        )
+        .await;
     })
 }

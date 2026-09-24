@@ -24,22 +24,23 @@ pub fn calculate_metrics(container_id: &str, stats: &Stats) -> ContainerMetrics 
     let cpu_stats = &stats.cpu_stats;
     let precpu_stats = &stats.precpu_stats;
 
-    let cpu_delta = cpu_stats.cpu_usage.total_usage.saturating_sub(precpu_stats.cpu_usage.total_usage) as f64;
+    let cpu_delta = cpu_stats
+        .cpu_usage
+        .total_usage
+        .saturating_sub(precpu_stats.cpu_usage.total_usage) as f64;
     let system_delta = cpu_stats
         .system_cpu_usage
         .unwrap_or(0)
         .saturating_sub(precpu_stats.system_cpu_usage.unwrap_or(0)) as f64;
 
-    let num_cpus = cpu_stats
-        .online_cpus
-        .unwrap_or_else(|| {
-            cpu_stats
-                .cpu_usage
-                .percpu_usage
-                .as_ref()
-                .map(|v: &Vec<u64>| v.len() as u64)
-                .unwrap_or(1)
-        }) as f64;
+    let num_cpus = cpu_stats.online_cpus.unwrap_or_else(|| {
+        cpu_stats
+            .cpu_usage
+            .percpu_usage
+            .as_ref()
+            .map(|v: &Vec<u64>| v.len() as u64)
+            .unwrap_or(1)
+    }) as f64;
 
     if system_delta > 0.0 && cpu_delta > 0.0 {
         cpu_percent = (cpu_delta / system_delta) * num_cpus * 100.0;
@@ -53,9 +54,9 @@ pub fn calculate_metrics(container_id: &str, stats: &Stats) -> ContainerMetrics 
     let cache = mem_stats
         .stats
         .as_ref()
-        .and_then(|s| match s {
-            MemoryStatsStats::V1(v1) => Some(v1.total_inactive_file),
-            MemoryStatsStats::V2(v2) => Some(v2.inactive_file),
+        .map(|s| match s {
+            MemoryStatsStats::V1(v1) => v1.total_inactive_file,
+            MemoryStatsStats::V2(v2) => v2.inactive_file,
         })
         .unwrap_or(0);
 
@@ -70,7 +71,7 @@ pub fn calculate_metrics(container_id: &str, stats: &Stats) -> ContainerMetrics 
     let mut rx_bytes = 0u64;
     let mut tx_bytes = 0u64;
     if let Some(networks) = &stats.networks {
-        for (_net_name, net) in networks {
+        for net in networks.values() {
             rx_bytes += net.rx_bytes;
             tx_bytes += net.tx_bytes;
         }

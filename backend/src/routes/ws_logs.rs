@@ -2,7 +2,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
 use axum::response::IntoResponse;
 use bollard::container::LogsOptions;
-use futures_util::StreamExt;
+use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tracing::warn;
 
@@ -24,7 +24,7 @@ pub async fn logs_handler(
 }
 
 async fn handle_logs_ws(
-    mut socket: WebSocket,
+    socket: WebSocket,
     container_id: String,
     query: LogsQuery,
     state: AppState,
@@ -39,18 +39,38 @@ async fn handle_logs_ws(
     });
 
     let mut stream = state.docker.client.logs(&container_id, options);
+    let (mut sender, mut receiver) = socket.split();
 
-    while let Some(msg_res) = stream.next().await {
-        match msg_res {
-            Ok(output) => {
-                let text = output.to_string();
-                if socket.send(Message::Text(text.into())).await.is_err() {
-                    break;
+    loop {
+        tokio::select! {
+            output = stream.next() => {
+                match output {
+                    Some(Ok(output)) => {
+                        if sender.send(Message::Text(output.to_string().into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        warn!("Logs stream error: {:?}", e);
+                        break;
+                    }
+                    None => break,
                 }
             }
-            Err(e) => {
-                warn!("Logs stream error: {:?}", e);
-                break;
+            incoming = receiver.next() => {
+                match incoming {
+                    Some(Ok(Message::Ping(payload))) => {
+                        if sender.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(_)) => {}
+                    Some(Err(e)) => {
+                        warn!("Logs WebSocket receive error: {:?}", e);
+                        break;
+                    }
+                }
             }
         }
     }

@@ -39,7 +39,7 @@ export const Stacks: React.FC<StacksProps> = ({
     stacks.filter((s) => {
       const term = search.toLowerCase();
       return (
-        (s.name as string).toLowerCase().includes(term) ||
+        s.name.toLowerCase().includes(term) ||
         (s.description ?? '').toLowerCase().includes(term)
       );
     }),
@@ -47,7 +47,7 @@ export const Stacks: React.FC<StacksProps> = ({
     {
       stateRank: rankOf(STACK_STATE_RANK),
       getState: (s) => s.status,
-      getName: (s) => s.name as string,
+      getName: (s) => s.name,
     }
   );
 
@@ -148,7 +148,7 @@ export const Stacks: React.FC<StacksProps> = ({
       ) : (
         <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
           {filtered.map((stack, idx) => {
-            const name = stack.name as string;
+            const name = stack.name;
             const isLast = idx === filtered.length - 1;
             return (
               <div

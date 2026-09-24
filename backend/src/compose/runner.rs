@@ -120,15 +120,29 @@ impl ComposeRunner {
 
         if status.success() {
             if let Some(tx) = &tx {
-                let _ = tx.send(format!("[gisco] Action '{}' completed successfully.", action)).await;
+                let _ = tx
+                    .send(format!(
+                        "[gisco] Action '{}' completed successfully.",
+                        action
+                    ))
+                    .await;
             }
             Ok(true)
         } else {
             let code = status.code().unwrap_or(-1);
             if let Some(tx) = &tx {
-                let _ = tx.send(format!("[gisco] Action '{}' failed with code {}.", action, code)).await;
+                let _ = tx
+                    .send(format!(
+                        "[gisco] Action '{}' failed with code {}.",
+                        action, code
+                    ))
+                    .await;
             }
-            anyhow::bail!("Docker compose action '{}' failed with code {}", action, code);
+            anyhow::bail!(
+                "Docker compose action '{}' failed with code {}",
+                action,
+                code
+            );
         }
     }
 }

@@ -37,7 +37,7 @@ Gisco is a web interface for managing Docker containers and Compose stacks, view
 - **Stacks**: create/edit/delete compose stacks with `.env` support; external projects detected automatically
 - **Containers**: grouped by stack, with state, uptime, metrics, terminal, logs and actions
 - **Networks**: live topology with interfaces, DNS names, port mappings and Traefik routing
-- **Images & volumes**: sizes, pull, prune
+- **Images & volumes**: size sorting, image pull, and safe resource deletion
 - **Templates**: parameterized compose files with a deploy dialog
 - **Terminal & logs**: xterm.js exec terminals and live log streaming over WebSockets
 
@@ -113,6 +113,8 @@ Pin a release instead of `latest` if you prefer stability, e.g.
 | `GISCO_STACK_DIR` | /stacks | Where stack compose files + `.env` live |
 | `GISCO_TEMPLATE_DIR` | /templates | Where `<name>.yml` templates live |
 | `GISCO_DEFAULT_UID` / `GISCO_DEFAULT_GID` | 1000 | Owner for newly created stack files |
+| `DOCKER_HOST` | `unix:///var/run/docker.sock` | Docker endpoint used by gisco and the Compose CLI |
+| `GISCO_STATIC_DIR` | `./frontend/dist` when present | Optional frontend static-file directory |
 
 ## Security note
 

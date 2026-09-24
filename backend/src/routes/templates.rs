@@ -5,6 +5,7 @@ use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 
+use crate::compose::{valid_path_component, valid_stack_name};
 use crate::routes::AppState;
 
 #[derive(Deserialize)]
@@ -18,6 +19,14 @@ pub struct InstantiateTemplateRequest {
 #[derive(Deserialize)]
 pub struct SaveTemplateRequest {
     pub content: String,
+    /// Defaults to true for API compatibility; the UI sends false for new
+    /// templates and true when editing an existing one.
+    #[serde(default = "default_true")]
+    pub overwrite: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 pub fn routes() -> Router<AppState> {
@@ -54,7 +63,27 @@ async fn save_template(
     State(state): State<AppState>,
     Json(payload): Json<SaveTemplateRequest>,
 ) -> impl IntoResponse {
-    match state.templates.save_template(&id, &payload.content) {
+    if !valid_path_component(&id) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Invalid template id" })),
+        );
+    }
+    if !payload.overwrite {
+        let yml_path = state.config.template_dir.join(format!("{}.yml", id));
+        let yaml_path = state.config.template_dir.join(format!("{}.yaml", id));
+        if yml_path.exists() || yaml_path.exists() {
+            return (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({ "error": "Template already exists" })),
+            );
+        }
+    }
+
+    match state
+        .templates
+        .save_template(&id, &payload.content, payload.overwrite)
+    {
         Ok(()) => (
             StatusCode::OK,
             Json(serde_json::json!({ "status": "saved", "id": id })),
@@ -91,6 +120,14 @@ async fn instantiate_template(
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": "Stack name cannot be empty" })),
+        );
+    }
+    if !valid_stack_name(&payload.stack_name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit"
+            })),
         );
     }
 

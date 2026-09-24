@@ -98,7 +98,7 @@ export const Containers: React.FC<ContainersProps> = ({
 
   const filtered = useMemo(() => {
     return containers.filter((c) => {
-      const name = c.Names?.[0] || '';
+      const name = (c.Names?.[0] || '').replace(/^\//, '');
       const image = c.Image || '';
       const stack = c.Labels?.['com.docker.compose.project'] || '';
       const term = search.toLowerCase();
@@ -111,7 +111,7 @@ export const Containers: React.FC<ContainersProps> = ({
   }, [containers, search]);
 
   const externalStackNames = useMemo(
-    () => new Set(stacks.filter((s) => s.external).map((s) => s.name as string)),
+    () => new Set(stacks.filter((s) => s.external).map((s) => s.name)),
     [stacks]
   );
 

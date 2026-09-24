@@ -28,4 +28,4 @@ docker buildx build --platform linux/amd64,linux/arm64 \
   -t "${PACKAGE}:latest" \
   --push .
 
-echo "pushed ${IMAGE}"
+echo "pushed ${PACKAGE}:${TAG} and ${PACKAGE}:latest"

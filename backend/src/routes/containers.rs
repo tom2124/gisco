@@ -62,10 +62,14 @@ async fn container_action(
         "restart" => state.docker.restart_container(&id).await,
         "pause" => state.docker.pause_container(&id).await,
         "unpause" => state.docker.unpause_container(&id).await,
-        _ => return (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("Unknown container action '{}'", action) })),
-        ),
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    serde_json::json!({ "error": format!("Unknown container action '{}'", action) }),
+                ),
+            )
+        }
     };
 
     match res {

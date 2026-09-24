@@ -51,9 +51,15 @@ async fn get_status(State(state): State<AppState>) -> impl IntoResponse {
         os: info.as_ref().and_then(|i| i.operating_system.clone()),
         arch: info.as_ref().and_then(|i| i.architecture.clone()),
         containers_total: info.as_ref().and_then(|i| i.containers.map(|c| c as usize)),
-        containers_running: info.as_ref().and_then(|i| i.containers_running.map(|c| c as usize)),
-        containers_paused: info.as_ref().and_then(|i| i.containers_paused.map(|c| c as usize)),
-        containers_stopped: info.as_ref().and_then(|i| i.containers_stopped.map(|c| c as usize)),
+        containers_running: info
+            .as_ref()
+            .and_then(|i| i.containers_running.map(|c| c as usize)),
+        containers_paused: info
+            .as_ref()
+            .and_then(|i| i.containers_paused.map(|c| c as usize)),
+        containers_stopped: info
+            .as_ref()
+            .and_then(|i| i.containers_stopped.map(|c| c as usize)),
         images_count: info.as_ref().and_then(|i| i.images.map(|c| c as usize)),
         stack_dir: state.config.stack_dir.to_string_lossy().to_string(),
         template_dir: state.config.template_dir.to_string_lossy().to_string(),

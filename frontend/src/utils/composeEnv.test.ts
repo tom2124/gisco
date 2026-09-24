@@ -21,7 +21,7 @@ describe('extractEnvVars', () => {
   });
 
   it('ignores $$ escapes and :? operators, keeps - defaults', () => {
-    expect(extractEnvVars('a=$$ESCAPED b=${MISSING:?err} c=${EMPTY-}')).toEqual([
+    expect(extractEnvVars('a=$$ESCAPED b=$${BRACED} c=${MISSING:?err} d=${EMPTY-}')).toEqual([
       { name: 'MISSING', defaultValue: '', auto: false, autoSource: undefined },
       { name: 'EMPTY', defaultValue: '', auto: false, autoSource: undefined },
     ]);

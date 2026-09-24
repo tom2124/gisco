@@ -16,14 +16,12 @@ pub fn docker_error(err: anyhow::Error) -> (StatusCode, Json<serde_json::Value>)
 
 pub fn docker_status(err: &anyhow::Error) -> StatusCode {
     for cause in err.chain() {
-        if let Some(bollard_err) = cause.downcast_ref::<bollard::errors::Error>() {
-            if let bollard::errors::Error::DockerResponseServerError { status_code, .. } =
-                bollard_err
-            {
-                if let Ok(status) = StatusCode::from_u16(*status_code) {
-                    if status.as_u16() < 500 {
-                        return status;
-                    }
+        if let Some(bollard::errors::Error::DockerResponseServerError { status_code, .. }) =
+            cause.downcast_ref::<bollard::errors::Error>()
+        {
+            if let Ok(status) = StatusCode::from_u16(*status_code) {
+                if status.as_u16() < 500 {
+                    return status;
                 }
             }
         }
@@ -52,7 +50,10 @@ mod tests {
 
     #[test]
     fn test_docker_status_falls_back_to_500() {
-        assert_eq!(docker_status(&daemon_error(500)), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            docker_status(&daemon_error(500)),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
         assert_eq!(
             docker_status(&anyhow::anyhow!("plain failure")),
             StatusCode::INTERNAL_SERVER_ERROR

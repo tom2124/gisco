@@ -4,11 +4,14 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
+use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
 use crate::compose::manager::find_compose_file;
-use crate::compose::{project_action_allowed, ComposeRunner};
+use crate::compose::{
+    project_action_allowed, valid_path_component, valid_stack_name, ComposeRunner,
+};
 use crate::routes::error::docker_error;
 use crate::routes::AppState;
 
@@ -42,14 +45,19 @@ pub struct ActionStreamQuery {
 /// Resolve how to operate on a stack: via its compose file (managed) or
 /// via `docker compose -p` (external project with no stack directory).
 enum StackTarget {
-    Managed { dir: std::path::PathBuf, file: String },
-    External { project: String },
+    Managed {
+        dir: std::path::PathBuf,
+        file: String,
+    },
+    External {
+        project: String,
+    },
 }
 
-async fn resolve_stack_target(
-    state: &AppState,
-    name: &str,
-) -> Option<StackTarget> {
+async fn resolve_stack_target(state: &AppState, name: &str) -> Option<StackTarget> {
+    if !valid_path_component(name) {
+        return None;
+    }
     let stack_path = state.config.stack_dir.join(name);
     if let Some(compose_file) = find_compose_file(&stack_path) {
         return Some(StackTarget::Managed {
@@ -107,6 +115,20 @@ async fn create_stack(
             Json(serde_json::json!({ "error": "Stack name cannot be empty" })),
         );
     }
+    if !valid_stack_name(&payload.name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit"
+            })),
+        );
+    }
+    if state.stacks.stack_exists(&payload.name).unwrap_or(false) {
+        return (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": "Stack already exists" })),
+        );
+    }
 
     match state.stacks.save_stack(
         &payload.name,
@@ -131,6 +153,14 @@ async fn update_stack(
     State(state): State<AppState>,
     Json(payload): Json<UpdateStackRequest>,
 ) -> impl IntoResponse {
+    let stack_path = state.config.stack_dir.join(&name);
+    if !valid_path_component(&name) || find_compose_file(&stack_path).is_none() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "Managed stack not found" })),
+        );
+    }
+
     match state.stacks.save_stack(
         &name,
         &payload.compose_content,
@@ -156,7 +186,14 @@ async fn delete_stack(
     match resolve_stack_target(&state, &name).await {
         // Managed: down via compose file, then remove the directory.
         Some(StackTarget::Managed { dir, file }) => {
-            let _ = ComposeRunner::run_compose(&dir, &file, "down", None).await;
+            if let Err(e) = ComposeRunner::run_compose(&dir, &file, "down", None).await {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({
+                        "error": format!("Failed to stop stack before deletion: {}", e)
+                    })),
+                );
+            }
             match state.stacks.delete_stack(&name) {
                 Ok(()) => (
                     StatusCode::OK,
@@ -170,8 +207,13 @@ async fn delete_stack(
         }
         // External: down via project name; there is no directory to remove.
         Some(StackTarget::External { project }) => {
-            match ComposeRunner::run_compose_project(&state.config.stack_dir, &project, "down", None)
-                .await
+            match ComposeRunner::run_compose_project(
+                &state.config.stack_dir,
+                &project,
+                "down",
+                None,
+            )
+            .await
             {
                 Ok(_) => (
                     StatusCode::OK,
@@ -204,11 +246,18 @@ async fn stack_action(
             if !project_action_allowed(&payload.action) {
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({ "error": format!("Action '{}' requires a compose file and is not supported for external stacks", payload.action) })),
+                    Json(
+                        serde_json::json!({ "error": format!("Action '{}' requires a compose file and is not supported for external stacks", payload.action) }),
+                    ),
                 );
             }
-            ComposeRunner::run_compose_project(&state.config.stack_dir, &project, &payload.action, None)
-                .await
+            ComposeRunner::run_compose_project(
+                &state.config.stack_dir,
+                &project,
+                &payload.action,
+                None,
+            )
+            .await
         }
         None => {
             return (
@@ -260,29 +309,56 @@ async fn handle_action_stream_ws(
 
     let (tx, mut rx) = mpsc::channel::<String>(100);
 
-    // Spawn command runner task
+    // Spawn command runner task. Forward setup/execution errors too; otherwise
+    // an invalid action closes the channel without ever showing the failure.
     tokio::spawn(async move {
-        let _ = match target {
+        let result = match target {
             StackTarget::Managed { dir, file } => {
-                ComposeRunner::run_compose(&dir, &file, &action, Some(tx)).await
+                ComposeRunner::run_compose(&dir, &file, &action, Some(tx.clone())).await
             }
             StackTarget::External { project } => {
                 ComposeRunner::run_compose_project(
                     &state.config.stack_dir,
                     &project,
                     &action,
-                    Some(tx),
+                    Some(tx.clone()),
                 )
                 .await
             }
         };
+        if let Err(e) = result {
+            let _ = tx.send(format!("[gisco] Error: {}", e)).await;
+        }
     });
 
-    // Forward lines from channel to WebSocket
-    while let Some(line) = rx.recv().await {
-        let formatted = format!("{}\r\n", line);
-        if socket.send(Message::Text(formatted.into())).await.is_err() {
-            break;
+    // Forward lines while also watching the client. A silent compose command
+    // must not keep this task alive after the modal is closed.
+    let (mut sender, mut receiver) = socket.split();
+    loop {
+        tokio::select! {
+            line = rx.recv() => {
+                match line {
+                    Some(line) => {
+                        let formatted = format!("{}\r\n", line);
+                        if sender.send(Message::Text(formatted.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => break,
+                }
+            }
+            incoming = receiver.next() => {
+                match incoming {
+                    Some(Ok(Message::Ping(payload))) => {
+                        if sender.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(_)) => {}
+                    Some(Err(_)) => break,
+                }
+            }
         }
     }
 }

@@ -15,7 +15,6 @@ function toNode(c: StackContainerInfo): ContainerNode {
     name: c.name,
     image: c.image,
     state: c.state,
-    stack: c.stack,
     interfaces: c.interfaces,
     ports: [],
     hostname: c.hostname,
