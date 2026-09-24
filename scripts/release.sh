@@ -5,7 +5,7 @@
 set -eu
 
 TAG="${1:?usage: $0 <tag>, e.g. $0 v1.0.0}"
-IMAGE="ghcr.io/tom2124/gisco:${TAG}"
+PACKAGE="ghcr.io/tom2124/gisco"
 
 cd "$(dirname "$0")/.."
 
@@ -18,13 +18,14 @@ echo "=== frontend tests ==="
 echo "=== frontend typecheck + build ==="
 (cd frontend && npm run build)
 
-echo "=== release image ${IMAGE} ==="
-docker buildx inspect gisco-builder >/dev/null 2>&1 \
-  || docker buildx create --name gisco-builder --use
+echo "=== release package ${PACKAGE} version ${TAG} ==="
+docker buildx inspect gisco-builder >/dev/null 2>&1 ||
+  docker buildx create --name gisco-builder --use
 
 docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg "APP_VERSION=${TAG}" \
-  -t "${IMAGE}" \
+  -t "${PACKAGE}:${TAG}" \
+  -t "${PACKAGE}:latest" \
   --push .
 
 echo "pushed ${IMAGE}"
