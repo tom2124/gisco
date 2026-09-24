@@ -223,6 +223,19 @@ code, pre, .font-mono {
   gap: 8px;
 }
 
+.route-loading {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.modal-card.route-loading {
+  min-height: 90px;
+}
+
 /* Cards & Containers */
 .card {
   background: var(--bg-card);

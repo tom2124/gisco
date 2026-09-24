@@ -192,6 +192,11 @@ export interface DockerNetwork {
   }>;
 }
 
+export interface VolumeUsageData {
+  Size: number;
+  RefCount: number;
+}
+
 export interface DockerVolume {
   Name: string;
   Driver: string;
@@ -199,10 +204,7 @@ export interface DockerVolume {
   CreatedAt?: string;
   Labels?: Record<string, string>;
   Scope: string;
-  UsageData?: {
-    Size: number;
-    RefCount: number;
-  };
+  UsageData?: VolumeUsageData;
 }
 
 export interface SystemStatus {

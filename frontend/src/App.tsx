@@ -1,18 +1,33 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './pages/Dashboard';
-import { Stacks } from './pages/Stacks';
-import { StackDetail } from './pages/StackDetail';
-import { Templates } from './pages/Templates';
-import { Containers } from './pages/Containers';
-import { Images } from './pages/Images';
-import { Networks } from './pages/Networks';
-import { Volumes } from './pages/Volumes';
-import { Settings } from './pages/Settings';
-import { TerminalView } from './pages/TerminalView';
-import { LogsView } from './pages/LogsView';
 import { StackSummary, SystemStatus } from './types';
 import { api } from './api/client';
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
+const Stacks = lazy(() => import('./pages/Stacks').then(({ Stacks }) => ({ default: Stacks })));
+const StackDetail = lazy(() => import('./pages/StackDetail').then(({ StackDetail }) => ({ default: StackDetail })));
+const Templates = lazy(() => import('./pages/Templates').then(({ Templates }) => ({ default: Templates })));
+const Containers = lazy(() => import('./pages/Containers').then(({ Containers }) => ({ default: Containers })));
+const Images = lazy(() => import('./pages/Images').then(({ Images }) => ({ default: Images })));
+const Networks = lazy(() => import('./pages/Networks').then(({ Networks }) => ({ default: Networks })));
+const Volumes = lazy(() => import('./pages/Volumes').then(({ Volumes }) => ({ default: Volumes })));
+const Settings = lazy(() => import('./pages/Settings').then(({ Settings }) => ({ default: Settings })));
+const TerminalView = lazy(() => import('./pages/TerminalView'));
+const LogsView = lazy(() => import('./pages/LogsView').then(({ LogsView }) => ({ default: LogsView })));
+
+const RouteLoading = () => (
+  <div className="route-loading" role="status">
+    Loading view…
+  </div>
+);
+
+const ModalLoading = () => (
+  <div className="modal-backdrop">
+    <div className="modal-card route-loading" role="status">
+      Loading…
+    </div>
+  </div>
+);
 
 const VALID_TABS = new Set([
   'dashboard',
@@ -118,6 +133,7 @@ export const App: React.FC = () => {
       />
 
       <main className="main-content">
+        <Suspense fallback={<RouteLoading />}>
         {currentTab === 'dashboard' && (
           <Dashboard
             status={status}
@@ -184,25 +200,30 @@ export const App: React.FC = () => {
             isRefreshing={isRefreshing}
           />
         )}
+        </Suspense>
       </main>
 
       {/* Interactive Web Terminal Modal */}
       {terminalTarget && (
-        <TerminalView
-          containerId={terminalTarget.id}
-          containerName={terminalTarget.name}
-          initialCommand={terminalTarget.command}
-          onClose={() => setTerminalTarget(null)}
-        />
+        <Suspense fallback={<ModalLoading />}>
+          <TerminalView
+            containerId={terminalTarget.id}
+            containerName={terminalTarget.name}
+            initialCommand={terminalTarget.command}
+            onClose={() => setTerminalTarget(null)}
+          />
+        </Suspense>
       )}
 
       {/* Live Container Logs Modal */}
       {logsTarget && (
-        <LogsView
-          containerId={logsTarget.id}
-          containerName={logsTarget.name}
-          onClose={() => setLogsTarget(null)}
-        />
+        <Suspense fallback={<ModalLoading />}>
+          <LogsView
+            containerId={logsTarget.id}
+            containerName={logsTarget.name}
+            onClose={() => setLogsTarget(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

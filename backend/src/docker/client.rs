@@ -6,18 +6,29 @@ use bollard::container::{
 use bollard::image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions};
 use bollard::models::{
     ContainerInspectResponse, ContainerSummary, ImageInspect, ImageSummary, Network,
-    NetworkCreateResponse, SystemInfo, VolumeListResponse,
+    NetworkCreateResponse, SystemInfo, VolumeListResponse, VolumeUsageData,
 };
 use bollard::network::{CreateNetworkOptions, InspectNetworkOptions, ListNetworksOptions};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::{error, info};
+use std::time::{Duration, Instant};
+use tokio::sync::Mutex;
+use tracing::{error, info, warn};
+
+const VOLUME_USAGE_CACHE_TTL: Duration = Duration::from_secs(30);
+
+#[derive(Clone)]
+struct CachedVolumeUsage {
+    values: HashMap<String, VolumeUsageData>,
+    fetched_at: Instant,
+}
 
 #[derive(Clone)]
 pub struct DockerService {
     pub client: Arc<Docker>,
+    volume_usage_cache: Arc<Mutex<Option<CachedVolumeUsage>>>,
 }
 
 impl DockerService {
@@ -35,6 +46,7 @@ impl DockerService {
 
         Ok(Self {
             client: Arc::new(client),
+            volume_usage_cache: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -216,35 +228,51 @@ impl DockerService {
     }
 
     // Volumes
+    /// The volume list itself is fast. Size accounting comes from Docker's
+    /// `/system/df`, which can take seconds on hosts with many images/layers, so
+    /// it is exposed and cached separately by `volume_usage`.
     pub async fn list_volumes(&self) -> Result<VolumeListResponse> {
-        let mut vols = self
+        Ok(self
             .client
             .list_volumes(None::<bollard::volume::ListVolumesOptions<String>>)
-            .await?;
+            .await?)
+    }
 
-        // `GET /volumes` omits UsageData; backfill sizes from `GET /system/df`.
-        // Never fail the listing if df is unavailable.
-        match self.client.df().await {
-            Ok(df) => {
-                let df_volumes = df.volumes.unwrap_or_default();
-                let sizes: HashMap<&str, _> = df_volumes
-                    .iter()
-                    .filter_map(|v| v.usage_data.clone().map(|u| (v.name.as_str(), u)))
-                    .collect();
-                if let Some(list) = vols.volumes.as_mut() {
-                    for vol in list.iter_mut() {
-                        if vol.usage_data.is_none() {
-                            vol.usage_data = sizes.get(vol.name.as_str()).cloned();
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                error!("Failed to fetch disk usage for volumes: {:?}", e);
+    pub async fn volume_usage(&self) -> Result<HashMap<String, VolumeUsageData>> {
+        // Keep the lock while refreshing so concurrent page requests coalesce
+        // into one expensive Docker `df` call instead of stampeding the daemon.
+        let mut cache = self.volume_usage_cache.lock().await;
+        if let Some(cached) = cache.as_ref() {
+            if cached.fetched_at.elapsed() < VOLUME_USAGE_CACHE_TTL {
+                return Ok(cached.values.clone());
             }
         }
 
-        Ok(vols)
+        match self.client.df().await {
+            Ok(df) => {
+                let values: HashMap<String, VolumeUsageData> = df
+                    .volumes
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|volume| volume.usage_data.map(|usage| (volume.name, usage)))
+                    .collect();
+                *cache = Some(CachedVolumeUsage {
+                    values: values.clone(),
+                    fetched_at: Instant::now(),
+                });
+                Ok(values)
+            }
+            Err(e) => {
+                if let Some(cached) = cache.as_ref() {
+                    warn!(
+                        "Failed to refresh Docker disk usage; serving stale volume sizes: {:?}",
+                        e
+                    );
+                    return Ok(cached.values.clone());
+                }
+                Err(e.into())
+            }
+        }
     }
 
     pub async fn remove_volume(&self, name: &str, force: bool) -> Result<()> {

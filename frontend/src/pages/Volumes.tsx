@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { HardDrive } from 'lucide-react';
 import { Header } from '../components/Header';
 import { DockerVolume } from '../types';
@@ -11,6 +11,9 @@ import { formatBytes } from '../utils/docker';
 export const Volumes: React.FC = () => {
   const [volumes, setVolumes] = useState<DockerVolume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageFailed, setUsageFailed] = useState(false);
+  const refreshIdRef = useRef(0);
   const [sortMode, setSortMode] = useState<SortMode>('size-desc');
 
   const visibleVolumes = sorted(volumes, sortMode, {
@@ -19,14 +22,39 @@ export const Volumes: React.FC = () => {
   });
 
   const fetchVolumes = async () => {
+    const requestId = ++refreshIdRef.current;
+    const isCurrent = () => refreshIdRef.current === requestId;
+    setLoading(true);
+    setUsageLoading(true);
+    setUsageFailed(false);
+
     try {
-      setLoading(true);
+      // The list endpoint is intentionally independent from Docker's expensive
+      // /system/df calculation, so rows render immediately.
       const list = await api.listVolumes();
+      if (!isCurrent()) return;
       setVolumes(list);
-    } catch (err: any) {
-      alert(`Failed to load volumes: ${err.message}`);
-    } finally {
       setLoading(false);
+
+      try {
+        const usage = await api.getVolumeUsage();
+        if (!isCurrent()) return;
+        setVolumes((current) =>
+          current.map((volume) => {
+            const volumeUsage = usage[volume.Name];
+            return { ...volume, UsageData: volumeUsage };
+          })
+        );
+      } catch {
+        if (isCurrent()) setUsageFailed(true);
+      }
+    } catch (err: any) {
+      if (isCurrent()) alert(`Failed to load volumes: ${err.message}`);
+    } finally {
+      if (isCurrent()) {
+        setLoading(false);
+        setUsageLoading(false);
+      }
     }
   };
 
@@ -37,7 +65,7 @@ export const Volumes: React.FC = () => {
   const handleDelete = async (name: string) => {
     try {
       await api.removeVolume(name, true);
-      fetchVolumes();
+      await fetchVolumes();
     } catch (err: any) {
       alert(`Delete failed: ${err.message}`);
     }
@@ -59,7 +87,17 @@ export const Volumes: React.FC = () => {
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px', marginBottom: '12px' }}>
+            {usageLoading && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                Calculating sizes…
+              </span>
+            )}
+            {usageFailed && !usageLoading && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--status-warning)' }}>
+                Sizes unavailable
+              </span>
+            )}
             <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
           </div>
           <div className="table-container">

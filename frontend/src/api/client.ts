@@ -10,6 +10,7 @@ import {
   SystemStatus,
   TemplateDetails,
   TemplateSummary,
+  VolumeUsageData,
 } from '../types';
 
 const API_BASE = '/api';
@@ -151,6 +152,8 @@ export const api = {
 
   // Volumes
   listVolumes: () => request<DockerVolume[]>(`${API_BASE}/volumes`),
+  getVolumeUsage: () =>
+    request<Record<string, VolumeUsageData>>(`${API_BASE}/volumes/usage`),
   removeVolume: (name: string, force = false) =>
     request<{ status: string; name: string }>(`${API_BASE}/volumes/${pathSegment(name)}?force=${force}`, {
       method: 'DELETE',
