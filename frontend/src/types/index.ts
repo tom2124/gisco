@@ -223,6 +223,11 @@ export interface SystemStatus {
   containers_paused?: number;
   containers_stopped?: number;
   images_count?: number;
+  host_name?: string;
+  storage_driver?: string;
+  cpu_count?: number;
+  memory_total?: number;
+  docker_root_dir?: string;
   stack_dir: string;
   template_dir: string;
   default_uid: number;

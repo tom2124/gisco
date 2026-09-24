@@ -19,6 +19,11 @@ pub struct SystemStatus {
     pub containers_paused: Option<usize>,
     pub containers_stopped: Option<usize>,
     pub images_count: Option<usize>,
+    pub host_name: Option<String>,
+    pub storage_driver: Option<String>,
+    pub cpu_count: Option<usize>,
+    pub memory_total: Option<u64>,
+    pub docker_root_dir: Option<String>,
     pub stack_dir: String,
     pub template_dir: String,
     pub default_uid: u32,
@@ -61,6 +66,16 @@ async fn get_status(State(state): State<AppState>) -> impl IntoResponse {
             .as_ref()
             .and_then(|i| i.containers_stopped.map(|c| c as usize)),
         images_count: info.as_ref().and_then(|i| i.images.map(|c| c as usize)),
+        host_name: info.as_ref().and_then(|i| i.name.clone()),
+        storage_driver: info.as_ref().and_then(|i| i.driver.clone()),
+        cpu_count: info
+            .as_ref()
+            .and_then(|i| i.ncpu.map(|c| c.max(0) as usize)),
+        memory_total: info
+            .as_ref()
+            .and_then(|i| i.mem_total)
+            .map(|memory| memory.max(0) as u64),
+        docker_root_dir: info.as_ref().and_then(|i| i.docker_root_dir.clone()),
         stack_dir: state.config.stack_dir.to_string_lossy().to_string(),
         template_dir: state.config.template_dir.to_string_lossy().to_string(),
         default_uid: state.config.default_uid,
