@@ -30,6 +30,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   const [isMaximized, setIsMaximized] = useState(false);
   const [connected, setConnected] = useState(false);
   const [started, setStarted] = useState(false);
+  const [terminalReady, setTerminalReady] = useState(false);
 
   const initTerminal = (cmd: string, user: string) => {
     if (!terminalRef.current) return;
@@ -42,6 +43,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       termInstanceRef.current.dispose();
     }
 
+    setTerminalReady(false);
     setStarted(true);
 
     // Terminal instance
@@ -74,6 +76,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
     termInstanceRef.current = term;
     fitAddonRef.current = fitAddon;
+    setTerminalReady(true);
 
     term.writeln(`\x1b[36m[gisco]\x1b[0m Connecting to container \x1b[32m${containerName}\x1b[0m via ${cmd || 'auto (bash → sh)'}${user ? ` as ${user}` : ''}...`);
 
@@ -124,15 +127,6 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         ws.send(JSON.stringify({ type: 'resize', cols, rows }));
       }
     });
-
-    const handleWindowResize = () => {
-      fitAddon.fit();
-    };
-    window.addEventListener('resize', handleWindowResize);
-
-    return () => {
-      window.removeEventListener('resize', handleWindowResize);
-    };
   };
 
   useEffect(() => {
@@ -149,10 +143,26 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   }, []);
 
   useEffect(() => {
-    if (fitAddonRef.current) {
-      setTimeout(() => fitAddonRef.current?.fit(), 100);
-    }
-  }, [isMaximized]);
+    const terminalElement = terminalRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!terminalElement || !fitAddon) return;
+
+    const fitTerminal = () => fitAddon.fit();
+
+    // The modal animates between its normal and maximized dimensions. Observe
+    // the actual terminal container so xterm is refit at every step, including
+    // the final collapsed size, instead of leaving rows from the larger view
+    // below the visible area.
+    const resizeObserver = new ResizeObserver(fitTerminal);
+    resizeObserver.observe(terminalElement);
+    window.addEventListener('resize', fitTerminal);
+    fitTerminal();
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', fitTerminal);
+    };
+  }, [isMaximized, terminalReady]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
