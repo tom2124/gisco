@@ -7,6 +7,7 @@ import NetworkList from '../components/NetworkList';
 import SortSelect from '../components/SortSelect';
 import type { SortMode } from '../utils/sort';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
+import { filterUserNetworks } from '../utils/networks';
 
 interface NetworksProps {
   onNavigateToContainers?: () => void;
@@ -55,6 +56,8 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
     }
   };
 
+  const userNetworkCount = graph ? filterUserNetworks(graph.networks).length : 0;
+
   return (
     <div>
       <Header
@@ -79,11 +82,11 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
             <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <p>Loading networks...</p>
           </div>
-        ) : !graph || graph.networks.length === 0 ? (
+        ) : !graph || userNetworkCount === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
             <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <h3>No Networks Found</h3>
-            <p style={{ marginTop: '6px' }}>No Docker networks found.</p>
+            <p style={{ marginTop: '6px' }}>No user-defined Docker networks found.</p>
           </div>
         ) : (
           <NetworkList

@@ -711,6 +711,53 @@ code, pre, .font-mono {
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+/* Network rows */
+.network-row-expandable td {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.network-row-expandable:hover td {
+  background: rgba(56, 189, 248, 0.045);
+}
+
+.network-row-expandable:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.network-expand-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.network-expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.network-expand-button:hover,
+.network-expand-button.expanded {
+  color: var(--primary);
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.22);
+}
+
+.network-no-containers {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
 /* Tables */
 .table-container {
   overflow-x: auto;

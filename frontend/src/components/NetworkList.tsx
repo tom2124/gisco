@@ -6,6 +6,7 @@ import NetworkDeleteButton from './NetworkDeleteButton';
 import Copyable from './Copyable';
 import { parseTraefikLabels } from '../utils/traefik';
 import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
+import { filterUserNetworks } from '../utils/networks';
 
 interface NetworkListProps {
   graph: NetworkGraph;
@@ -44,7 +45,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
 
   // Networks by attached container count (desc), name as tiebreak
   const sortedNetworks = useMemo(() => {
-    return [...graph.networks].sort((a, b) => {
+    return filterUserNetworks(graph.networks).sort((a, b) => {
       const aCount = networkContainers.get(a.id)?.length ?? a.container_count ?? 0;
       const bCount = networkContainers.get(b.id)?.length ?? b.container_count ?? 0;
       if (bCount !== aCount) return bCount - aCount;
@@ -76,7 +77,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
             <th>Containers</th>
             <th>Host Ports</th>
             <th>Actions</th>
-            <th style={{ width: '44px' }} />
+            <th style={{ width: '150px' }}>Container view</th>
           </tr>
         </thead>
         <tbody>
@@ -101,6 +102,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
             return (
               <React.Fragment key={net.id}>
                 <tr
+                  className={`network-row ${hasContainers ? 'network-row-expandable' : 'network-row-static'}`}
                   onClick={() => toggleNetwork(net.id, hasContainers)}
                   style={{ cursor: hasContainers ? 'pointer' : 'default' }}
                 >
@@ -176,19 +178,21 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                       />
                     </div>
                   </td>
-                  <td>
-                    {hasContainers && (
+                  <td className="network-expand-cell">
+                    {hasContainers ? (
                       <button
-                        className="btn btn-secondary btn-icon"
-                        style={{ color: isExpanded ? 'var(--primary)' : 'var(--text-dim)' }}
-                        title={isExpanded ? 'Collapse' : 'Expand'}
+                        className={`network-expand-button ${isExpanded ? 'expanded' : ''}`}
+                        title={isExpanded ? 'Hide connected containers' : 'View connected containers'}
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleNetwork(net.id, hasContainers);
                         }}
                       >
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        <span>{isExpanded ? 'Hide containers' : 'View containers'}</span>
+                        {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                       </button>
+                    ) : (
+                      <span className="network-no-containers">No containers</span>
                     )}
                   </td>
                 </tr>
