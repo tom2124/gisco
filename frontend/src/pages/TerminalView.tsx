@@ -5,7 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import '@fontsource/iosevka/400.css';
 import '@fontsource/iosevka/600.css';
-import { X, Maximize2, Minimize2, RotateCw, Play } from 'lucide-react';
+import { X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
 import { api } from '../api/client';
 
 interface TerminalViewProps {
@@ -13,6 +13,10 @@ interface TerminalViewProps {
   containerName: string;
   onClose: () => void;
   initialCommand?: string;
+  isMinimized?: boolean;
+  dockOffset?: number;
+  onMinimize?: () => void;
+  onRestore?: () => void;
 }
 
 export const TerminalView: React.FC<TerminalViewProps> = ({
@@ -20,6 +24,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   containerName,
   onClose,
   initialCommand = '',
+  isMinimized = false,
+  dockOffset = 0,
+  onMinimize,
+  onRestore,
 }) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termInstanceRef = useRef<Terminal | null>(null);
@@ -159,7 +167,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     const fitAddon = fitAddonRef.current;
     if (!terminalElement || !fitAddon) return;
 
-    const fitTerminal = () => fitAddon.fit();
+    const fitTerminal = () => {
+      if (!isMinimized) fitAddon.fit();
+    };
 
     // The modal animates between its normal and maximized dimensions. Observe
     // the actual terminal container so xterm is refit at every step, including
@@ -174,14 +184,20 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       resizeObserver.disconnect();
       window.removeEventListener('resize', fitTerminal);
     };
-  }, [isMaximized, terminalReady]);
+  }, [isMaximized, isMinimized, terminalReady]);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      className={isMinimized ? 'terminal-dock' : 'modal-backdrop'}
+      onClick={isMinimized ? undefined : onMinimize ?? onClose}
+      style={isMinimized
+        ? ({ '--terminal-dock-offset': `${dockOffset}px` } as React.CSSProperties)
+        : undefined}
+    >
       <div
-        className="modal-card"
+        className={isMinimized ? 'terminal-dock-card' : 'modal-card'}
         onClick={(e) => e.stopPropagation()}
-        style={{
+        style={isMinimized ? undefined : {
           maxWidth: isMaximized ? '96vw' : '850px',
           height: isMaximized ? '92vh' : '550px',
           transition: 'all 0.2s ease',
@@ -189,6 +205,34 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
           flexDirection: 'column',
         }}
       >
+        {isMinimized ? (
+          <div className="terminal-dock-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+              <span
+                className={`status-dot ${connected ? 'online' : ''}`}
+                title={connected ? 'Connected' : 'Disconnected'}
+              />
+              <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Terminal: {containerName}
+              </span>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                {connected ? 'Live' : started ? 'Starting…' : 'Disconnected'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <button
+                className="btn btn-secondary btn-icon"
+                title="Restore terminal"
+                onClick={onRestore}
+              >
+                <Maximize2 size={14} />
+              </button>
+              <button className="btn btn-secondary btn-icon" title="Close terminal" onClick={onClose}>
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="modal-header" style={{ padding: '10px 12px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -281,6 +325,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="btn btn-secondary btn-icon"
+                title="Minimize terminal"
+                onClick={onMinimize}
+              >
+                <Minus size={14} />
+              </button>
+              <button
+                className="btn btn-secondary btn-icon"
                 title={isMaximized ? 'Restore' : 'Maximize'}
                 onClick={() => setIsMaximized(!isMaximized)}
               >
@@ -292,9 +343,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             </div>
           </div>
         </div>
+        )}
 
         <div
           ref={terminalRef}
+          className="terminal-view-body"
           style={{
             flex: 1,
             background: '#090d16',

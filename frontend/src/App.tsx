@@ -29,6 +29,13 @@ const ModalLoading = () => (
   </div>
 );
 
+interface TerminalSession {
+  id: string;
+  name: string;
+  command: string;
+  minimized: boolean;
+}
+
 const VALID_TABS = new Set([
   'dashboard',
   'stacks',
@@ -65,11 +72,7 @@ export const App: React.FC = () => {
   const refreshInFlightRef = useRef(false);
 
   // Terminal & Logs modals
-  const [terminalTarget, setTerminalTarget] = useState<{
-    id: string;
-    name: string;
-    command: string;
-  } | null>(null);
+  const [terminalSessions, setTerminalSessions] = useState<TerminalSession[]>([]);
   const [logsTarget, setLogsTarget] = useState<{
     id: string;
     name: string;
@@ -124,6 +127,41 @@ export const App: React.FC = () => {
     navigate('stacks', stackName);
   };
 
+  const openTerminal = (id: string, name: string, command = '') => {
+    setTerminalSessions((current) => {
+      const existing = current.find((session) => session.id === id);
+      if (existing) {
+        return current.map((session) =>
+          session.id === id ? { ...session, command, minimized: false } : session
+        );
+      }
+
+      // Keep every existing exec mounted, but only leave the newly requested
+      // terminal in the foreground. This preserves each session's shell and
+      // WebSocket while the user browses other pages.
+      return [
+        ...current.map((session) => ({ ...session, minimized: true })),
+        { id, name, command, minimized: false },
+      ];
+    });
+  };
+
+  const minimizeTerminal = (id: string) => {
+    setTerminalSessions((current) =>
+      current.map((session) => (session.id === id ? { ...session, minimized: true } : session))
+    );
+  };
+
+  const restoreTerminal = (id: string) => {
+    setTerminalSessions((current) =>
+      current.map((session) => (session.id === id ? { ...session, minimized: false } : session))
+    );
+  };
+
+  const closeTerminal = (id: string) => {
+    setTerminalSessions((current) => current.filter((session) => session.id !== id));
+  };
+
   return (
     <div className="app-container">
       <Sidebar
@@ -150,7 +188,7 @@ export const App: React.FC = () => {
             <StackDetail
               stackName={selectedStackName}
               onBack={() => handleSelectTab('stacks')}
-              onOpenTerminal={(id, name, command = '') => setTerminalTarget({ id, name, command })}
+              onOpenTerminal={openTerminal}
               onOpenLogs={(id, name) => setLogsTarget({ id, name })}
             />
           ) : (
@@ -176,7 +214,7 @@ export const App: React.FC = () => {
             stacks={stacks}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
-            onOpenTerminal={(id, name, command = '') => setTerminalTarget({ id, name, command })}
+            onOpenTerminal={openTerminal}
             onOpenLogs={(id, name) => setLogsTarget({ id, name })}
             onSelectStack={handleSelectStack}
           />
@@ -203,17 +241,29 @@ export const App: React.FC = () => {
         </Suspense>
       </main>
 
-      {/* Interactive Web Terminal Modal */}
-      {terminalTarget && (
-        <Suspense fallback={<ModalLoading />}>
-          <TerminalView
-            containerId={terminalTarget.id}
-            containerName={terminalTarget.name}
-            initialCommand={terminalTarget.command}
-            onClose={() => setTerminalTarget(null)}
-          />
-        </Suspense>
-      )}
+      {/* Keep every terminal mounted so minimized sessions stay interactive. */}
+      {terminalSessions.map((session, index) => {
+        const dockOffset =
+          terminalSessions
+            .slice(0, index)
+            .filter((other) => other.minimized).length * 56;
+
+        return (
+          <Suspense key={session.id} fallback={<ModalLoading />}>
+            <TerminalView
+              key={session.id}
+              containerId={session.id}
+              containerName={session.name}
+              initialCommand={session.command}
+              onClose={() => closeTerminal(session.id)}
+              isMinimized={session.minimized}
+              onMinimize={() => minimizeTerminal(session.id)}
+              onRestore={() => restoreTerminal(session.id)}
+              dockOffset={dockOffset}
+            />
+          </Suspense>
+        );
+      })}
 
       {/* Live Container Logs Modal */}
       {logsTarget && (

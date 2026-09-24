@@ -502,6 +502,43 @@ input:focus, select:focus, textarea:focus {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+.terminal-dock {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + var(--terminal-dock-offset, 0px));
+  z-index: 45;
+  width: min(420px, calc(100vw - 32px));
+}
+
+.terminal-dock-card {
+  background: var(--bg-sidebar);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  animation: terminalDockIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.terminal-dock-header {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.terminal-dock .terminal-view-body {
+  display: none;
+}
+
+@keyframes terminalDockIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .modal-header {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-subtle);
