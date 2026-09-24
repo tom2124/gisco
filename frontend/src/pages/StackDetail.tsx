@@ -18,6 +18,7 @@ import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import { ContainerTable } from '../components/ContainerTable';
 import StackContainerDetail from '../components/StackContainerDetail';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface StackDetailProps {
   stackName: string;
@@ -46,6 +47,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   onOpenTerminal,
   onOpenLogs,
 }) => {
+  const { showToast } = useToast();
   const [details, setDetails] = useState<StackDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,6 +62,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [isEditorResizing, setIsEditorResizing] = useState(false);
   const feedbackTimer = useRef<number | null>(null);
   const actionWsRef = useRef<WebSocket | null>(null);
+  const actionFailedRef = useRef(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
   const editorGridRef = useRef<HTMLDivElement | null>(null);
   const editorDragRef = useRef<EditorSplitDrag | null>(null);
@@ -87,8 +90,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         setEditorSplit(data.env_content?.trim() ? DEFAULT_EDITOR_SPLIT : MAX_EDITOR_SPLIT);
       }
       if (data.external) setActiveTab('containers');
-    } catch (err: any) {
-      alert(`Error loading stack: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Error loading stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -145,9 +148,11 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         env_content: envText,
       });
       showFeedback('success', 'Stack saved — file permissions and ownership preserved.');
+      showToast('Stack saved successfully.', 'success');
       fetchDetails();
-    } catch (err: any) {
-      showFeedback('error', `Save failed: ${err.message}`);
+    } catch (err: unknown) {
+      showFeedback('error', `Save failed: ${getErrorMessage(err, 'Unknown error')}`);
+      showToast(`Save failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -207,9 +212,11 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   });
 
   const handleActionStream = (action: string) => {
+    actionFailedRef.current = false;
     setActiveTab('logs');
     setIsRunningAction(true);
     setActionLogs((prev) => [...prev, `\r\n--- Executing 'docker compose ${action}' on ${stackName} ---`]);
+    showToast(`Running docker compose ${action} for ${stackName}…`, 'info');
 
     if (actionWsRef.current) {
       actionWsRef.current.onclose = null;
@@ -223,6 +230,10 @@ export const StackDetail: React.FC<StackDetailProps> = ({
 
     ws.onmessage = (event) => {
       if (actionWsRef.current === ws && typeof event.data === 'string') {
+        if (event.data.includes('[gisco] Error:')) {
+          actionFailedRef.current = true;
+          showToast(event.data.replace('[gisco] Error: ', ''), 'error');
+        }
         setActionLogs((prev) => [...prev, event.data]);
       }
     };
@@ -231,6 +242,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       if (actionWsRef.current !== ws) return;
       actionWsRef.current = null;
       setIsRunningAction(false);
+      if (!actionFailedRef.current) showToast(`docker compose ${action} completed.`, 'success');
       fetchDetails();
     };
 
@@ -238,6 +250,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       if (actionWsRef.current !== ws) return;
       setActionLogs((prev) => [...prev, `[WebSocket Error: could not stream action]`]);
       setIsRunningAction(false);
+      showToast('The action stream connection failed.', 'error');
     };
   };
 

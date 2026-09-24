@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { StackSummary, SystemStatus } from './types';
 import { api } from './api/client';
+import { getErrorMessage, useToast } from './components/ToastProvider';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
 const Stacks = lazy(() => import('./pages/Stacks').then(({ Stacks }) => ({ default: Stacks })));
@@ -70,6 +71,8 @@ export const App: React.FC = () => {
   const [stacks, setStacks] = useState<StackSummary[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshInFlightRef = useRef(false);
+  const lastGlobalErrorRef = useRef('');
+  const { showToast } = useToast();
 
   // Terminal & Logs modals
   const [terminalSessions, setTerminalSessions] = useState<TerminalSession[]>([]);
@@ -83,12 +86,29 @@ export const App: React.FC = () => {
     refreshInFlightRef.current = true;
     try {
       setIsRefreshing(true);
-      const [sysStatus, stackList] = await Promise.all([
-        api.getSystemStatus().catch(() => null),
-        api.listStacks().catch(() => []),
+      const [systemResult, stacksResult] = await Promise.allSettled([
+        api.getSystemStatus(),
+        api.listStacks(),
       ]);
-      setStatus(sysStatus);
-      setStacks(stackList);
+      setStatus(systemResult.status === 'fulfilled' ? systemResult.value : null);
+      setStacks(stacksResult.status === 'fulfilled' ? stacksResult.value : []);
+
+      const errors: string[] = [];
+      if (systemResult.status === 'rejected') {
+        errors.push(`Status: ${getErrorMessage(systemResult.reason, 'Unknown error')}`);
+      }
+      if (stacksResult.status === 'rejected') {
+        errors.push(`Stacks: ${getErrorMessage(stacksResult.reason, 'Unknown error')}`);
+      }
+      if (errors.length > 0) {
+        const message = `Background refresh failed — ${errors.join('; ')}`;
+        if (lastGlobalErrorRef.current !== message) {
+          showToast(message, 'error');
+          lastGlobalErrorRef.current = message;
+        }
+      } else {
+        lastGlobalErrorRef.current = '';
+      }
     } finally {
       refreshInFlightRef.current = false;
       setIsRefreshing(false);

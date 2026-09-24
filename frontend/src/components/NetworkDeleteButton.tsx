@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api/client';
 import DeleteButton from './DeleteButton';
+import { getErrorMessage, useToast } from './ToastProvider';
 
 const SYSTEM_NETWORKS = new Set(['bridge', 'host', 'none']);
 
@@ -15,6 +16,7 @@ export const NetworkDeleteButton: React.FC<NetworkDeleteButtonProps> = ({
   networkName,
   onDeleted,
 }) => {
+  const { showToast } = useToast();
   const [deleting, setDeleting] = useState(false);
 
   if (SYSTEM_NETWORKS.has(networkName)) return null;
@@ -24,8 +26,9 @@ export const NetworkDeleteButton: React.FC<NetworkDeleteButtonProps> = ({
       setDeleting(true);
       await api.removeNetwork(networkId);
       onDeleted?.();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      showToast(`Network ${networkName} deleted.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setDeleting(false);
     }

@@ -14,6 +14,7 @@ import { STACK_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
 import DeleteButton from '../components/DeleteButton';
 import SortSelect from '../components/SortSelect';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface StacksProps {
   stacks: StackSummary[];
@@ -30,6 +31,7 @@ export const Stacks: React.FC<StacksProps> = ({
   isRefreshing,
   onSelectTab,
 }) => {
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('state');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -57,8 +59,9 @@ export const Stacks: React.FC<StacksProps> = ({
     try {
       await api.triggerStackAction(name, action);
       onRefresh();
-    } catch (err: any) {
-      alert(`Action failed: ${err.message}`);
+      showToast(`${action} completed for ${name}.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Action failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -68,8 +71,9 @@ export const Stacks: React.FC<StacksProps> = ({
     try {
       await api.deleteStack(name);
       onRefresh();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      showToast(`Stack ${name} deleted.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -83,8 +87,9 @@ export const Stacks: React.FC<StacksProps> = ({
       setShowCreateModal(false);
       onRefresh();
       onSelectStack(name);
-    } catch (err: any) {
-      alert(`Failed to create stack: ${err.message}`);
+      showToast(`Stack ${name} created.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Failed to create stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 

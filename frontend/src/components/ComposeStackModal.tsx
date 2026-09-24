@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
+import { useToast } from './ToastProvider';
 import {
   STACK_NAME_VAR,
   buildEnvContent,
@@ -39,6 +40,7 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { showToast } = useToast();
   const [name, setName] = useState(initialName);
   const [compose, setCompose] = useState(initialCompose);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -81,14 +83,15 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
 
   const handleSubmit = () => {
     if (!name.trim()) {
-      alert('Please provide a stack name');
+      showToast('Please provide a stack name', 'warning');
       return;
     }
     // Compose lowercases project names; an uppercase stack name would split
     // the stack from its containers (managed-but-empty + external duplicate).
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(name.trim())) {
-      alert(
-        'Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit (docker compose project name rules)'
+      showToast(
+        'Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit.',
+        'warning'
       );
       return;
     }

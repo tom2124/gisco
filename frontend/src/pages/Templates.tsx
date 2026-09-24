@@ -12,6 +12,7 @@ import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
 import DeleteButton from '../components/DeleteButton';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface TemplatesProps {
   onRefresh: () => void;
@@ -24,6 +25,7 @@ export const Templates: React.FC<TemplatesProps> = ({
   isRefreshing,
   onStackCreated,
 }) => {
+  const { showToast } = useToast();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,8 +57,8 @@ export const Templates: React.FC<TemplatesProps> = ({
       setLoading(true);
       const list = await api.listTemplates();
       setTemplates(list);
-    } catch (err: any) {
-      alert(`Failed to load templates: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Failed to load templates: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -71,8 +73,8 @@ export const Templates: React.FC<TemplatesProps> = ({
       const details = await api.getTemplate(id);
       setSelectedTemplate(details);
       setShowDeployModal(true);
-    } catch (err: any) {
-      alert(`Error loading template: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Error loading template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -88,8 +90,9 @@ export const Templates: React.FC<TemplatesProps> = ({
       setShowDeployModal(false);
       onRefresh();
       onStackCreated(name);
-    } catch (err: any) {
-      alert(`Failed to create stack: ${err.message}`);
+      showToast(`Stack ${name} deployed successfully.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Failed to create stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setInstantiating(false);
     }
@@ -97,7 +100,7 @@ export const Templates: React.FC<TemplatesProps> = ({
 
   const handleCreateTemplate = async () => {
     if (!newTemplateId.trim()) {
-      alert('Please enter a template name (e.g. my-app)');
+      showToast('Please enter a template name (e.g. my-app)', 'warning');
       return;
     }
     try {
@@ -105,8 +108,9 @@ export const Templates: React.FC<TemplatesProps> = ({
       setShowNewTemplateModal(false);
       setNewTemplateId('');
       fetchTemplates();
-    } catch (err: any) {
-      alert(`Failed to save template: ${err.message}`);
+      showToast(`Template ${newTemplateId.trim()} saved.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Failed to save template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -114,8 +118,9 @@ export const Templates: React.FC<TemplatesProps> = ({
     try {
       await api.deleteTemplate(id);
       fetchTemplates();
-    } catch (err: any) {
-      alert(`Failed to delete template: ${err.message}`);
+      showToast(`Template ${id} deleted.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Failed to delete template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -125,8 +130,8 @@ export const Templates: React.FC<TemplatesProps> = ({
       setEditTemplate(details);
       setEditTemplateYaml(details.raw_content);
       setShowEditModal(true);
-    } catch (err: any) {
-      alert(`Error loading template: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Error loading template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -137,8 +142,9 @@ export const Templates: React.FC<TemplatesProps> = ({
       setShowEditModal(false);
       setEditTemplate(null);
       fetchTemplates();
-    } catch (err: any) {
-      alert(`Failed to save template: ${err.message}`);
+      showToast(`Template ${editTemplate.id} saved.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Failed to save template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 

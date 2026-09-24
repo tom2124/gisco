@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { ContainerTable } from '../components/ContainerTable';
 import SortSelect from '../components/SortSelect';
 import type { SortMode } from '../utils/sort';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface ContainersProps {
   stacks: StackSummary[];
@@ -23,6 +24,7 @@ export const Containers: React.FC<ContainersProps> = ({
   onOpenLogs,
   onSelectStack,
 }) => {
+  const { showToast } = useToast();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -35,8 +37,8 @@ export const Containers: React.FC<ContainersProps> = ({
       setLoading(true);
       const list = await api.listContainers(true);
       setContainers(list);
-    } catch (err: any) {
-      alert(`Failed to load containers: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Failed to load containers: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -79,8 +81,9 @@ export const Containers: React.FC<ContainersProps> = ({
       await api.containerAction(id, action);
       fetchContainers();
       onRefresh();
-    } catch (err: any) {
-      alert(`Action failed: ${err.message}`);
+      showToast(`${action} completed.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Action failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -91,8 +94,9 @@ export const Containers: React.FC<ContainersProps> = ({
       await api.removeContainer(id, true);
       fetchContainers();
       onRefresh();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      showToast('Container deleted.', 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 

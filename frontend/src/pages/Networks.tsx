@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import NetworkList from '../components/NetworkList';
 import SortSelect from '../components/SortSelect';
 import type { SortMode } from '../utils/sort';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface NetworksProps {
   onNavigateToContainers?: () => void;
@@ -13,6 +14,7 @@ interface NetworksProps {
 }
 
 export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSelectStack }) => {
+  const { showToast } = useToast();
   const [graph, setGraph] = useState<NetworkGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -25,8 +27,8 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
       setLoading(true);
       const data = await api.getNetworkTopology();
       setGraph(data);
-    } catch (err: any) {
-      alert(`Failed to load networks: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Failed to load networks: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -38,7 +40,7 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
 
   const handleCreate = async () => {
     if (!netName.trim()) {
-      alert('Please enter a network name');
+      showToast('Please enter a network name', 'warning');
       return;
     }
 
@@ -47,8 +49,9 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
       setShowCreateModal(false);
       setNetName('');
       fetchNetworks();
-    } catch (err: any) {
-      alert(`Network creation failed: ${err.message}`);
+      showToast(`Network ${netName.trim()} created.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Network creation failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 

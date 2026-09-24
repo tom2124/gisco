@@ -7,8 +7,10 @@ import DeleteButton from '../components/DeleteButton';
 import SortSelect from '../components/SortSelect';
 import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
 import { formatBytes } from '../utils/docker';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 export const Volumes: React.FC = () => {
+  const { showToast } = useToast();
   const [volumes, setVolumes] = useState<DockerVolume[]>([]);
   const [loading, setLoading] = useState(true);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -48,8 +50,8 @@ export const Volumes: React.FC = () => {
       } catch {
         if (isCurrent()) setUsageFailed(true);
       }
-    } catch (err: any) {
-      if (isCurrent()) alert(`Failed to load volumes: ${err.message}`);
+    } catch (err: unknown) {
+      if (isCurrent()) showToast(`Failed to load volumes: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       if (isCurrent()) {
         setLoading(false);
@@ -66,8 +68,9 @@ export const Volumes: React.FC = () => {
     try {
       await api.removeVolume(name, true);
       await fetchVolumes();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      showToast(`Volume ${name} deleted.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 

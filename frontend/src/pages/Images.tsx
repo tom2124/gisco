@@ -7,10 +7,12 @@ import DeleteButton from '../components/DeleteButton';
 import SortSelect from '../components/SortSelect';
 import { SIZE_SORT_OPTIONS, sorted, type SortMode } from '../utils/sort';
 import { formatBytes, parseImageReference } from '../utils/docker';
+import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 const imageTag = (img: ImageSummary) => img.RepoTags?.[0] || '<none>:<none>';
 
 export const Images: React.FC = () => {
+  const { showToast } = useToast();
   const [images, setImages] = useState<ImageSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [pullImageName, setPullImageName] = useState('');
@@ -28,8 +30,8 @@ export const Images: React.FC = () => {
       setLoading(true);
       const list = await api.listImages();
       setImages(list);
-    } catch (err: any) {
-      alert(`Failed to load images: ${err.message}`);
+    } catch (err: unknown) {
+      showToast(`Failed to load images: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,7 @@ export const Images: React.FC = () => {
 
   const handlePull = async () => {
     if (!pullImageName.trim()) {
-      alert('Please enter an image name (e.g. alpine:latest)');
+      showToast('Please enter an image name (e.g. alpine:latest)', 'warning');
       return;
     }
 
@@ -52,8 +54,9 @@ export const Images: React.FC = () => {
       setShowPullModal(false);
       setPullImageName('');
       fetchImages();
-    } catch (err: any) {
-      alert(`Pull failed: ${err.message}`);
+      showToast(`${image} pulled successfully.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Pull failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setPulling(false);
     }
@@ -63,8 +66,9 @@ export const Images: React.FC = () => {
     try {
       await api.removeImage(id, true);
       fetchImages();
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
+      showToast('Image deleted.', 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
