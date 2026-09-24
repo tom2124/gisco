@@ -12,7 +12,7 @@ export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containe
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Host Port Mappings
         </span>
-        <span className="font-mono" style={{ fontSize: '0.7rem', color: '#f59e0b' }}>
+        <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-warning)' }}>
           {containerHostPorts.length} mapping(s)
         </span>
       </div>
@@ -25,7 +25,7 @@ export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containe
             padding: '6px 10px',
             fontFamily: 'var(--font-mono)',
             fontSize: '0.75rem',
-            color: '#f59e0b',
+            color: 'var(--text-warning)',
             whiteSpace: 'nowrap',
           }}>
             {hp.host_ip}:{hp.host_port} → {hp.target_container_port}/{hp.protocol}

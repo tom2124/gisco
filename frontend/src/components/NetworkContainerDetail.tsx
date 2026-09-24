@@ -57,7 +57,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
           <div style={sectionTitle}>Hostnames</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {container.hostname && (
-              <span className="font-mono" style={{ fontSize: '0.78rem', color: '#7dd3fc' }}>
+              <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-info)' }}>
                 {container.hostname}
               </span>
             )}

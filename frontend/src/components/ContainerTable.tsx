@@ -124,7 +124,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   };
   if (containers.length === 0) {
     return (
-      <div className="card" style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div className="card empty-state">
         <Box size={28} style={{ opacity: 0.3, marginBottom: '8px' }} />
         <p>No containers to display.</p>
       </div>
@@ -313,7 +313,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                             rel="noopener noreferrer"
                             title={`Open ${routeUrl} in new tab`}
                             onClick={(e) => e.stopPropagation()}
-                            style={{ color: '#a7f3d0' }}
+                            style={{ color: 'var(--text-success)' }}
                           >
                             {routeUrl}
                           </a>
@@ -326,7 +326,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                               <div>
                                 <span style={{ color: 'var(--primary)' }}>{iface.network_name}</span>
                                 <span style={{ color: 'var(--text-dim)' }}>: </span>
-                                <span style={{ color: '#a7f3d0' }}>{iface.ip_address || 'host'}</span>
+                                <span style={{ color: 'var(--text-success)' }}>{iface.ip_address || 'host'}</span>
                               </div>
                               {iface.aliases.length > 0 && (
                                 <div style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>

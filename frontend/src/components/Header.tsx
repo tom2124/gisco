@@ -42,12 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
         )}
         {actions}
       </div>
-
-      <style>{`
-        @keyframes spin {
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </header>
   );
 };

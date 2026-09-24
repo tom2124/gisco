@@ -74,16 +74,18 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
       />
 
       <div style={{ padding: '16px 0 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-          <SortSelect value={sortMode} onChange={setSortMode} />
+        <div className="page-toolbar">
+          <div className="page-toolbar-right">
+            <SortSelect value={sortMode} onChange={setSortMode} />
+          </div>
         </div>
         {loading && !graph ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div className="card empty-state">
             <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <p>Loading networks...</p>
           </div>
         ) : !graph || userNetworkCount === 0 ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div className="card empty-state">
             <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
             <h3>No Networks Found</h3>
             <p style={{ marginTop: '6px' }}>No user-defined Docker networks found.</p>

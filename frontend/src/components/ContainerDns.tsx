@@ -56,7 +56,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
               padding: '8px 12px',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
-              color: '#7dd3fc',
+              color: 'var(--text-info)',
             }}
           >
             {entry.value}

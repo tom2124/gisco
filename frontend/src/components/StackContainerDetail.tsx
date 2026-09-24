@@ -55,7 +55,7 @@ export const StackContainerDetail: React.FC<StackContainerDetailProps> = ({ cont
               >
                 <span style={{ color: 'var(--primary)' }}>{iface.network_name}</span>
                 <span style={{ color: 'var(--text-dim)' }}>: </span>
-                <span style={{ color: '#a7f3d0' }}>{iface.ip_address || 'host'}</span>
+                <span style={{ color: 'var(--text-success)' }}>{iface.ip_address || 'host'}</span>
                 {iface.mac_address && <span> · MAC: {iface.mac_address}</span>}
                 {iface.gateway && <span> · Gateway: {iface.gateway}</span>}
               </div>

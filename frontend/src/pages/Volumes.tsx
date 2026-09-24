@@ -144,59 +144,46 @@ export const Volumes: React.FC = () => {
       />
 
       {volumes.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="card empty-state">
           <HardDrive size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Volumes Found</h3>
         </div>
       ) : visibleVolumes.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="card empty-state">
           <Search size={28} style={{ opacity: 0.3, marginBottom: '10px' }} />
           <h3>No Matching Volumes</h3>
           <p>Try a different name, driver, scope, or mountpoint.</p>
         </div>
       ) : (
         <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              flexWrap: 'wrap',
-              marginBottom: '12px',
-            }}
-          >
-            <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
-              <input
-                type="text"
-                placeholder="Search volumes, drivers, mountpoints..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                style={{ paddingLeft: '34px' }}
-              />
-              <Search
-                size={15}
-                style={{
-                  position: 'absolute',
-                  left: '11px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-dim)',
-                  pointerEvents: 'none',
-                }}
-              />
+          <div className="page-toolbar">
+            <div className="page-toolbar-left">
+              <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: '420px' }}>
+                <input
+                  type="text"
+                  placeholder="Search volumes, drivers, mountpoints..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  style={{ paddingLeft: '34px' }}
+                />
+                <Search
+                  size={15}
+                  style={{
+                    position: 'absolute',
+                    left: '11px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-dim)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {usageLoading && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                  Calculating sizes…
-                </span>
-              )}
+            <div className="page-toolbar-right">
+              {usageLoading && <span className="page-toolbar-status">Calculating sizes…</span>}
               {usageFailed && !usageLoading && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--status-warning)' }}>
-                  Sizes unavailable
-                </span>
+                <span className="page-toolbar-status warning">Sizes unavailable</span>
               )}
               <button
                 className="btn btn-secondary"
@@ -248,14 +235,14 @@ export const Volumes: React.FC = () => {
                           )}
                         </td>
                         <td>
-                          <span className="badge badge-stopped">{volume.Driver || 'local'}</span>
+                          <span className="badge badge-neutral">{volume.Driver || 'local'}</span>
                         </td>
                         <td className="font-mono" style={{ fontSize: '0.85rem' }}>
                           {formatBytes(volume.UsageData?.Size ?? -1)}
                         </td>
                         <td>
                           {referenceCount === undefined || referenceCount < 0 ? (
-                            <span className="badge badge-stopped">Unknown</span>
+                            <span className="badge badge-neutral">Unknown</span>
                           ) : (
                             <span className={`badge ${referenceCount === 0 ? 'badge-warning' : 'badge-running'}`}>
                               {referenceCount} container{referenceCount === 1 ? '' : 's'}

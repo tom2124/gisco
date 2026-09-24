@@ -131,16 +131,16 @@ export const Containers: React.FC<ContainersProps> = ({
         isRefreshing={loading || isRefreshing}
       />
 
-      {/* Filter */}
-      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input
-          type="text"
-          placeholder="Search by container, image, or stack..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ maxWidth: '360px' }}
-        />
-        <SortSelect value={sortMode} onChange={setSortMode} />
+      <div className="page-toolbar">
+        <div className="page-toolbar-left">
+          <input
+            type="text"
+            placeholder="Search by container, image, or stack..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <SortSelect value={sortMode} onChange={setSortMode} />
+        </div>
       </div>
 
       <ContainerTable

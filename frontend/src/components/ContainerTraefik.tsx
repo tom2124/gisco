@@ -19,7 +19,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
           Traefik Routing
         </span>
         {!info.enabled && (
-          <span className="badge badge-stopped" style={{ fontSize: '0.7rem' }}>
+          <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
             disabled via label
           </span>
         )}
@@ -60,7 +60,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                   ))}
                 </div>
                 {router.hosts.length > 0 ? (
-                  <div className="font-mono" style={{ color: '#a7f3d0', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                  <div className="font-mono" style={{ color: 'var(--text-success)', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
                     {router.hosts.map((host) => (
                       <span key={host} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                         <Copyable text={host}>

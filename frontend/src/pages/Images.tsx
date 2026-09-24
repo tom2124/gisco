@@ -88,14 +88,16 @@ export const Images: React.FC = () => {
       />
 
       {images.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="card empty-state">
           <Disc size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Images Found</h3>
         </div>
       ) : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
+          <div className="page-toolbar">
+            <div className="page-toolbar-right">
+              <SortSelect value={sortMode} onChange={setSortMode} options={SIZE_SORT_OPTIONS} />
+            </div>
           </div>
           <div className="table-container">
             <table>
@@ -128,7 +130,7 @@ export const Images: React.FC = () => {
                         {formatBytes(img.Size)}
                       </td>
                       <td>
-                        <span className="badge badge-stopped">
+                        <span className="badge badge-neutral">
                           {img.Containers} container(s)
                         </span>
                       </td>

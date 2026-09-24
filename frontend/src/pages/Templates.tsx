@@ -308,7 +308,7 @@ export const Templates: React.FC<TemplatesProps> = ({
         }
       />
 
-      <div style={{ marginBottom: '16px', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+      <div className="info-banner">
         Templates are user-supplied: drop compose files named <code>&lt;name&gt;.yml</code> into
         the template directory to add your own. Parameters use normal environment variable
         substitution (<code>{'${VAR}'}</code> / <code>{'${VAR:-default}'}</code>) and are
@@ -316,7 +316,7 @@ export const Templates: React.FC<TemplatesProps> = ({
       </div>
 
       {templates.length === 0 && !loading ? (
-        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="card empty-state">
           <FileCode size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
           <h3>No Templates Found</h3>
           <p style={{ marginTop: '6px', marginBottom: '20px' }}>

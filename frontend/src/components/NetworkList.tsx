@@ -150,11 +150,11 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-stopped">{containerCount} container(s)</span>
+                    <span className="badge badge-neutral">{containerCount} container(s)</span>
                   </td>
                   <td>
                     {hostPorts.length > 0 ? (
-                      <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                      <span className="badge" style={{ background: 'var(--surface-warning)', color: 'var(--text-warning)', border: '1px solid var(--border-warning)' }}>
                         {hostPorts.length} host port(s)
                       </span>
                     ) : (
@@ -239,7 +239,13 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                       </span>
                                       <span
                                         className={`badge ${
-                                          c.state === 'running' ? 'badge-running' : 'badge-stopped'
+                                          c.state === 'running'
+                                            ? 'badge-running'
+                                            : c.state === 'paused' || c.state === 'restarting'
+                                              ? 'badge-warning'
+                                              : c.state === 'dead'
+                                                ? 'badge-error'
+                                                : 'badge-stopped'
                                         }`}
                                       >
                                         {c.state}
@@ -249,7 +255,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                       {c.stack || c.image}
                                     </div>
                                   </td>
-                                  <td className="font-mono" style={{ fontSize: '0.82rem', color: '#a7f3d0' }}>
+                                  <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-success)' }}>
                                     {iface?.ip_address || '—'}
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
@@ -279,7 +285,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                       );
                                     })()}
                                   </td>
-                                  <td className="font-mono" style={{ fontSize: '0.78rem', color: '#a7f3d0' }}>
+                                  <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-success)' }}>
                                     {traefikRouters.length > 0 ? (
                                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
                                         {traefikRouters.flatMap((r) =>

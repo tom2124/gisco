@@ -152,7 +152,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       <div className={`dashboard-health-banner ${status?.docker_connected ? (attentionContainers.length > 0 ? 'warning' : 'healthy') : 'error'}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className="status-dot online" style={{ background: status?.docker_connected ? 'var(--status-running)' : 'var(--status-error)' }} />
+          <span
+            className={`status-dot ${
+              !status?.docker_connected ? 'error' : attentionContainers.length > 0 ? 'warning' : 'online'
+            }`}
+          />
           <div>
             <strong>{status?.docker_connected ? 'Docker host online' : 'Docker host unavailable'}</strong>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '2px' }}>
@@ -168,22 +172,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       <div className="dashboard-metrics">
-        <button className="card dashboard-metric" onClick={() => onSelectTab('stacks')}>
+        <button className="card interactive dashboard-metric" onClick={() => onSelectTab('stacks')}>
           <span className="dashboard-metric-label"><Layers size={16} /> Stacks</span>
           <strong>{stacks.length}</strong>
           <span><b style={{ color: 'var(--status-running)' }}>{runningStacks} running</b>{partialStacks > 0 && ` · ${partialStacks} partial`}</span>
         </button>
-        <button className="card dashboard-metric" onClick={() => onSelectTab('containers')}>
+        <button className="card interactive dashboard-metric" onClick={() => onSelectTab('containers')}>
           <span className="dashboard-metric-label"><Box size={16} /> Containers</span>
           <strong>{status?.containers_total ?? containers.length}</strong>
           <span><b style={{ color: 'var(--status-running)' }}>{status?.containers_running ?? runningContainers.length} running</b>{status?.containers_stopped != null && ` · ${status.containers_stopped} stopped`}</span>
         </button>
-        <button className="card dashboard-metric" onClick={() => onSelectTab('images')}>
+        <button className="card interactive dashboard-metric" onClick={() => onSelectTab('images')}>
           <span className="dashboard-metric-label"><Disc size={16} /> Images</span>
           <strong>{images.length || status?.images_count || 0}</strong>
           <span>{formatBytes(imageBytes)} local footprint</span>
         </button>
-        <button className="card dashboard-metric" onClick={() => onSelectTab('volumes')}>
+        <button className="card interactive dashboard-metric" onClick={() => onSelectTab('volumes')}>
           <span className="dashboard-metric-label"><HardDrive size={16} /> Volumes</span>
           <strong>{volumes.length}</strong>
           <span>Persistent storage volumes</span>
@@ -209,7 +213,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="dashboard-list">
               {attentionContainers.slice(0, 6).map((container) => (
                 <button key={container.Id} className="dashboard-list-row" onClick={() => onSelectTab('containers')}>
-                  <span className={`status-dot ${container.State === 'running' ? 'online' : ''}`} />
+                  <span className="status-dot warning" />
                   <span className="dashboard-list-main">
                     <strong>{containerName(container)}</strong>
                     <span>{container.Image} · {containerStack(container) || 'standalone'}</span>
@@ -234,7 +238,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="dashboard-empty-state compact"><span>No Compose projects discovered.</span></div>
             ) : orderedStacks.slice(0, 6).map((stack) => (
               <button key={stack.name} className="dashboard-list-row" onClick={() => onSelectStack(stack.name)}>
-                <span className="status-dot" style={{ background: stack.status === 'Running' ? 'var(--status-running)' : stack.status === 'Partial' ? 'var(--status-warning)' : 'var(--status-stopped)' }} />
+                <span
+                  className={`status-dot ${
+                    stack.status === 'Running' ? 'online' : stack.status === 'Partial' ? 'warning' : ''
+                  }`}
+                />
                 <span className="dashboard-list-main">
                   <strong>{stack.name}</strong>
                   <span>{stack.running_services}/{stack.total_services} services active · {stack.external ? 'external' : stack.compose_file}</span>
