@@ -26,6 +26,20 @@ interface StackDetailProps {
   onOpenLogs: (containerId: string, containerName: string) => void;
 }
 
+const DEFAULT_EDITOR_SPLIT = 60; // 3:2 compose-to-env ratio
+const MIN_EDITOR_SPLIT = 25;
+const MAX_EDITOR_SPLIT = 75;
+const EDITOR_DIVIDER_WIDTH = 10;
+
+const clampEditorSplit = (value: number) =>
+  Math.min(MAX_EDITOR_SPLIT, Math.max(MIN_EDITOR_SPLIT, value));
+
+interface EditorSplitDrag {
+  pointerId: number;
+  gridLeft: number;
+  contentWidth: number;
+}
+
 export const StackDetail: React.FC<StackDetailProps> = ({
   stackName,
   onBack,
@@ -37,14 +51,18 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [saving, setSaving] = useState(false);
   const [composeText, setComposeText] = useState('');
   const [envText, setEnvText] = useState('');
-  const [activeTab, setActiveTab] = useState<'compose' | 'env' | 'containers' | 'logs'>('compose');
+  const [activeTab, setActiveTab] = useState<'files' | 'containers' | 'logs'>('files');
   const [actionLogs, setActionLogs] = useState<string[]>([]);
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [saveFeedback, setSaveFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
+  const [isEditorResizing, setIsEditorResizing] = useState(false);
   const feedbackTimer = useRef<number | null>(null);
   const actionWsRef = useRef<WebSocket | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const editorGridRef = useRef<HTMLDivElement | null>(null);
+  const editorDragRef = useRef<EditorSplitDrag | null>(null);
 
   useEffect(() => {
     return () => {
@@ -52,13 +70,16 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     };
   }, []);
 
-  const fetchDetails = async () => {
+  const fetchDetails = async (resetEditorSplit = false) => {
     try {
       setLoading(true);
       const data = await api.getStack(stackName);
       setDetails(data);
       setComposeText(data.compose_content);
       setEnvText(data.env_content || '');
+      if (resetEditorSplit) {
+        setEditorSplit(data.env_content?.trim() ? DEFAULT_EDITOR_SPLIT : MAX_EDITOR_SPLIT);
+      }
       if (data.external) setActiveTab('containers');
     } catch (err: any) {
       alert(`Error loading stack: ${err.message}`);
@@ -68,7 +89,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   };
 
   useEffect(() => {
-    fetchDetails();
+    fetchDetails(true);
   }, [stackName]);
 
   useEffect(() => {
@@ -126,9 +147,49 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     }
   };
 
+  const handleEditorSplitPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const grid = editorGridRef.current;
+    if (!grid || event.button !== 0) return;
+
+    const gridRect = grid.getBoundingClientRect();
+    editorDragRef.current = {
+      pointerId: event.pointerId,
+      gridLeft: gridRect.left,
+      contentWidth: Math.max(1, gridRect.width - EDITOR_DIVIDER_WIDTH),
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsEditorResizing(true);
+    event.preventDefault();
+  };
+
+  const handleEditorSplitPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = editorDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const composeWidth = event.clientX - drag.gridLeft - EDITOR_DIVIDER_WIDTH / 2;
+    const nextSplit = (composeWidth / drag.contentWidth) * 100;
+    setEditorSplit(clampEditorSplit(nextSplit));
+  };
+
+  const stopEditorSplitDrag = () => {
+    editorDragRef.current = null;
+    setIsEditorResizing(false);
+  };
+
+  const handleEditorSplitKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 5 : 2;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setEditorSplit((split) => clampEditorSplit(split - step));
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setEditorSplit((split) => clampEditorSplit(split + step));
+    }
+  };
+
   // Ctrl/Cmd+S saves from the editors without scrolling to the header.
   useEffect(() => {
-    if (details?.external || (activeTab !== 'compose' && activeTab !== 'env')) return;
+    if (details?.external || activeTab !== 'files') return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
@@ -270,22 +331,12 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       >
         {!details?.external && (
           <button
-            className={`nav-item ${activeTab === 'compose' ? 'active' : ''}`}
+            className={`nav-item ${activeTab === 'files' ? 'active' : ''}`}
             style={{ borderRadius: 'var(--radius-md) var(--radius-md) 0 0' }}
-            onClick={() => setActiveTab('compose')}
+            onClick={() => setActiveTab('files')}
           >
             <FileText size={16} />
-            <span>{details?.compose_file || 'compose.yml'}</span>
-          </button>
-        )}
-        {!details?.external && (
-          <button
-            className={`nav-item ${activeTab === 'env' ? 'active' : ''}`}
-            style={{ borderRadius: 'var(--radius-md) var(--radius-md) 0 0' }}
-            onClick={() => setActiveTab('env')}
-          >
-            <FileText size={16} />
-            <span>.env File</span>
+            <span>Files</span>
           </button>
         )}
         <button
@@ -307,36 +358,64 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       </div>
 
       {/* Tab Contents */}
-      {activeTab === 'compose' && (
-        <div className="card" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-            <span>Compose Specification Editor</span>
-            <span>Changes are written non-destructively preserving UID/GID permissions</span>
+      {activeTab === 'files' && (
+        <div
+          ref={editorGridRef}
+          className="stack-file-grid"
+          data-resizing={isEditorResizing ? 'true' : undefined}
+          style={{
+            gridTemplateColumns: `minmax(0, ${editorSplit}fr) ${EDITOR_DIVIDER_WIDTH}px minmax(0, ${100 - editorSplit}fr)`,
+          }}
+        >
+          <div className="card" style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              <span>{details?.compose_file || 'compose.yml'}</span>
+              <span>Compose specification</span>
+            </div>
+            <CodeEditor
+              value={composeText}
+              onChange={setComposeText}
+              language="yaml"
+              height="auto"
+              maxHeight="max(240px, calc(100vh - 245px))"
+            />
           </div>
-          <CodeEditor
-            value={composeText}
-            onChange={setComposeText}
-            language="yaml"
-            height="auto"
-            maxHeight="max(240px, calc(100vh - 245px))"
-          />
-        </div>
-      )}
 
-      {activeTab === 'env' && (
-        <div className="card" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-            <span>Environment Variables (.env)</span>
-            <span>Injected into compose file variable interpolations</span>
-          </div>
-          <CodeEditor
-            value={envText}
-            onChange={setEnvText}
-            language="env"
-            height="auto"
-            maxHeight="max(240px, calc(100vh - 245px))"
-            placeholder="# KEY=value"
+          <div
+            className="stack-file-divider"
+            role="separator"
+            aria-label="Resize compose and environment editors"
+            aria-orientation="vertical"
+            aria-valuemin={MIN_EDITOR_SPLIT}
+            aria-valuemax={MAX_EDITOR_SPLIT}
+            aria-valuenow={Math.round(editorSplit)}
+            aria-valuetext={`${Math.round(editorSplit)} percent for compose, ${Math.round(100 - editorSplit)} percent for environment`}
+            tabIndex={0}
+            title="Drag to resize · double-click to reset to 3:2"
+            data-active={isEditorResizing ? 'true' : undefined}
+            onPointerDown={handleEditorSplitPointerDown}
+            onPointerMove={handleEditorSplitPointerMove}
+            onPointerUp={stopEditorSplitDrag}
+            onPointerCancel={stopEditorSplitDrag}
+            onLostPointerCapture={stopEditorSplitDrag}
+            onDoubleClick={() => setEditorSplit(DEFAULT_EDITOR_SPLIT)}
+            onKeyDown={handleEditorSplitKeyDown}
           />
+
+          <div className="card" style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              <span>.env</span>
+              <span>Environment variables</span>
+            </div>
+            <CodeEditor
+              value={envText}
+              onChange={setEnvText}
+              language="env"
+              height="auto"
+              maxHeight="max(240px, calc(100vh - 245px))"
+              placeholder="# KEY=value"
+            />
+          </div>
         </div>
       )}
 
@@ -392,7 +471,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       )}
 
       {/* Floating save button: always reachable while editing, no scroll needed */}
-      {!details?.external && (activeTab === 'compose' || activeTab === 'env') && (
+      {!details?.external && activeTab === 'files' && (
         <button
           className="btn btn-primary"
           onClick={handleSave}

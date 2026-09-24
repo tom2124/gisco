@@ -243,6 +243,60 @@ code, pre, .font-mono {
   box-shadow: var(--shadow-hover);
 }
 
+.stack-file-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) 10px minmax(0, 2fr);
+  align-items: start;
+  user-select: none;
+}
+
+.stack-file-divider {
+  position: relative;
+  align-self: stretch;
+  min-height: 240px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.stack-file-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border-subtle);
+  transform: translateX(-50%);
+  transition: width 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stack-file-divider:hover::before,
+.stack-file-divider:focus-visible::before,
+.stack-file-divider[data-active='true']::before {
+  width: 3px;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--border-glow);
+}
+
+.stack-file-grid[data-resizing='true'],
+.stack-file-grid[data-resizing='true'] * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+@media (max-width: 960px) {
+  .stack-file-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    user-select: auto;
+  }
+
+  .stack-file-divider {
+    display: none;
+  }
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
