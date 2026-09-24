@@ -211,7 +211,15 @@ export const Volumes: React.FC = () => {
             </div>
           </div>
           <div className="table-container">
-            <table>
+            <table className="volume-table">
+              <colgroup>
+                <col style={{ width: '32%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '16%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Volume Name</th>
@@ -226,60 +234,74 @@ export const Volumes: React.FC = () => {
                 {visibleVolumes.map((volume) => {
                   const referenceCount = volume.UsageData?.RefCount;
                   return (
-                    <tr
-                      key={volume.Name}
-                      onClick={() => setExpandedVolume((current) => current === volume.Name ? null : volume.Name)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{volume.Name}</div>
-                        {volume.CreatedAt && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                            Created: {new Date(volume.CreatedAt).toLocaleDateString()}
-                          </div>
-                        )}
-                        {expandedVolume === volume.Name && (
-                          <div
-                            className="font-mono"
+                    <React.Fragment key={volume.Name}>
+                      <tr
+                        onClick={() => setExpandedVolume((current) => current === volume.Name ? null : volume.Name)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{volume.Name}</div>
+                          {volume.CreatedAt && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                              Created: {new Date(volume.CreatedAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className="badge badge-stopped">{volume.Driver || 'local'}</span>
+                        </td>
+                        <td className="font-mono" style={{ fontSize: '0.85rem' }}>
+                          {formatBytes(volume.UsageData?.Size ?? -1)}
+                        </td>
+                        <td>
+                          {referenceCount === undefined || referenceCount < 0 ? (
+                            <span className="badge badge-stopped">Unknown</span>
+                          ) : (
+                            <span className={`badge ${referenceCount === 0 ? 'badge-warning' : 'badge-running'}`}>
+                              {referenceCount} container{referenceCount === 1 ? '' : 's'}
+                            </span>
+                          )}
+                        </td>
+                        <td>{volume.Scope || 'local'}</td>
+                        <td>
+                          <DeleteButton
+                            title="Delete Volume"
+                            onConfirm={() => handleDelete(volume.Name)}
+                          />
+                        </td>
+                      </tr>
+                      {expandedVolume === volume.Name && (
+                        <tr>
+                          <td
+                            colSpan={6}
                             style={{
-                              marginTop: '8px',
-                              paddingTop: '7px',
+                              padding: '10px 16px',
+                              background: 'rgba(0, 0, 0, 0.18)',
                               borderTop: '1px solid var(--border-subtle)',
-                              color: 'var(--text-dim)',
-                              fontSize: '0.75rem',
-                              overflowWrap: 'anywhere',
                             }}
                           >
-                            <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>Mountpoint</span>
-                            <Copyable text={volume.Mountpoint}>
-                              <span>{volume.Mountpoint}</span>
-                            </Copyable>
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge badge-stopped">{volume.Driver || 'local'}</span>
-                      </td>
-                      <td className="font-mono" style={{ fontSize: '0.85rem' }}>
-                        {formatBytes(volume.UsageData?.Size ?? -1)}
-                      </td>
-                      <td>
-                        {referenceCount === undefined || referenceCount < 0 ? (
-                          <span className="badge badge-stopped">Unknown</span>
-                        ) : (
-                          <span className={`badge ${referenceCount === 0 ? 'badge-warning' : 'badge-running'}`}>
-                            {referenceCount} container{referenceCount === 1 ? '' : 's'}
-                          </span>
-                        )}
-                      </td>
-                      <td>{volume.Scope || 'local'}</td>
-                      <td>
-                        <DeleteButton
-                          title="Delete Volume"
-                          onConfirm={() => handleDelete(volume.Name)}
-                        />
-                      </td>
-                    </tr>
+                            <div
+                              className="font-mono"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                minWidth: 0,
+                                overflowX: 'auto',
+                                whiteSpace: 'nowrap',
+                                color: 'var(--text-dim)',
+                                fontSize: '0.78rem',
+                              }}
+                            >
+                              <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>Mountpoint</span>
+                              <Copyable text={volume.Mountpoint}>
+                                <span>{volume.Mountpoint}</span>
+                              </Copyable>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
