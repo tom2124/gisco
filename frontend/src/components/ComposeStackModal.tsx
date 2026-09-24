@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
+import { DockableEditorModal, useEditorDock } from './EditorDock';
 import { useToast } from './ToastProvider';
 import {
   STACK_NAME_VAR,
@@ -17,6 +17,7 @@ export interface ComposeStackSubmit {
 }
 
 interface ComposeStackModalProps {
+  id: string;
   title: string;
   subtitle?: string;
   initialName: string;
@@ -26,12 +27,11 @@ interface ComposeStackModalProps {
   submitLabel: string;
   busy?: boolean;
   onClose: () => void;
-  onSubmit: (data: ComposeStackSubmit) => void;
+  onSubmit: (data: ComposeStackSubmit) => boolean | Promise<boolean>;
 }
 
-export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
-  title,
-  subtitle,
+const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
+  id,
   initialName,
   initialCompose,
   composeEditable,
@@ -44,6 +44,7 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
   const [name, setName] = useState(initialName);
   const [compose, setCompose] = useState(initialCompose);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const vars = useMemo(() => extractEnvVars(compose), [compose]);
 
@@ -81,7 +82,21 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
     [compose, effectiveValues]
   );
 
-  const handleSubmit = () => {
+  const hasChanges = useMemo(() => {
+    if (name !== initialName || compose !== initialCompose) return true;
+    return vars.some((variable) => {
+      if (variable.name === STACK_NAME_VAR) return false;
+      const currentValue = variable.name in values ? values[variable.name] : variable.defaultValue;
+      return currentValue !== variable.defaultValue;
+    });
+  }, [compose, initialCompose, initialName, name, values, vars]);
+
+  const { setEditorDirty, closeEditor } = useEditorDock();
+  useEffect(() => {
+    setEditorDirty(id, hasChanges);
+  }, [hasChanges, id, setEditorDirty]);
+
+  const handleSubmit = async () => {
     if (!name.trim()) {
       showToast('Please provide a stack name', 'warning');
       return;
@@ -98,32 +113,32 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
     const names = vars
       .map((v) => v.name)
       .filter((n) => n in effectiveValues);
-    onSubmit({
-      name: name.trim(),
-      compose,
-      envContent:
-        names.length > 0 ? buildEnvContent(names, effectiveValues) : undefined,
-    });
+    setSubmitting(true);
+    try {
+      const submitted = await onSubmit({
+        name: name.trim(),
+        compose,
+        envContent:
+          names.length > 0 ? buildEnvContent(names, effectiveValues) : undefined,
+      });
+      if (submitted) {
+        closeEditor(id);
+      } else {
+        setSubmitting(false);
+      }
+    } catch {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    closeEditor(id);
+    onClose();
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '720px' }}>
-        <div className="modal-header">
-          <div>
-            <h3>{title}</h3>
-            {subtitle && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                {subtitle}
-              </div>
-            )}
-          </div>
-          <button className="btn btn-secondary btn-icon" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}>
               Stack Name *
@@ -235,19 +250,31 @@ export const ComposeStackModal: React.FC<ComposeStackModalProps> = ({
               readOnly
             />
           </div>
-        </div>
-
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={busy}>
-            <span>{busy ? 'Working...' : submitLabel}</span>
-          </button>
-        </div>
+      </div>
+      <div className="modal-footer">
+        <button className="btn btn-secondary" onClick={handleClose}>
+          Cancel
+        </button>
+        <button className="btn btn-primary" onClick={handleSubmit} disabled={busy || submitting}>
+          <span>{busy || submitting ? 'Working...' : submitLabel}</span>
+        </button>
       </div>
     </div>
   );
 };
+
+export const ComposeStackModal: React.FC<ComposeStackModalProps> = (props) => (
+  <DockableEditorModal
+    id={props.id}
+    title={props.title}
+    subtitle={props.subtitle}
+    canMinimize={false}
+    onClose={props.onClose}
+    maxWidth="720px"
+    footer={null}
+  >
+    <ComposeStackEditor {...props} />
+  </DockableEditorModal>
+);
 
 export default ComposeStackModal;

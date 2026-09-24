@@ -88,8 +88,10 @@ export const Stacks: React.FC<StacksProps> = ({
       onRefresh();
       onSelectStack(name);
       showToast(`Stack ${name} created.`, 'success');
+      return true;
     } catch (err: unknown) {
       showToast(`Failed to create stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+      return false;
     }
   };
 
@@ -283,6 +285,7 @@ export const Stacks: React.FC<StacksProps> = ({
       {/* Create Stack Modal */}
       {showCreateModal && (
         <ComposeStackModal
+          id="compose-create-stack"
           title="Create New Compose Stack"
           initialName=""
           initialCompose=""

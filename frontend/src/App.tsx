@@ -182,8 +182,17 @@ export const App: React.FC = () => {
     setTerminalSessions((current) => current.filter((session) => session.id !== id));
   };
 
+  const minimizedTerminalCount = terminalSessions.filter((session) => session.minimized).length;
+
   return (
-    <div className="app-container">
+    <div
+      className="app-container"
+      style={
+        {
+          '--terminal-dock-height': `${minimizedTerminalCount * 56}px`,
+        } as React.CSSProperties
+      }
+    >
       <Sidebar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}

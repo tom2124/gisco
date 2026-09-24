@@ -928,6 +928,39 @@ input:focus, select:focus, textarea:focus {
   background: rgba(255, 255, 255, 0.045);
 }
 
+/* Editor dock */
+.editor-dock {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + var(--terminal-dock-height, 0px) + var(--editor-dock-offset, 0px));
+  z-index: 45;
+  width: min(420px, calc(100vw - 32px));
+}
+
+.editor-dock-card {
+  background: var(--bg-sidebar);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  animation: terminalDockIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editor-dock-card .editor-modal-body,
+.editor-dock-card .editor-modal-footer {
+  display: none;
+}
+
+.editor-modal-card {
+  max-height: min(90vh, 860px);
+}
+
+.editor-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Terminal & Console */
 .terminal-window {
   background: #000;

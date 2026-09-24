@@ -4,7 +4,6 @@ import {
   FileCode,
   Plus,
   Sparkles,
-  X,
 } from 'lucide-react';
 import { Header } from '../components/Header';
 import { TemplateDetails, TemplateSummary } from '../types';
@@ -13,6 +12,156 @@ import { CodeEditor } from '../components/CodeEditor';
 import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
 import DeleteButton from '../components/DeleteButton';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
+import { DockableEditorModal, useEditorDock } from '../components/EditorDock';
+
+const NEW_TEMPLATE_INITIAL_YAML = `services:
+  app:
+    image: alpine
+    container_name: \${STACK_NAME}-app
+    restart: unless-stopped
+    ports:
+      - "\${SERVICE_PORT:-8080}:80"
+`;
+
+interface NewTemplateEditorContentProps {
+  editorId: string;
+  onClose: () => void;
+  onSave: (templateId: string, yaml: string) => boolean | Promise<boolean>;
+}
+
+const NewTemplateEditorContent: React.FC<NewTemplateEditorContentProps> = ({
+  editorId,
+  onClose,
+  onSave,
+}) => {
+  const [templateId, setTemplateId] = useState('');
+  const [yaml, setYaml] = useState(NEW_TEMPLATE_INITIAL_YAML);
+  const [saving, setSaving] = useState(false);
+  const { setEditorDirty, closeEditor } = useEditorDock();
+  const hasChanges = templateId.trim() !== '' || yaml !== NEW_TEMPLATE_INITIAL_YAML;
+
+  useEffect(() => {
+    setEditorDirty(editorId, hasChanges);
+  }, [editorId, hasChanges, setEditorDirty]);
+
+  const handleClose = () => {
+    closeEditor(editorId);
+    onClose();
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const saved = await onSave(templateId, yaml);
+      if (saved) {
+        closeEditor(editorId);
+      } else {
+        setSaving(false);
+      }
+    } catch {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+          Filename (without .yml)
+        </label>
+        <input
+          type="text"
+          placeholder="e.g. my-app"
+          value={templateId}
+          onChange={(e) => setTemplateId(e.target.value)}
+          autoFocus
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+          Compose File
+        </label>
+        <CodeEditor value={yaml} onChange={setYaml} language="yaml" height="400px" />
+      </div>
+
+      <div className="modal-footer">
+        <button className="btn btn-secondary" onClick={handleClose}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Working...' : 'Save Template'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface EditTemplateEditorContentProps {
+  editorId: string;
+  template: TemplateDetails;
+  onClose: () => void;
+  onSave: (yaml: string) => boolean | Promise<boolean>;
+}
+
+const EditTemplateEditorContent: React.FC<EditTemplateEditorContentProps> = ({
+  editorId,
+  template,
+  onClose,
+  onSave,
+}) => {
+  const [yaml, setYaml] = useState(template.raw_content);
+  const [saving, setSaving] = useState(false);
+  const { setEditorDirty, closeEditor } = useEditorDock();
+  const hasChanges = yaml !== template.raw_content;
+
+  useEffect(() => {
+    setEditorDirty(editorId, hasChanges);
+  }, [editorId, hasChanges, setEditorDirty]);
+
+  const handleClose = () => {
+    closeEditor(editorId);
+    onClose();
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const saved = await onSave(yaml);
+      if (saved) {
+        closeEditor(editorId);
+      } else {
+        setSaving(false);
+      }
+    } catch {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div>
+        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+          Compose File
+        </label>
+        <CodeEditor value={yaml} onChange={setYaml} language="yaml" height="400px" />
+      </div>
+
+      <div className="modal-footer">
+        <button className="btn btn-secondary" onClick={handleClose}>
+          Cancel
+        </button>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Working...' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface TemplatesProps {
   onRefresh: () => void;
@@ -36,21 +185,10 @@ export const Templates: React.FC<TemplatesProps> = ({
 
   // New template modal
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
-  const [newTemplateId, setNewTemplateId] = useState('');
-  const [newTemplateYaml, setNewTemplateYaml] = useState(
-`services:
-  app:
-    image: alpine
-    container_name: \${STACK_NAME}-app
-    restart: unless-stopped
-    ports:
-      - "\${SERVICE_PORT:-8080}:80"
-`);
 
   // Edit template modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTemplate, setEditTemplate] = useState<TemplateDetails | null>(null);
-  const [editTemplateYaml, setEditTemplateYaml] = useState('');
 
   const fetchTemplates = async () => {
     try {
@@ -79,7 +217,7 @@ export const Templates: React.FC<TemplatesProps> = ({
   };
 
   const handleInstantiate = async ({ name, envContent }: ComposeStackSubmit) => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate) return false;
 
     try {
       setInstantiating(true);
@@ -91,26 +229,29 @@ export const Templates: React.FC<TemplatesProps> = ({
       onRefresh();
       onStackCreated(name);
       showToast(`Stack ${name} deployed successfully.`, 'success');
+      return true;
     } catch (err: unknown) {
       showToast(`Failed to create stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+      return false;
     } finally {
       setInstantiating(false);
     }
   };
 
-  const handleCreateTemplate = async () => {
-    if (!newTemplateId.trim()) {
+  const handleCreateTemplate = async (templateId: string, yaml: string) => {
+    if (!templateId.trim()) {
       showToast('Please enter a template name (e.g. my-app)', 'warning');
-      return;
+      return false;
     }
     try {
-      await api.saveTemplate(newTemplateId.trim(), newTemplateYaml, false);
+      await api.saveTemplate(templateId.trim(), yaml, false);
       setShowNewTemplateModal(false);
-      setNewTemplateId('');
       fetchTemplates();
-      showToast(`Template ${newTemplateId.trim()} saved.`, 'success');
+      showToast(`Template ${templateId.trim()} saved.`, 'success');
+      return true;
     } catch (err: unknown) {
       showToast(`Failed to save template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+      return false;
     }
   };
 
@@ -128,23 +269,24 @@ export const Templates: React.FC<TemplatesProps> = ({
     try {
       const details = await api.getTemplate(id);
       setEditTemplate(details);
-      setEditTemplateYaml(details.raw_content);
       setShowEditModal(true);
     } catch (err: unknown) {
       showToast(`Error loading template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!editTemplate) return;
+  const handleSaveEdit = async (yaml: string) => {
+    if (!editTemplate) return false;
     try {
-      await api.saveTemplate(editTemplate.id, editTemplateYaml);
+      await api.saveTemplate(editTemplate.id, yaml);
       setShowEditModal(false);
       setEditTemplate(null);
       fetchTemplates();
       showToast(`Template ${editTemplate.id} saved.`, 'success');
+      return true;
     } catch (err: unknown) {
       showToast(`Failed to save template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+      return false;
     }
   };
 
@@ -272,6 +414,7 @@ export const Templates: React.FC<TemplatesProps> = ({
       {/* Deploy Modal */}
       {showDeployModal && selectedTemplate && (
         <ComposeStackModal
+          id={`compose-deploy-${selectedTemplate.id}`}
           title={`Deploy ${selectedTemplate.name}`}
           subtitle={selectedTemplate.filename}
           initialName={`${selectedTemplate.id}-1`}
@@ -286,102 +429,40 @@ export const Templates: React.FC<TemplatesProps> = ({
 
       {/* New Template Modal */}
       {showNewTemplateModal && (
-        <div className="modal-backdrop" onClick={() => setShowNewTemplateModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px' }}>
-            <div className="modal-header">
-              <h3>New Template</h3>
-              <button
-                className="btn btn-secondary btn-icon"
-                onClick={() => setShowNewTemplateModal(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                  Filename (without .yml)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. my-app"
-                  value={newTemplateId}
-                  onChange={(e) => setNewTemplateId(e.target.value)}
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                  Compose File
-                </label>
-                <CodeEditor
-                  value={newTemplateYaml}
-                  onChange={setNewTemplateYaml}
-                  language="yaml"
-                  height="400px"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowNewTemplateModal(false)}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleCreateTemplate}>
-                Save Template
-              </button>
-            </div>
-          </div>
-        </div>
+        <DockableEditorModal
+          id="template-new"
+          title="New Template"
+          canMinimize={false}
+          onClose={() => setShowNewTemplateModal(false)}
+          maxWidth="680px"
+          footer={null}
+        >
+          <NewTemplateEditorContent
+            editorId="template-new"
+            onClose={() => setShowNewTemplateModal(false)}
+            onSave={handleCreateTemplate}
+          />
+        </DockableEditorModal>
       )}
 
       {/* Edit Template Modal */}
       {showEditModal && editTemplate && (
-        <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px' }}>
-            <div className="modal-header">
-              <div>
-                <h3>Edit {editTemplate.name}</h3>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                  {editTemplate.filename}
-                </div>
-              </div>
-              <button
-                className="btn btn-secondary btn-icon"
-                onClick={() => setShowEditModal(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
-                  Compose File
-                </label>
-                <CodeEditor
-                  value={editTemplateYaml}
-                  onChange={setEditTemplateYaml}
-                  language="yaml"
-                  height="400px"
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowEditModal(false)}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSaveEdit}>
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
+        <DockableEditorModal
+          id={`template-edit-${editTemplate.id}`}
+          title={`Edit ${editTemplate.name}`}
+          subtitle={editTemplate.filename}
+          canMinimize={false}
+          onClose={() => setShowEditModal(false)}
+          maxWidth="680px"
+          footer={null}
+        >
+          <EditTemplateEditorContent
+            editorId={`template-edit-${editTemplate.id}`}
+            template={editTemplate}
+            onClose={() => setShowEditModal(false)}
+            onSave={handleSaveEdit}
+          />
+        </DockableEditorModal>
       )}
     </div>
   );
