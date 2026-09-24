@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
-  AlertCircle,
   ArrowLeft,
-  CheckCircle2,
   Play,
   Square,
   RotateCw,
@@ -11,7 +9,6 @@ import {
   Terminal,
   FileText,
   Box,
-  X,
 } from 'lucide-react';
 import { StackDetails, StackContainerInfo, ContainerMetrics } from '../types';
 import { api } from '../api/client';
@@ -72,10 +69,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [actionHistory, setActionHistory] = useState<ActionHistoryItem[]>([]);
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
-  const [saveFeedback, setSaveFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
   const [isEditorResizing, setIsEditorResizing] = useState(false);
-  const feedbackTimer = useRef<number | null>(null);
   const actionWsRef = useRef<WebSocket | null>(null);
   const actionFailedRef = useRef(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
@@ -97,7 +92,6 @@ export const StackDetail: React.FC<StackDetailProps> = ({
 
   useEffect(() => {
     return () => {
-      if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
       if (actionWsRef.current) {
         actionWsRef.current.onclose = null;
         actionWsRef.current.onerror = null;
@@ -171,12 +165,6 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     return () => clearInterval(interval);
   }, [details]);
 
-  const showFeedback = (kind: 'success' | 'error', text: string) => {
-    setSaveFeedback({ kind, text });
-    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
-    feedbackTimer.current = window.setTimeout(() => setSaveFeedback(null), 5000);
-  };
-
   const handleSave = async () => {
     if (saving) return;
     try {
@@ -189,11 +177,9 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       setLastSavedCompose(composeText);
       setLastSavedEnv(envText);
       setLastSavedAt(savedAt);
-      showFeedback('success', 'Stack saved — file permissions and ownership preserved.');
       showToast('Stack saved successfully.', 'success');
       await fetchDetails(false, savedAt);
     } catch (err: unknown) {
-      showFeedback('error', `Save failed: ${getErrorMessage(err, 'Unknown error')}`);
       showToast(`Save failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setSaving(false);
@@ -643,43 +629,6 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         </button>
       )}
 
-      {/* Inline save feedback (replaces the old alert dialog) */}
-      {saveFeedback && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1001,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background: 'var(--bg-card, #0f172a)',
-            border: `1px solid ${saveFeedback.kind === 'success' ? 'var(--status-running)' : 'var(--status-error)'}`,
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 16px',
-            fontSize: '0.85rem',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
-            maxWidth: 'min(90vw, 560px)',
-          }}
-        >
-          {saveFeedback.kind === 'success' ? (
-            <CheckCircle2 size={18} color="var(--status-running)" style={{ flexShrink: 0 }} />
-          ) : (
-            <AlertCircle size={18} color="var(--status-error)" style={{ flexShrink: 0 }} />
-          )}
-          <span>{saveFeedback.text}</span>
-          <button
-            className="btn btn-secondary btn-icon"
-            onClick={() => setSaveFeedback(null)}
-            title="Dismiss"
-            style={{ flexShrink: 0 }}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 };

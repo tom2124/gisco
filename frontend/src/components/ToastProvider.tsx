@@ -38,7 +38,7 @@ export const ToastProvider: React.FC<PropsWithChildren> = ({ children }) => {
 
   const showToast = useCallback((message: string, kind: ToastKind = 'info') => {
     const id = ++nextIdRef.current;
-    setToasts((current) => [...current.slice(-4), { id, kind, message }]);
+    setToasts((current) => [...current.slice(-2), { id, kind, message }]);
 
     const duration = kind === 'error' ? 6500 : 4000;
     const timer = window.setTimeout(() => {
