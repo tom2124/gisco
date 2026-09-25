@@ -604,31 +604,6 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         </div>
       )}
 
-      {/* Floating save button: always reachable while editing, no scroll needed */}
-      {!details?.external && activeTab === 'files' && isDirty && (
-        <button
-          className="btn btn-primary"
-          onClick={handleSave}
-          disabled={saving}
-          title={saving ? 'Saving...' : 'Save stack files (Ctrl+S)'}
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            zIndex: 1000,
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
-          }}
-        >
-          <Save size={20} />
-        </button>
-      )}
-
     </div>
   );
 };
