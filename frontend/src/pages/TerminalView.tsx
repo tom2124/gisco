@@ -168,7 +168,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     if (!terminalElement || !fitAddon) return;
 
     const fitTerminal = () => {
-      if (!isMinimized) fitAddon.fit();
+      if (isMinimized) return;
+      window.requestAnimationFrame(() => {
+        if (isMinimized) return;
+        fitAddon.fit();
+        const term = termInstanceRef.current;
+        if (term) term.refresh(0, Math.max(0, term.rows - 1));
+      });
     };
 
     // The modal animates between its normal and maximized dimensions. Observe
@@ -346,7 +352,6 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         )}
 
         <div
-          ref={terminalRef}
           className="terminal-view-body"
           style={{
             flex: 1,
@@ -355,7 +360,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             overflow: 'hidden',
             minHeight: 0,
           }}
-        />
+        >
+          <div ref={terminalRef} className="terminal-host" />
+        </div>
       </div>
     </div>
   );
