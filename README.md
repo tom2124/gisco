@@ -103,7 +103,7 @@ services:
 ```
 
 Pin a release instead of `latest` if you prefer stability, e.g.
-`ghcr.io/tom2124/gisco:v1.0.0`.
+`ghcr.io/tom2124/gisco:0.1.6`.
 
 ## Configuration
 
