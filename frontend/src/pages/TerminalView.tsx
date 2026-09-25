@@ -19,7 +19,33 @@ interface TerminalViewProps {
   onRestore?: () => void;
 }
 
-export const TerminalView: React.FC<TerminalViewProps> = ({
+export const copyTextToClipboard = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through to the legacy copy path for non-secure/restricted hosts.
+    }
+  }
+
+  const fallback = document.createElement('textarea');
+  fallback.value = text;
+  fallback.style.position = 'fixed';
+  fallback.style.opacity = '0';
+  document.body.appendChild(fallback);
+  fallback.focus();
+  fallback.select();
+  document.execCommand('copy');
+  fallback.remove();
+};
+
+const readTextFromClipboard = async (): Promise<string> => {
+  if (!navigator.clipboard?.readText) return '';
+  return navigator.clipboard.readText();
+};
+
+const TerminalView: React.FC<TerminalViewProps> = ({
   containerId,
   containerName,
   onClose,
@@ -130,6 +156,30 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       setStarted(false);
       term.writeln(`\r\n\x1b[31m[gisco]\x1b[0m Connection error. Is the container running?`);
     };
+
+    term.onKey(({ domEvent }) => {
+      if (!domEvent.ctrlKey || !domEvent.shiftKey) return false;
+
+      const shortcut = domEvent.key.toLowerCase();
+      if (shortcut === 'c') {
+        const selection = term.getSelection();
+        if (selection) void copyTextToClipboard(selection);
+        domEvent.preventDefault();
+        return true;
+      }
+      if (shortcut === 'v') {
+        domEvent.preventDefault();
+        void readTextFromClipboard()
+          .then((text) => {
+            if (text) term.paste(text);
+          })
+          .catch(() => {
+            // Clipboard access may be denied by the browser; leave the session intact.
+          });
+        return true;
+      }
+      return false;
+    });
 
     term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
