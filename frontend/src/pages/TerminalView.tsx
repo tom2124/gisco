@@ -5,7 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import '@fontsource/iosevka/400.css';
 import '@fontsource/iosevka/600.css';
-import { X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
+import { ClipboardPaste, Copy, X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
 import { api } from '../api/client';
 
 interface TerminalViewProps {
@@ -65,6 +65,24 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const [connected, setConnected] = useState(false);
   const [started, setStarted] = useState(false);
   const [terminalReady, setTerminalReady] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
+
+  const copySelection = () => {
+    const term = termInstanceRef.current;
+    const selection = term?.getSelection();
+    if (term && selection) void copyTextToClipboard(selection);
+  };
+
+  const pasteClipboard = async () => {
+    const term = termInstanceRef.current;
+    if (!term) return;
+    try {
+      const text = await readTextFromClipboard();
+      if (text) term.paste(text);
+    } catch {
+      // Clipboard access may be denied by the browser; leave the session intact.
+    }
+  };
 
   const initTerminal = (cmd: string, user: string) => {
     if (!terminalRef.current) return;
@@ -81,6 +99,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     }
 
     setTerminalReady(false);
+    setHasSelection(false);
     setStarted(true);
 
     // Terminal instance
@@ -109,6 +128,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     term.loadAddon(new WebLinksAddon());
 
     term.open(terminalRef.current);
+    term.onSelectionChange(() => setHasSelection(Boolean(term.getSelection())));
     fitAddon.fit();
 
     termInstanceRef.current = term;
@@ -158,16 +178,19 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     };
 
     term.onKey(({ domEvent }) => {
-      if (!domEvent.ctrlKey || !domEvent.shiftKey) return false;
+      if (!domEvent.ctrlKey) return false;
 
       const shortcut = domEvent.key.toLowerCase();
-      if (shortcut === 'c') {
-        const selection = term.getSelection();
+      const selection = term.getSelection();
+      // Ctrl+Shift+C is the requested convention, but Firefox reserves it for
+      // its Web Console. Ctrl+C copies whenever a selection exists and still
+      // sends an interrupt when the terminal has no selection.
+      if (shortcut === 'c' && (domEvent.shiftKey || selection)) {
         if (selection) void copyTextToClipboard(selection);
         domEvent.preventDefault();
         return true;
       }
-      if (shortcut === 'v') {
+      if (shortcut === 'v' && domEvent.shiftKey) {
         domEvent.preventDefault();
         void readTextFromClipboard()
           .then((text) => {
@@ -379,6 +402,21 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             </div>
 
             <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-secondary btn-icon"
+                title="Copy selection (Ctrl+C)"
+                onClick={copySelection}
+                disabled={!hasSelection}
+              >
+                <Copy size={14} />
+              </button>
+              <button
+                className="btn btn-secondary btn-icon"
+                title="Paste clipboard (Ctrl+Shift+V)"
+                onClick={pasteClipboard}
+              >
+                <ClipboardPaste size={14} />
+              </button>
               <button
                 className="btn btn-secondary btn-icon"
                 title="Minimize terminal"
