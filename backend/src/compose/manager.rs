@@ -229,8 +229,8 @@ impl StacksManager {
             if stack_containers.is_empty() {
                 anyhow::bail!("Stack '{}' not found", name);
             }
-            let hostnames = inspect_hostnames(docker, &stack_containers).await;
-            let (containers_info, running_count) = container_infos(&stack_containers, &hostnames);
+            let inspected = inspect_containers(docker, &stack_containers).await;
+            let (containers_info, running_count) = container_infos(&stack_containers, &inspected);
             let services = external_services(&stack_containers);
             let total = containers_info.len();
             let status = stack_status(total, running_count);
@@ -282,8 +282,8 @@ impl StacksManager {
             .list_containers_for_stack(name)
             .await
             .unwrap_or_default();
-        let hostnames = inspect_hostnames(docker, &stack_containers).await;
-        let (containers_info, running_count) = container_infos(&stack_containers, &hostnames);
+        let inspected = inspect_containers(docker, &stack_containers).await;
+        let (containers_info, running_count) = container_infos(&stack_containers, &inspected);
 
         let total = containers_info.len();
         let status = stack_status(total, running_count);
@@ -395,22 +395,44 @@ impl StacksManager {
     }
 }
 
-/// Hostname/domainname per container id, fetched concurrently.
-/// Inspect failures map to absent entries (callers treat those as None).
-async fn inspect_hostnames(
+/// Hostname/domainname plus per-network aliases per container id, fetched
+/// concurrently. The container list endpoint omits endpoint aliases, so they
+/// are only available from inspect. Failures map to absent entries.
+type ContainerInspectInfo = (Option<String>, Option<String>, HashMap<String, Vec<String>>);
+
+async fn inspect_containers(
     docker: &DockerService,
     containers: &[ContainerSummary],
-) -> HashMap<String, (Option<String>, Option<String>)> {
+) -> HashMap<String, ContainerInspectInfo> {
     futures_util::future::join_all(containers.iter().map(|c| {
         let id = c.id.clone().unwrap_or_default();
         let docker = docker.clone();
         async move {
-            let info = docker
-                .inspect_container(&id)
-                .await
-                .ok()
-                .and_then(|insp| insp.config)
-                .map(|cfg| (cfg.hostname, cfg.domainname));
+            let info = docker.inspect_container(&id).await.ok().map(|insp| {
+                let hostname = insp.config.as_ref().and_then(|cfg| cfg.hostname.clone());
+                let domainname = insp.config.as_ref().and_then(|cfg| cfg.domainname.clone());
+                // Key aliases by both network name and id; interface lookups
+                // use whichever identifier the list endpoint provided.
+                let mut aliases: HashMap<String, Vec<String>> = HashMap::new();
+                if let Some(settings) = insp.network_settings {
+                    if let Some(networks) = settings.networks {
+                        for (net_name, endpoint) in networks {
+                            let endpoint_aliases = endpoint.aliases.unwrap_or_default();
+                            if endpoint_aliases.is_empty() {
+                                continue;
+                            }
+                            aliases
+                                .entry(net_name.clone())
+                                .or_default()
+                                .extend(endpoint_aliases.clone());
+                            if let Some(net_id) = endpoint.network_id {
+                                aliases.entry(net_id).or_default().extend(endpoint_aliases);
+                            }
+                        }
+                    }
+                }
+                (hostname, domainname, aliases)
+            });
             (id, info)
         }
     }))
@@ -434,7 +456,7 @@ fn stack_status(total: usize, running: usize) -> StackStatus {
 
 fn container_infos(
     containers: &[ContainerSummary],
-    hostnames: &HashMap<String, (Option<String>, Option<String>)>,
+    inspected: &HashMap<String, ContainerInspectInfo>,
 ) -> (Vec<StackContainerInfo>, usize) {
     let mut infos = Vec::new();
     let mut running_count = 0;
@@ -504,16 +526,29 @@ fn container_infos(
         if let Some(settings) = &c.network_settings {
             if let Some(nets) = &settings.networks {
                 for (net_name, endpoint) in nets {
+                    let network_id = endpoint
+                        .network_id
+                        .clone()
+                        .unwrap_or_else(|| net_name.clone());
+                    // Union the list aliases (usually empty) with the inspect
+                    // aliases, keyed by both network id and name.
+                    let mut aliases = endpoint.aliases.clone().unwrap_or_default();
+                    if let Some((_, _, inspected_aliases)) = inspected.get(&id) {
+                        for key in [&network_id, net_name] {
+                            if let Some(extra) = inspected_aliases.get(key) {
+                                aliases.extend(extra.iter().cloned());
+                            }
+                        }
+                    }
+                    aliases.sort();
+                    aliases.dedup();
                     interfaces.push(crate::network_graph::builder::ContainerInterface {
-                        network_id: endpoint
-                            .network_id
-                            .clone()
-                            .unwrap_or_else(|| net_name.clone()),
+                        network_id,
                         network_name: net_name.clone(),
                         ip_address: endpoint.ip_address.clone().unwrap_or_default(),
                         mac_address: endpoint.mac_address.clone().unwrap_or_default(),
                         gateway: endpoint.gateway.clone().unwrap_or_default(),
-                        aliases: endpoint.aliases.clone().unwrap_or_default(),
+                        aliases,
                     });
                 }
             }
@@ -523,7 +558,10 @@ fn container_infos(
                 .cmp(&crate::network_graph::builder::ip_sort_key(&b.ip_address))
         });
 
-        let (hostname, domainname) = hostnames.get(&id).cloned().unwrap_or((None, None));
+        let (hostname, domainname) = inspected
+            .get(&id)
+            .map(|(hostname, domainname, _)| (hostname.clone(), domainname.clone()))
+            .unwrap_or((None, None));
 
         infos.push(StackContainerInfo {
             id,
@@ -699,7 +737,17 @@ mod tests {
             },
         ];
 
-        let (infos, running) = container_infos(&containers, &HashMap::new());
+        // The list endpoint omits aliases; inspect supplies them keyed by
+        // network name, and they are merged with the list values.
+        let mut inspected_aliases = HashMap::new();
+        inspected_aliases.insert(
+            "demo_default".to_string(),
+            vec!["api".to_string(), "web".to_string()],
+        );
+        let mut inspected = HashMap::new();
+        inspected.insert("abc123def456".to_string(), (None, None, inspected_aliases));
+
+        let (infos, running) = container_infos(&containers, &inspected);
         assert_eq!(running, 1);
         assert_eq!(infos.len(), 2);
         assert_eq!(infos[0].name, "myapp-web-1");
@@ -709,7 +757,7 @@ mod tests {
         assert_eq!(infos[0].interfaces[0].network_id, "net123");
         assert_eq!(infos[0].interfaces[0].network_name, "demo_default");
         assert_eq!(infos[0].interfaces[0].ip_address, "10.0.0.2");
-        assert_eq!(infos[0].interfaces[0].aliases, vec!["web"]);
+        assert_eq!(infos[0].interfaces[0].aliases, vec!["api", "web"]);
         assert_eq!(
             infos[0]
                 .labels
