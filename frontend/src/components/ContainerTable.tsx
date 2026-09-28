@@ -131,9 +131,10 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
     );
   }
 
-  // Grouped view replaces the per-row Stack column: the group header
-  // carries the stack name, so the column would just repeat it.
-  const grouped = groupByStack && !isStackView;
+  // Grouping conflicts with global name ordering because every stack block
+  // stays contiguous. Keep the compact grouped view for the default state
+  // sort, but flatten the table (with its Stack column) for name sorting.
+  const grouped = groupByStack && !isStackView && sortMode === 'state';
   const showStackCol = showStackColumn && !grouped;
   const colCount = 6 + (showStackCol ? 1 : 0) + (showNetworks ? 1 : 0) + (detailRenderer ? 1 : 0);
 
@@ -156,12 +157,26 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
         standalone.push(c);
       }
     }
-    for (const stack of [...byStack.keys()].sort((a, b) => a.localeCompare(b))) {
+    for (const stack of byStack.keys()) {
       groups.push({ key: `stack:${stack}`, stack, items: byStack.get(stack)! });
     }
     if (standalone.length > 0) {
       groups.push({ key: 'stack:__standalone__', items: standalone });
     }
+
+    // A group's position follows its highest-priority container, so the
+    // default state sort remains global instead of becoming alphabetical by
+    // stack name. Standalone containers sort after named stacks at equal rank.
+    const rank = (items: typeof sortedItems) =>
+      items.reduce(
+        (best, container) => Math.min(best, CONTAINER_STATE_RANK[getContainerState(container)] ?? 99),
+        99
+      );
+    groups.sort(
+      (a, b) =>
+        rank(a.items) - rank(b.items) ||
+        (a.stack ?? '\uffff').localeCompare(b.stack ?? '\uffff')
+    );
   } else {
     groups.push({ key: 'all', items: sortedItems });
   }
