@@ -1152,6 +1152,18 @@ input:focus, select:focus, textarea:focus {
   min-height: 0;
 }
 
+/* Terminals must render one fixed cell per character: no programming
+   ligatures, synthetic bolding, or font synthesis from a missing face. */
+.terminal-host .xterm,
+.terminal-host .xterm-screen,
+.terminal-host .xterm-rows,
+.terminal-host .xterm-accessibility {
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'calt' 0;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+}
+
 .terminal-window {
   background: #000;
   border: 1px solid var(--border-subtle);

@@ -84,7 +84,17 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     }
   };
 
-  const initTerminal = (cmd: string, user: string) => {
+  const initTerminal = async (cmd: string, user: string) => {
+    if (!terminalRef.current) return;
+
+    // xterm measures the cell size from the resolved font. If Iosevka has not
+    // loaded yet, the grid is sized for the fallback face and the output looks
+    // misaligned/non-monospaced until something else triggers a re-measure.
+    try {
+      await document.fonts?.ready;
+    } catch {
+      // Font Loading API unavailable — fall through to the default metrics.
+    }
     if (!terminalRef.current) return;
 
     // Cleanup previous. Detach callbacks first so its delayed close/error
@@ -107,6 +117,16 @@ const TerminalView: React.FC<TerminalViewProps> = ({
       cursorBlink: true,
       fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
       fontSize: 14,
+      // Pin weights to the Iosevka faces we actually bundle (400/600).
+      // Otherwise bold ANSI text — which color output enables via SGR 1 —
+      // resolves against a face we never loaded, and the browser can pick a
+      // different fallback, making the grid look non-monospaced.
+      fontWeight: '400',
+      fontWeightBold: '600',
+      // Terminal output must not reflow: tracking changes alter perceived
+      // glyph widths even when the underlying font is monospaced.
+      lineHeight: 1.2,
+      letterSpacing: 0,
       theme: {
         background: '#090d16',
         foreground: '#f1f5f9',
