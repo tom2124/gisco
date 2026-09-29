@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowLeft,
   Play,
@@ -30,6 +30,12 @@ const DEFAULT_EDITOR_SPLIT = 60; // 3:2 compose-to-env ratio
 const MIN_EDITOR_SPLIT = 25;
 const MAX_EDITOR_SPLIT = 75;
 const EDITOR_DIVIDER_WIDTH = 10;
+// Chrome between the top of the editor grid and the top of the editor itself:
+// card padding + meta row + its margin + card bottom padding.
+const EDITOR_CARD_CHROME = 64;
+// Breathing room so the editors never butt against the bottom of the viewport.
+const EDITOR_BOTTOM_GAP = 24;
+const MIN_EDITOR_HEIGHT = 160;
 
 const clampEditorSplit = (value: number) =>
   Math.min(MAX_EDITOR_SPLIT, Math.max(MIN_EDITOR_SPLIT, value));
@@ -72,6 +78,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
   const [isEditorResizing, setIsEditorResizing] = useState(false);
+  const [editorMaxHeight, setEditorMaxHeight] = useState(360);
   const actionWsRef = useRef<WebSocket | null>(null);
   const actionFailedRef = useRef(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
@@ -226,6 +233,33 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       setEditorSplit((split) => clampEditorSplit(split + step));
     }
   };
+
+  // Size the editors against the space actually left below the grid instead of
+  // guessing with viewport math. Guessing (100vh - Npx) overflows as soon as
+  // the stack header wraps or the toolbar grows, which is what pushed the
+  // compose file past the bottom of the page.
+  useLayoutEffect(() => {
+    if (activeTab !== 'files') return;
+    const grid = editorGridRef.current;
+    if (!grid) return;
+
+    const measure = () => {
+      // Document-relative top so scrolling does not resize the editors.
+      const gridTop = grid.getBoundingClientRect().top + window.scrollY;
+      const available =
+        window.innerHeight - gridTop - EDITOR_CARD_CHROME - EDITOR_BOTTOM_GAP;
+      setEditorMaxHeight(Math.max(MIN_EDITOR_HEIGHT, Math.floor(available)));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [activeTab, details?.name]);
 
   // Ctrl/Cmd+S saves from the editors without scrolling to the header.
   useEffect(() => {
@@ -493,7 +527,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               onChange={setComposeText}
               language="yaml"
               height="auto"
-              maxHeight="max(240px, calc(100vh - 245px))"
+              maxHeight={`${editorMaxHeight}px`}
             />
           </div>
 
@@ -528,7 +562,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               onChange={setEnvText}
               language="env"
               height="auto"
-              maxHeight="max(240px, calc(100vh - 245px))"
+              maxHeight={`${editorMaxHeight}px`}
               placeholder="# KEY=value"
             />
             {!envText && (
