@@ -64,11 +64,22 @@ pub async fn handle_exec_terminal(
         ]
     };
 
+    // Docker exec allocates the pty but does not set TERM for us. Without it,
+    // shells and common tools disable colored prompts/output even though the
+    // browser terminal is fully capable of rendering ANSI sequences.
+    let exec_env = use_tty.then(|| {
+        vec![
+            "TERM=xterm-256color".to_string(),
+            "COLORTERM=truecolor".to_string(),
+        ]
+    });
+
     let create_options = CreateExecOptions {
         attach_stdin: Some(true),
         attach_stdout: Some(true),
         attach_stderr: Some(true),
         tty: Some(use_tty),
+        env: exec_env,
         cmd: Some(exec_cmd),
         user: exec_user,
         ..Default::default()

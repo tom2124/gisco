@@ -17,6 +17,7 @@ import { ContainerTable } from '../components/ContainerTable';
 import StackContainerDetail from '../components/StackContainerDetail';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
 import { extractEnvVars } from '../utils/composeEnv';
+import { appendTerminalOutput } from '../utils/terminalOutput';
 
 interface StackDetailProps {
   stackName: string;
@@ -248,7 +249,9 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     ]);
     setActiveTab('logs');
     setIsRunningAction(true);
-    setActionLogs((prev) => [...prev, `\r\n--- Executing 'docker compose ${action}' on ${stackName} ---`]);
+    setActionLogs((prev) =>
+      appendTerminalOutput(prev, `\r\n--- Executing 'docker compose ${action}' on ${stackName} ---`)
+    );
     showToast(`Running docker compose ${action} for ${stackName}…`, 'info');
 
     if (actionWsRef.current) {
@@ -272,7 +275,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
           );
           showToast(event.data.replace('[gisco] Error: ', ''), 'error');
         }
-        setActionLogs((prev) => [...prev, event.data]);
+        setActionLogs((prev) => appendTerminalOutput(prev, event.data));
       }
     };
 
@@ -297,7 +300,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
 
     ws.onerror = () => {
       if (actionWsRef.current !== ws) return;
-      setActionLogs((prev) => [...prev, `[WebSocket Error: could not stream action]`]);
+      setActionLogs((prev) => appendTerminalOutput(prev, `[WebSocket Error: could not stream action]`));
       setIsRunningAction(false);
       setActionHistory((current) =>
         current.map((item) =>

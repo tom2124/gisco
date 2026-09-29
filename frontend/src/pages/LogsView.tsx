@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Search, ArrowDown, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { api } from '../api/client';
+import { appendTerminalOutput } from '../utils/terminalOutput';
 
 const MAX_LOG_CHUNKS = 10_000;
 
@@ -42,7 +43,7 @@ export const LogsView: React.FC<LogsViewProps> = ({
     ws.onmessage = (event) => {
       if (wsRef.current !== ws || typeof event.data !== 'string') return;
       setLogs((prev) => {
-        const next = [...prev, event.data];
+        const next = appendTerminalOutput(prev, event.data);
         return next.length > MAX_LOG_CHUNKS ? next.slice(-MAX_LOG_CHUNKS) : next;
       });
     };
