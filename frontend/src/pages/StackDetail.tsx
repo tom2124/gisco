@@ -24,6 +24,8 @@ interface StackDetailProps {
   onBack: () => void;
   onOpenTerminal: (containerId: string, containerName: string, command?: string, interactive?: boolean) => void;
   onOpenLogs: (containerId: string, containerName: string) => void;
+  /** Re-sync the app-level stack list/status after a compose action. */
+  onRefresh?: () => void;
 }
 
 const DEFAULT_EDITOR_SPLIT = 60; // 3:2 compose-to-env ratio
@@ -61,6 +63,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   onBack,
   onOpenTerminal,
   onOpenLogs,
+  onRefresh,
 }) => {
   const { showToast } = useToast();
   const [details, setDetails] = useState<StackDetails | null>(null);
@@ -329,7 +332,10 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         )
       );
       if (!actionFailedRef.current) showToast(`docker compose ${action} completed.`, 'success');
+      // Compose mutates the host: refresh this stack and the app-level list so
+      // the stack list shows the new state when the user navigates back.
       fetchDetails();
+      onRefresh?.();
     };
 
     ws.onerror = () => {

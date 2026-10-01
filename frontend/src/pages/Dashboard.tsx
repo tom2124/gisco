@@ -22,6 +22,8 @@ interface DashboardProps {
   onSelectStack: (name: string) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  /** Increments on each global refresh; re-syncs the dashboard's own data. */
+  refreshToken?: number;
 }
 
 const containerName = (container: ContainerSummary) =>
@@ -61,6 +63,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSelectStack,
   onRefresh,
   isRefreshing,
+  refreshToken,
 }) => {
   const { showToast } = useToast();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
@@ -69,6 +72,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [dataLoading, setDataLoading] = useState(true);
   const [dataWarning, setDataWarning] = useState('');
   const dashboardRequestRef = useRef(0);
+  const lastWarningRef = useRef('');
 
   const fetchDashboardData = async () => {
     const requestId = ++dashboardRequestRef.current;
@@ -90,13 +94,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (volumeResult.status === 'rejected') failures.push('volumes');
     const warning = failures.length > 0 ? `Unavailable: ${failures.join(', ')}` : '';
     setDataWarning(warning);
-    if (warning) showToast(`Some dashboard data is unavailable: ${failures.join(', ')}`, 'warning');
+    // Now that this re-runs on every poll, only warn when the message changes,
+    // otherwise a single down endpoint would toast every 10 seconds.
+    if (warning && lastWarningRef.current !== warning) showToast(`Some dashboard data is unavailable: ${failures.join(', ')}`, 'warning');
+    lastWarningRef.current = warning;
     setDataLoading(false);
   };
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+    // The dashboard owns containers/images/volumes, which the app-level poll
+    // does not fetch. Without this they froze at whatever was true on mount.
+  }, [refreshToken]);
 
   const runningContainers = useMemo(
     () => containers.filter((container) => container.State === 'running'),

@@ -71,7 +71,11 @@ export const App: React.FC = () => {
   const [stacks, setStacks] = useState<StackSummary[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshInFlightRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
   const lastGlobalErrorRef = useRef('');
+  // Bumped on every completed global refresh so pages that own extra data
+  // (the dashboard) can re-sync without polling on their own.
+  const [globalRefreshToken, setGlobalRefreshToken] = useState(0);
   const { showToast } = useToast();
 
   // Terminal & Logs modals
@@ -82,7 +86,14 @@ export const App: React.FC = () => {
   } | null>(null);
 
   const fetchGlobalData = async () => {
-    if (refreshInFlightRef.current) return;
+    // Coalesce instead of dropping. A refresh requested while another is in
+    // flight (e.g. right after a stack action finishes) used to be discarded,
+    // leaving the UI stale until the next 10s tick -- and if a request ever
+    // hung, the `finally` below never ran and polling was dead until reload.
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true;
+      return;
+    }
     refreshInFlightRef.current = true;
     try {
       setIsRefreshing(true);
@@ -109,8 +120,14 @@ export const App: React.FC = () => {
       } else {
         lastGlobalErrorRef.current = '';
       }
+      setGlobalRefreshToken((token) => token + 1);
     } finally {
       refreshInFlightRef.current = false;
+      // Replay anything that asked for a refresh while we were busy.
+      if (refreshQueuedRef.current) {
+        refreshQueuedRef.current = false;
+        void fetchGlobalData();
+      }
       setIsRefreshing(false);
     }
   };
@@ -120,6 +137,17 @@ export const App: React.FC = () => {
     const interval = setInterval(fetchGlobalData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Re-sync whenever a route change lands on a page that reads global data,
+  // so navigating back from a detail view never shows pre-action state while
+  // waiting for the next poll tick.
+  const lastRouteKeyRef = useRef(`${currentTab}/${selectedStackName ?? ''}`);
+  useEffect(() => {
+    const routeKey = `${currentTab}/${selectedStackName ?? ''}`;
+    if (routeKey === lastRouteKeyRef.current) return;
+    lastRouteKeyRef.current = routeKey;
+    fetchGlobalData();
+  }, [currentTab, selectedStackName]);
 
   useEffect(() => {
     const onHashChange = () => setRoute(parseHash());
@@ -209,6 +237,7 @@ export const App: React.FC = () => {
             onSelectStack={handleSelectStack}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
+            refreshToken={globalRefreshToken}
           />
         )}
 
@@ -219,6 +248,7 @@ export const App: React.FC = () => {
               onBack={() => handleSelectTab('stacks')}
               onOpenTerminal={openTerminal}
               onOpenLogs={(id, name) => setLogsTarget({ id, name })}
+              onRefresh={fetchGlobalData}
             />
           ) : (
             <Stacks
