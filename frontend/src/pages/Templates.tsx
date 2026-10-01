@@ -9,7 +9,7 @@ import { Header } from '../components/Header';
 import { TemplateDetails, TemplateSummary } from '../types';
 import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
-import ComposeStackModal, { ComposeStackSubmit } from '../components/ComposeStackModal';
+import TemplateStackModal from '../components/TemplateStackModal';
 import DeleteButton from '../components/DeleteButton';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
 import { DockableEditorModal, useEditorDock } from '../components/EditorDock';
@@ -17,7 +17,6 @@ import { DockableEditorModal, useEditorDock } from '../components/EditorDock';
 const NEW_TEMPLATE_INITIAL_YAML = `services:
   app:
     image: alpine
-    container_name: \${STACK_NAME}-app
     restart: unless-stopped
     ports:
       - "\${SERVICE_PORT:-8080}:80"
@@ -178,10 +177,14 @@ export const Templates: React.FC<TemplatesProps> = ({
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Deploy modal
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateDetails | null>(null);
-  const [showDeployModal, setShowDeployModal] = useState(false);
-  const [instantiating, setInstantiating] = useState(false);
+  // Multi-template composition: which templates are ticked for the next stack.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
 
   // New template modal
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
@@ -205,38 +208,6 @@ export const Templates: React.FC<TemplatesProps> = ({
   useEffect(() => {
     fetchTemplates();
   }, []);
-
-  const handleOpenDeploy = async (id: string) => {
-    try {
-      const details = await api.getTemplate(id);
-      setSelectedTemplate(details);
-      setShowDeployModal(true);
-    } catch (err: unknown) {
-      showToast(`Error loading template: ${getErrorMessage(err, 'Unknown error')}`, 'error');
-    }
-  };
-
-  const handleInstantiate = async ({ name, envContent }: ComposeStackSubmit) => {
-    if (!selectedTemplate) return false;
-
-    try {
-      setInstantiating(true);
-      await api.instantiateTemplate(selectedTemplate.id, {
-        stack_name: name,
-        env_content: envContent,
-      });
-      setShowDeployModal(false);
-      onRefresh();
-      onStackCreated(name);
-      showToast(`Stack ${name} deployed successfully.`, 'success');
-      return true;
-    } catch (err: unknown) {
-      showToast(`Failed to create stack: ${getErrorMessage(err, 'Unknown error')}`, 'error');
-      return false;
-    } finally {
-      setInstantiating(false);
-    }
-  };
 
   const handleCreateTemplate = async (templateId: string, yaml: string) => {
     if (!templateId.trim()) {
@@ -315,6 +286,29 @@ export const Templates: React.FC<TemplatesProps> = ({
         filled in when you deploy.
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="tpl-selection-bar">
+          <span className="tpl-selection-count">
+            {selectedIds.length} template{selectedIds.length === 1 ? '' : 's'} selected
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setSelectedIds([])}
+            >
+              Clear
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowComposeModal(true)}
+            >
+              <Sparkles size={14} />
+              <span>Create stack from {selectedIds.length} template{selectedIds.length === 1 ? '' : 's'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {templates.length === 0 && !loading ? (
         <div className="card empty-state">
           <FileCode size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
@@ -328,8 +322,10 @@ export const Templates: React.FC<TemplatesProps> = ({
           {templates.map((tpl, idx) => (
             <div
               key={tpl.id}
-              onClick={() => handleOpenDeploy(tpl.id)}
-              className={`list-row${idx % 2 === 1 ? ' list-row-alt' : ''}`}
+              onClick={() => toggleSelected(tpl.id)}
+              className={`list-row${idx % 2 === 1 ? ' list-row-alt' : ''}${
+                selectedIds.includes(tpl.id) ? ' list-row-selected' : ''
+              }`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -380,6 +376,22 @@ export const Templates: React.FC<TemplatesProps> = ({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  className="tpl-select"
+                  checked={selectedIds.includes(tpl.id)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleSelected(tpl.id);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  title={
+                    selectedIds.includes(tpl.id)
+                      ? 'Remove from stack composition'
+                      : 'Add to stack composition'
+                  }
+                  aria-label={`Select ${tpl.name}`}
+                />
                 <button
                   className="btn btn-secondary btn-icon"
                   title="Edit template"
@@ -394,36 +406,24 @@ export const Templates: React.FC<TemplatesProps> = ({
                   title="Delete template"
                   onConfirm={() => handleDelete(tpl.id)}
                 />
-                <button
-                  className="btn btn-primary"
-                  style={{ padding: '6px 14px', fontSize: '0.82rem' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenDeploy(tpl.id);
-                  }}
-                >
-                  <Sparkles size={13} />
-                  <span>Deploy</span>
-                </button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Deploy Modal */}
-      {showDeployModal && selectedTemplate && (
-        <ComposeStackModal
-          id={`compose-deploy-${selectedTemplate.id}`}
-          title={`Deploy ${selectedTemplate.name}`}
-          subtitle={selectedTemplate.filename}
-          initialName={`${selectedTemplate.id}-1`}
-          initialCompose={selectedTemplate.raw_content}
-          composeEditable={false}
-          submitLabel="Create Stack"
-          busy={instantiating}
-          onClose={() => setShowDeployModal(false)}
-          onSubmit={handleInstantiate}
+      {/* Composed stack from several templates (incl. repeated instances) */}
+      {showComposeModal && selectedIds.length > 0 && (
+        <TemplateStackModal
+          templateIds={selectedIds}
+          onClose={() => setShowComposeModal(false)}
+          onNotify={(message, kind) => showToast(message, kind)}
+          onCreated={(name) => {
+            setShowComposeModal(false);
+            setSelectedIds([]);
+            onRefresh();
+            onStackCreated(name);
+          }}
         />
       )}
 

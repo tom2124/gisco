@@ -22,7 +22,7 @@ vite.config.ts.timestamp-*
 frontend/dist
 
 data
-templates
+/templates
 
 # typescript
 *.tsbuildinfo

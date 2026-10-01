@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use crate::compose::{valid_path_component, valid_stack_name};
 use crate::routes::AppState;
+use crate::templates::merge::{OnConflict, Slot};
 
 #[derive(Deserialize)]
 pub struct InstantiateTemplateRequest {
@@ -14,6 +15,47 @@ pub struct InstantiateTemplateRequest {
     pub env_content: Option<String>,
     pub custom_uid: Option<u32>,
     pub custom_gid: Option<u32>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SlotRequest {
+    pub template_id: String,
+    /// Optional unique name for this instance, e.g. `cache_a`.
+    #[serde(default)]
+    pub instance: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MergeTemplatesRequest {
+    pub slots: Vec<SlotRequest>,
+    /// `error` (default) or `rename`.
+    #[serde(default)]
+    pub on_conflict: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct InstantiateCompositionRequest {
+    pub slots: Vec<SlotRequest>,
+    pub stack_name: String,
+    pub env_content: Option<String>,
+    #[serde(default)]
+    pub on_conflict: Option<String>,
+    pub custom_uid: Option<u32>,
+    pub custom_gid: Option<u32>,
+}
+
+fn to_slots(req: &[SlotRequest]) -> Vec<Slot> {
+    req.iter()
+        .map(|s| Slot {
+            template_id: s.template_id.clone(),
+            instance: s
+                .instance
+                .as_ref()
+                .map(|i| i.trim())
+                .filter(|i| !i.is_empty())
+                .map(String::from),
+        })
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -36,6 +78,10 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}", post(save_template))
         .route("/{id}", delete(delete_template))
         .route("/{id}/instantiate", post(instantiate_template))
+        // Multi-template composition. Nested under `/composition/...` so these
+        // never collide with the `/{id}` routes above.
+        .route("/composition/merge", post(merge_templates))
+        .route("/composition/instantiate", post(instantiate_composition))
 }
 
 async fn list_templates(State(state): State<AppState>) -> impl IntoResponse {
@@ -144,6 +190,85 @@ async fn instantiate_template(
                 "status": "created",
                 "stack_name": payload.stack_name
             })),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        ),
+    }
+}
+
+/// Preview the compose file that would result from composing `slots`.
+/// Performs no writes — used to drive the "create stack from templates" modal.
+async fn merge_templates(
+    State(state): State<AppState>,
+    Json(payload): Json<MergeTemplatesRequest>,
+) -> impl IntoResponse {
+    if payload.slots.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Select at least one template" })),
+        );
+    }
+    let on_conflict = OnConflict::parse(payload.on_conflict.as_deref().unwrap_or("error"));
+    match state
+        .templates
+        .compose_templates(&to_slots(&payload.slots), on_conflict)
+    {
+        Ok(result) => (StatusCode::OK, Json(serde_json::json!(result))),
+        Err(e) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        ),
+    }
+}
+
+/// Compose `slots` into a brand new stack.
+async fn instantiate_composition(
+    State(state): State<AppState>,
+    Json(payload): Json<InstantiateCompositionRequest>,
+) -> impl IntoResponse {
+    if payload.slots.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Select at least one template" })),
+        );
+    }
+    if payload.stack_name.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": "Stack name cannot be empty" })),
+        );
+    }
+    if !valid_stack_name(&payload.stack_name) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "Invalid stack name: use lowercase letters, digits, dashes and underscores, starting with a letter or digit"
+            })),
+        );
+    }
+
+    let on_conflict = OnConflict::parse(payload.on_conflict.as_deref().unwrap_or("error"));
+    match state.templates.instantiate_composition(
+        &to_slots(&payload.slots),
+        &payload.stack_name,
+        payload.env_content.as_deref(),
+        on_conflict,
+        payload.custom_uid,
+        payload.custom_gid,
+    ) {
+        Ok(_) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "status": "created",
+                "stack_name": payload.stack_name
+            })),
+        ),
+        // A name clash is the caller's problem, not a server fault.
+        Err(e) if e.to_string().contains("Name conflicts") => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": e.to_string() })),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -1,14 +1,17 @@
 import {
+  CompositionResult,
   ContainerMetrics,
   ContainerSummary,
   DockerNetwork,
   DockerVolume,
   ImageSummary,
   NetworkGraph,
+  OnConflict,
   StackDetails,
   StackSummary,
   SystemStatus,
   TemplateDetails,
+  TemplateSlot,
   TemplateSummary,
   VolumeUsageData,
   VolumePruneResult,
@@ -125,6 +128,27 @@ export const api = {
     request<{ status: string; id: string }>(`${API_BASE}/templates/${pathSegment(id)}`, {
       method: 'DELETE',
     }),
+  /** Preview the compose file that composing `slots` would produce. No writes. */
+  mergeTemplates: (slots: TemplateSlot[], onConflict: OnConflict = 'error') =>
+    request<CompositionResult>(`${API_BASE}/templates/composition/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ slots, on_conflict: onConflict }),
+    }),
+  /** Compose `slots` into a brand new stack. */
+  instantiateComposition: (
+    slots: TemplateSlot[],
+    data: {
+      stack_name: string;
+      env_content?: string;
+      on_conflict?: OnConflict;
+      custom_uid?: number;
+      custom_gid?: number;
+    }
+  ) =>
+    request<{ status: string; stack_name: string }>(
+      `${API_BASE}/templates/composition/instantiate`,
+      { method: 'POST', body: JSON.stringify({ ...data, slots }) }
+    ),
 
   // Networks
   listNetworks: () => request<DockerNetwork[]>(`${API_BASE}/networks`),

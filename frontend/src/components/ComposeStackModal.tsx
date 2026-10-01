@@ -3,7 +3,6 @@ import { CodeEditor } from './CodeEditor';
 import { DockableEditorModal, useEditorDock } from './EditorDock';
 import { useToast } from './ToastProvider';
 import {
-  STACK_NAME_VAR,
   buildEnvContent,
   extractEnvVars,
   interpolateCompose,
@@ -52,12 +51,12 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
   // left out while empty so compose resolves them itself; an explicit value
   // overrides. Used for both the preview and the .env body.
   const effectiveValues = useMemo(() => {
-    const eff: Record<string, string> = { ...values, [STACK_NAME_VAR]: name.trim() };
+    const eff: Record<string, string> = { ...values };
     for (const v of vars) {
       if (v.auto && !(eff[v.name] ?? '').trim()) delete eff[v.name];
     }
     return eff;
-  }, [vars, values, name]);
+  }, [vars, values]);
   // Keep a value slot per referenced var: preserve user input, seed new
   // vars with their compose defaults, drop unreferenced ones.
   useEffect(() => {
@@ -65,7 +64,6 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
       const next: Record<string, string> = {};
       let changed = Object.keys(prev).length !== vars.length;
       for (const v of vars) {
-        if (v.name === STACK_NAME_VAR) continue;
         if (v.name in prev) {
           next[v.name] = prev[v.name];
         } else {
@@ -85,7 +83,6 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
   const hasChanges = useMemo(() => {
     if (name !== initialName || compose !== initialCompose) return true;
     return vars.some((variable) => {
-      if (variable.name === STACK_NAME_VAR) return false;
       const currentValue = variable.name in values ? values[variable.name] : variable.defaultValue;
       return currentValue !== variable.defaultValue;
     });
@@ -181,53 +178,41 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
                   gap: '10px',
                 }}
               >
-                {vars.map((v) =>
-                  v.name === STACK_NAME_VAR ? (
-                    <div key={v.name}>
-                      <label
-                        className="font-mono"
-                        style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}
-                      >
-                        {v.name} <span style={{ opacity: 0.7 }}>(= stack name)</span>
-                      </label>
-                      <input type="text" value={name} disabled readOnly />
-                    </div>
-                  ) : (
-                    <div key={v.name}>
-                      <label
-                        className="font-mono"
-                        style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}
-                      >
-                        {v.name}
-                        {v.auto && (
-                          <span className="badge" style={{ fontSize: '0.62rem', marginLeft: '6px' }}>
-                            auto · {v.autoSource}
-                          </span>
-                        )}
-                        {v.defaultValue && (
-                          <span style={{ opacity: 0.7 }}> (default: {v.defaultValue})</span>
-                        )}
-                      </label>
-                      <input
-                        type="text"
-                        value={values[v.name] ?? ''}
-                        placeholder={
-                          v.auto
-                            ? `provided by ${v.autoSource} — fill to override`
-                            : v.defaultValue || 'required — no default'
-                        }
-                        title={
-                          v.auto
-                            ? `Supplied automatically by ${v.autoSource}; left empty it stays out of .env so the automatic value applies`
-                            : undefined
-                        }
-                        onChange={(e) =>
-                          setValues((prev) => ({ ...prev, [v.name]: e.target.value }))
-                        }
-                      />
-                    </div>
-                  )
-                )}
+                {vars.map((v) => (
+                  <div key={v.name}>
+                    <label
+                      className="font-mono"
+                      style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}
+                    >
+                      {v.name}
+                      {v.auto && (
+                        <span className="badge" style={{ fontSize: '0.62rem', marginLeft: '6px' }}>
+                          auto · {v.autoSource}
+                        </span>
+                      )}
+                      {v.defaultValue && (
+                        <span style={{ opacity: 0.7 }}> (default: {v.defaultValue})</span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={values[v.name] ?? ''}
+                      placeholder={
+                        v.auto
+                          ? `provided by ${v.autoSource} — fill to override`
+                          : v.defaultValue || 'required — no default'
+                      }
+                      title={
+                        v.auto
+                          ? `Supplied automatically by ${v.autoSource}; left empty it stays out of .env so the automatic value applies`
+                          : undefined
+                      }
+                      onChange={(e) =>
+                        setValues((prev) => ({ ...prev, [v.name]: e.target.value }))
+                      }
+                    />
+                  </div>
+                ))}
               </div>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '6px' }}>
                 Written to the stack&apos;s <code>.env</code> file and interpolated by compose

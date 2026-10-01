@@ -9,8 +9,6 @@ export interface ComposeEnvVar {
   autoSource?: string;
 }
 
-export const STACK_NAME_VAR = 'STACK_NAME';
-
 /**
  * Variables supplied automatically by the environment that compose/docker
  * resolve on their own. Writing them empty into a `.env` file would clobber

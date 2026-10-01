@@ -233,3 +233,50 @@ export interface SystemStatus {
   default_uid: number;
   default_gid: number;
 }
+
+/** One template selected for a composed stack, optionally named. */
+export interface TemplateSlot {
+  template_id: string;
+  instance?: string | null;
+}
+
+/** What a single slot contributed to the merged compose file. */
+export interface TemplateSlotPlan {
+  template_id: string;
+  instance?: string | null;
+  /** Suffix used for generated names (the instance name, else the template id). */
+  label: string;
+  /** True when this slot's names were suffixed to stay independent. */
+  instance_scoped: boolean;
+  /** Final service names contributed by this slot. */
+  services: string[];
+  renamed_services: Record<string, string>;
+  renamed_resources: Record<string, string>;
+  renamed_params: Record<string, string>;
+  /** Final `${VAR}` keys this slot writes into `.env`. */
+  params: string[];
+}
+
+export interface MergeConflict {
+  kind: string;
+  name: string;
+  kept_from: string;
+  conflict_from: string;
+}
+
+export interface CompositionTemplateMeta {
+  id: string;
+  name: string;
+  filename: string;
+  raw_content: string;
+}
+
+export interface CompositionResult {
+  compose: string;
+  slots: TemplateSlotPlan[];
+  warnings: string[];
+  conflicts: MergeConflict[];
+  templates: CompositionTemplateMeta[];
+}
+
+export type OnConflict = 'error' | 'rename';

@@ -36,8 +36,8 @@ describe('extractEnvVars', () => {
 
 describe('buildEnvContent', () => {
   it('joins ordered KEY=value lines', () => {
-    expect(buildEnvContent(['STACK_NAME', 'PORT'], { STACK_NAME: 'demo', PORT: '9090' })).toBe(
-      'STACK_NAME=demo\nPORT=9090'
+    expect(buildEnvContent(['APP', 'PORT'], { APP: 'demo', PORT: '9090' })).toBe(
+      'APP=demo\nPORT=9090'
     );
     expect(buildEnvContent(['MISSING'], {})).toBe('MISSING=');
   });

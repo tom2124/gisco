@@ -1187,3 +1187,217 @@ input:focus, select:focus, textarea:focus {
   min-height: 250px;
   flex: 1;
 }
+
+/* Composed-stack modal (multiple templates / repeated instances) */
+.compose-modal-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compose-modal-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.compose-modal-required {
+  color: var(--status-error);
+}
+
+.compose-modal-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.compose-modal-section-head .compose-modal-label {
+  margin-bottom: 0;
+}
+
+.compose-modal-help {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.compose-modal-help code {
+  color: var(--text-muted);
+}
+
+.compose-modal-problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.compose-modal-problem svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.compose-modal-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.compose-modal-check input {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.compose-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compose-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.compose-slot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compose-slot-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.compose-slot-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.compose-slot-services {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.compose-slot-rename {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.compose-slot-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.compose-param-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.compose-param-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.compose-param-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.compose-param-copy:hover {
+  color: var(--primary);
+}
+
+.compose-modal-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* Template selection for stack composition */
+.tpl-select {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.list-row-selected {
+  background: rgba(56, 189, 248, 0.07);
+}
+
+.tpl-selection-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: rgba(15, 21, 35, 0.96);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: var(--radius-lg);
+  backdrop-filter: var(--glass-blur);
+}
+
+.tpl-selection-count {
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+}

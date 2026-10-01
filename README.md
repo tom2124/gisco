@@ -61,7 +61,6 @@ Everything lives inside Docker-managed volumes.
 services:
   gisco:
     image: ghcr.io/tom2124/gisco:latest
-    container_name: gisco
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -87,7 +86,6 @@ mkdir -p stacks templates
 services:
   gisco:
     image: ghcr.io/tom2124/gisco:latest
-    container_name: gisco
     restart: unless-stopped
     ports:
       - "8080:8080"

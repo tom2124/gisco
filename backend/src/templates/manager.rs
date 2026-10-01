@@ -1,10 +1,14 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
 use crate::compose::{extract_description, strip_description, valid_path_component, StacksManager};
+use crate::templates::merge::{
+    self, Composition, MergeConflict, OnConflict, Slot, SlotPlan, TemplateSource,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TemplateSummary {
@@ -30,7 +34,104 @@ pub struct TemplatesManager {
     stacks_manager: StacksManager,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct TemplateSourceMeta {
+    pub id: String,
+    pub name: String,
+    pub filename: String,
+    pub raw_content: String,
+}
+
+/// Result of composing several template slots into one compose file.
+#[derive(Serialize, Clone, Debug)]
+pub struct CompositionResponse {
+    pub compose: String,
+    pub slots: Vec<SlotPlan>,
+    pub warnings: Vec<String>,
+    pub conflicts: Vec<MergeConflict>,
+    /// The distinct templates involved, so the caller can group parameters
+    /// per template without a second round trip.
+    pub templates: Vec<TemplateSourceMeta>,
+}
+
 impl TemplatesManager {
+    /// Load every template referenced by `slots` and build the merged file.
+    pub fn compose_templates(
+        &self,
+        slots: &[Slot],
+        on_conflict: OnConflict,
+    ) -> Result<CompositionResponse> {
+        if slots.is_empty() {
+            anyhow::bail!("Select at least one template");
+        }
+
+        // Load each distinct template once.
+        let mut sources: HashMap<String, TemplateSource> = HashMap::new();
+        let mut templates: Vec<TemplateSourceMeta> = Vec::new();
+        let mut seen: HashSet<String> = HashSet::new();
+        for slot in slots {
+            if seen.insert(slot.template_id.clone()) {
+                let details = self.get_template(&slot.template_id)?;
+                templates.push(TemplateSourceMeta {
+                    id: details.id.clone(),
+                    name: details.name.clone(),
+                    filename: details.filename.clone(),
+                    raw_content: details.raw_content.clone(),
+                });
+                sources.insert(
+                    details.id.clone(),
+                    TemplateSource {
+                        id: details.id,
+                        raw: details.raw_content,
+                    },
+                );
+            }
+        }
+
+        let Composition {
+            compose,
+            slots: plans,
+            warnings,
+            conflicts,
+        } = merge::compose(&sources, slots, on_conflict)?;
+
+        Ok(CompositionResponse {
+            compose,
+            slots: plans,
+            warnings,
+            conflicts,
+            templates,
+        })
+    }
+
+    /// Compose the slots and write the result as a new stack.
+    pub fn instantiate_composition(
+        &self,
+        slots: &[Slot],
+        stack_name: &str,
+        env_content: Option<&str>,
+        on_conflict: OnConflict,
+        custom_uid: Option<u32>,
+        custom_gid: Option<u32>,
+    ) -> Result<CompositionResponse> {
+        if self.stacks_manager.stack_exists(stack_name)? {
+            anyhow::bail!("Stack '{}' already exists", stack_name);
+        }
+        let composed = self.compose_templates(slots, on_conflict)?;
+        self.stacks_manager.save_stack(
+            stack_name,
+            &composed.compose,
+            env_content,
+            custom_uid,
+            custom_gid,
+        )?;
+        info!(
+            "Composed {} template slot(s) into new stack '{}'",
+            slots.len(),
+            stack_name
+        );
+        Ok(composed)
+    }
     pub fn new(template_dir: PathBuf, stacks_manager: StacksManager) -> Self {
         Self {
             template_dir,
