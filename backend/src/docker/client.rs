@@ -205,6 +205,26 @@ impl DockerService {
         Ok(())
     }
 
+    /// Remove unused images.
+    ///
+    /// `dangling_only` narrows this to untagged images, which is far safer than
+    /// removing every image no container happens to reference: a tagged image
+    /// with no running container is usually a stopped stack's image, and a
+    /// parent layer pulled in by a build, not garbage.
+    pub async fn prune_images(
+        &self,
+        dangling_only: bool,
+    ) -> Result<bollard::models::ImagePruneResponse> {
+        // Never rely on the daemon's default when the `dangling` filter is
+        // omitted: the two candidate defaults differ across API versions, and
+        // the wider one ("all unused images") is destructive here. Always send
+        // the filter explicitly so `dangling_only` fully determines the scope.
+        let options = Some(bollard::image::PruneImagesOptions::<String> {
+            filters: HashMap::from([("dangling".to_string(), vec![dangling_only.to_string()])]),
+        });
+        self.client.prune_images(options).await.map_err(Into::into)
+    }
+
     pub async fn pull_image(&self, from_image: &str, tag: Option<&str>) -> Result<()> {
         let options = Some(CreateImageOptions {
             from_image: from_image.to_string(),

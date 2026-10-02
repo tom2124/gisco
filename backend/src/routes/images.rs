@@ -19,10 +19,19 @@ pub struct DeleteImageQuery {
     pub force: Option<bool>,
 }
 
+#[derive(Deserialize)]
+pub struct PruneImagesQuery {
+    /// Restrict to untagged (`<none>`) images. Defaults to true: removing
+    /// every image no container references also takes tagged images belonging
+    /// to stopped stacks.
+    pub dangling: Option<bool>,
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(list_images))
         .route("/pull", post(pull_image))
+        .route("/prune", post(prune_images))
         .route("/{id}", get(inspect_image))
         .route("/{id}", delete(remove_image))
 }
@@ -68,6 +77,22 @@ async fn pull_image(
                 "tag": payload.tag.unwrap_or_else(|| "latest".to_string())
             })),
         ),
+        Err(e) => docker_error(e),
+    }
+}
+
+/// Remove unused images. See `prune_images` in the docker client for why the
+/// default is the narrow `dangling` set.
+async fn prune_images(
+    Query(query): Query<PruneImagesQuery>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    match state
+        .docker
+        .prune_images(query.dangling.unwrap_or(true))
+        .await
+    {
+        Ok(result) => (StatusCode::OK, Json(serde_json::json!(result))),
         Err(e) => docker_error(e),
     }
 }

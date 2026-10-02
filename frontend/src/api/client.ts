@@ -4,6 +4,7 @@ import {
   ContainerSummary,
   DockerNetwork,
   DockerVolume,
+  ImagePruneResult,
   ImageSummary,
   NetworkGraph,
   OnConflict,
@@ -173,6 +174,10 @@ export const api = {
   removeImage: (id: string, force = false) =>
     request<{ status: string; id: string }>(`${API_BASE}/images/${pathSegment(id)}?force=${force}`, {
       method: 'DELETE',
+    }),
+  pruneImages: (danglingOnly = true) =>
+    request<ImagePruneResult>(`${API_BASE}/images/prune?dangling=${danglingOnly}`, {
+      method: 'POST',
     }),
 
   // Volumes

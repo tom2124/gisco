@@ -212,6 +212,17 @@ export interface VolumePruneResult {
   SpaceReclaimed?: number;
 }
 
+/** One entry of an image prune result: an image may be untagged, deleted, or both. */
+export interface ImagePruneEntry {
+  Untagged?: string;
+  Deleted?: string;
+}
+
+export interface ImagePruneResult {
+  ImagesDeleted?: ImagePruneEntry[];
+  SpaceReclaimed?: number;
+}
+
 export interface SystemStatus {
   docker_connected: boolean;
   docker_version?: string;
