@@ -14,7 +14,7 @@ import {
   TemplateDetails,
   TemplateSlot,
   TemplateSummary,
-  VolumeUsageData,
+  VolumeUsageSnapshot,
   VolumePruneResult,
 } from '../types';
 
@@ -182,8 +182,13 @@ export const api = {
 
   // Volumes
   listVolumes: () => request<DockerVolume[]>(`${API_BASE}/volumes`),
+  /**
+   * Volume sizes. The backend computes these off the request path because
+   * Docker's `df` costs seconds; `pending` is true while a refresh runs, and
+   * `values` may be empty or stale until it clears.
+   */
   getVolumeUsage: () =>
-    request<Record<string, VolumeUsageData>>(`${API_BASE}/volumes/usage`),
+    request<VolumeUsageSnapshot>(`${API_BASE}/volumes/usage`),
   pruneVolumes: (includeNamed = true) =>
     request<VolumePruneResult>(`${API_BASE}/volumes/prune?all=${includeNamed}`, {
       method: 'POST',

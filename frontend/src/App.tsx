@@ -138,6 +138,20 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Warm the one genuinely slow endpoint while the user reads the dashboard.
+  // Volume sizes come from Docker's `/system/df`, which walks every image and
+  // costs seconds on a cold cache. Kicking it off here means the Volumes page
+  // usually finds the numbers already waiting, and because the backend now
+  // computes in the background this request returns immediately either way.
+  useEffect(() => {
+    const warm = window.setTimeout(() => {
+      void api.getVolumeUsage().catch(() => {
+        /* Warm-up is best effort; the Volumes page retries on its own. */
+      });
+    }, 2000);
+    return () => window.clearTimeout(warm);
+  }, []);
+
   // Re-sync whenever a route change lands on a page that reads global data,
   // so navigating back from a detail view never shows pre-action state while
   // waiting for the next poll tick.

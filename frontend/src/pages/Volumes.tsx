@@ -16,7 +16,9 @@ export const Volumes: React.FC = () => {
   const { showToast } = useToast();
   const [volumes, setVolumes] = useState<DockerVolume[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usageLoading, setUsageLoading] = useState(false);
+  // True while the backend is still computing sizes. Kept separate from
+  // `loading` so rows render immediately and sizes fill in when they land.
+  const [usagePending, setUsagePending] = useState(false);
   const [usageFailed, setUsageFailed] = useState(false);
   const [search, setSearch] = useState('');
   const [expandedVolume, setExpandedVolume] = useState<string | null>(null);
@@ -65,37 +67,54 @@ export const Volumes: React.FC = () => {
     const requestId = ++refreshIdRef.current;
     const isCurrent = () => refreshIdRef.current === requestId;
     setLoading(true);
-    setUsageLoading(true);
     setUsageFailed(false);
 
     try {
-      // The list endpoint is intentionally independent from Docker's expensive
-      // /system/df calculation, so rows render immediately.
       const list = await api.listVolumes();
       if (!isCurrent()) return;
       setVolumes(list);
-      setLoading(false);
-
-      try {
-        const usage = await api.getVolumeUsage();
-        if (!isCurrent()) return;
-        setVolumes((current) =>
-          current.map((volume) => {
-            const volumeUsage = usage[volume.Name];
-            return { ...volume, UsageData: volumeUsage };
-          })
-        );
-      } catch {
-        if (isCurrent()) setUsageFailed(true);
-      }
     } catch (err: unknown) {
       if (isCurrent()) showToast(`Failed to load volumes: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
-      if (isCurrent()) {
-        setLoading(false);
-        setUsageLoading(false);
+      if (isCurrent()) setLoading(false);
+    }
+
+    // Sizes are a separate, slow request. Fetching them here without awaiting
+    // keeps the list paint independent of Docker's `df`.
+    await fetchUsage(requestId, isCurrent);
+  };
+
+  /** Fetch sizes, merging them into the volumes already on screen. */
+  const fetchUsage = async (requestId?: number, isCurrent?: () => boolean) => {
+    const id = requestId ?? ++refreshIdRef.current;
+    const current = isCurrent ?? (() => refreshIdRef.current === id);
+    if (!current()) return;
+    setUsagePending(true);
+    try {
+      const usage = await api.getVolumeUsage();
+      if (!current()) return;
+      setVolumes((volumes) =>
+        volumes.map((volume) => ({ ...volume, UsageData: usage.values[volume.Name] }))
+      );
+      setUsagePending(usage.pending);
+      // The backend computes in the background, so come back for the result
+      // rather than leaving stale sizes on screen until the next manual refresh.
+      if (usage.pending) scheduleUsagePoll(id, current);
+    } catch {
+      if (current()) {
+        setUsageFailed(true);
+        setUsagePending(false);
       }
     }
+  };
+
+  const usagePollRef = useRef<number | null>(null);
+  const scheduleUsagePoll = (requestId: number, isCurrent: () => boolean) => {
+    if (usagePollRef.current !== null) window.clearTimeout(usagePollRef.current);
+    usagePollRef.current = window.setTimeout(() => {
+      usagePollRef.current = null;
+      void fetchUsage(requestId, isCurrent);
+    }, 1500);
   };
 
   useEffect(() => {
@@ -181,14 +200,15 @@ export const Volumes: React.FC = () => {
             </div>
 
             <div className="page-toolbar-right">
-              {usageLoading && <span className="page-toolbar-status">Calculating sizes…</span>}
-              {usageFailed && !usageLoading && (
+              {usagePending && <span className="page-toolbar-status">Calculating sizes…</span>}
+              {usageFailed && !usagePending && (
                 <span className="page-toolbar-status warning">Sizes unavailable</span>
               )}
               <button
                 className="btn btn-secondary"
                 onClick={() => setShowPruneModal(true)}
-                disabled={usageLoading || pruning || (unusedVolumes.length === 0 && unknownUsageCount === 0)}
+                // Held while sizes are in flight: the modal's reclaim estimate depends on them.
+              disabled={usagePending || pruning || (unusedVolumes.length === 0 && unknownUsageCount === 0)}
                 title="Preview and prune unused volumes"
               >
                 <Scissors size={14} />

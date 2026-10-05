@@ -207,6 +207,12 @@ export interface DockerVolume {
   UsageData?: VolumeUsageData;
 }
 
+export interface VolumeUsageSnapshot {
+  values: Record<string, VolumeUsageData>;
+  /** A refresh is in flight; `values` may be empty or stale until it clears. */
+  pending: boolean;
+}
+
 export interface VolumePruneResult {
   VolumesDeleted?: string[];
   SpaceReclaimed?: number;

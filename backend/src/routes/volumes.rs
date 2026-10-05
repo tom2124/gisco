@@ -36,11 +36,12 @@ async fn list_volumes(State(state): State<AppState>) -> impl IntoResponse {
     }
 }
 
+/// Volume sizes, served from cache. Never blocks on the expensive Docker `df`
+/// calculation: the response says whether a refresh is still running so the
+/// client can poll until the numbers settle.
 async fn volume_usage(State(state): State<AppState>) -> impl IntoResponse {
-    match state.docker.volume_usage().await {
-        Ok(usage) => (StatusCode::OK, Json(serde_json::json!(usage))),
-        Err(e) => docker_error(e),
-    }
+    let usage = state.docker.volume_usage().await;
+    (StatusCode::OK, Json(serde_json::json!(usage)))
 }
 
 async fn prune_volumes(

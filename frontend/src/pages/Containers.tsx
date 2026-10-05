@@ -56,20 +56,36 @@ export const Containers: React.FC<ContainersProps> = ({
 
     if (runningIds.length === 0) return;
 
+    let cancelled = false;
+
     const fetchAllMetrics = async () => {
-      for (const id of runningIds) {
-        try {
-          const m = await api.getContainerMetrics(id);
-          setMetrics((prev) => ({ ...prev, [id]: m }));
-        } catch {
-          // ignore transient metrics failure
-        }
+      // One batched state update. Previously each container called setMetrics
+      // as it resolved, so N containers meant N renders of a list that can be
+      // hundreds of rows.
+      const results = await Promise.all(
+        runningIds.map(async (id) => {
+          try {
+            return [id, await api.getContainerMetrics(id)] as const;
+          } catch {
+            // Ignore a transient metrics failure for a single container.
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      const batch: Record<string, ContainerMetrics> = {};
+      for (const entry of results) {
+        if (entry) batch[entry[0]] = entry[1];
       }
+      if (Object.keys(batch).length > 0) setMetrics((prev) => ({ ...prev, ...batch }));
     };
 
-    fetchAllMetrics();
-    const interval = setInterval(fetchAllMetrics, 4000);
-    return () => clearInterval(interval);
+    void fetchAllMetrics();
+    const interval = setInterval(() => void fetchAllMetrics(), 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [containers]);
 
   const handleAction = async (
