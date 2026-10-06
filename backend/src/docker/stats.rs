@@ -1,8 +1,10 @@
 use anyhow::Result;
 use bollard::container::{MemoryStatsStats, Stats, StatsOptions};
 use bollard::Docker;
-use futures_util::StreamExt;
+use futures_util::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tracing::warn;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ContainerMetrics {
@@ -116,6 +118,54 @@ pub async fn get_single_stats(docker: &Docker, container_id: &str) -> Result<Con
         return Ok(calculate_metrics(container_id, &stats));
     }
     anyhow::bail!("No stats returned for container {}", container_id)
+}
+
+/// How many stats requests may be in flight at once.
+///
+/// Docker has no bulk stats API, so this fans out per container. Left
+/// unbounded, a host with hundreds of running containers would open hundreds of
+/// simultaneous connections to the daemon and stall the very poll it is serving.
+const MAX_CONCURRENT_STATS: usize = 16;
+
+/// Stats for many containers behind a single call.
+///
+/// Docker's stats endpoint is per-container, so this cannot avoid the fan-out.
+/// What it does avoid is the browser making N separate requests and waiting for
+/// them one at a time: one request here, containers sampled concurrently.
+///
+/// A container that fails or disappears is simply absent from the result rather
+/// than failing the whole batch -- a single container exiting mid-poll should
+/// not blank out every other reading.
+pub async fn get_bulk_stats(
+    docker: &Docker,
+    container_ids: &[String],
+) -> HashMap<String, ContainerMetrics> {
+    stream::iter(container_ids.to_vec())
+        .map(|id| async move {
+            let options = Some(StatsOptions {
+                stream: false,
+                one_shot: true,
+            });
+            let mut stats_stream = docker.stats(&id, options);
+            match stats_stream.next().await {
+                Some(Ok(stats)) => {
+                    let metrics = calculate_metrics(&id, &stats);
+                    (id, Some(metrics))
+                }
+                Some(Err(e)) => {
+                    warn!("No stats for container {}: {:?}", id, e);
+                    (id, None)
+                }
+                None => {
+                    warn!("No stats returned for container {}", id);
+                    (id, None)
+                }
+            }
+        })
+        .buffered(MAX_CONCURRENT_STATS)
+        .filter_map(|(id, metrics)| async move { metrics.map(|m| (id, m)) })
+        .collect()
+        .await
 }
 
 #[cfg(test)]

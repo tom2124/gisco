@@ -67,18 +67,29 @@ export const EditorDockProvider: React.FC<EditorDockProviderProps> = ({ children
   }, []);
 
   const setEditorDirty = useCallback((id: string, dirty: boolean) => {
-    setSessions((current) =>
-      current.map((session) =>
-        session.id === id && session.dirty !== dirty
-          ? { ...session, dirty }
-          : session
-      )
-    );
+    setSessions((current) => {
+      // Return the same array when nothing changed so React can bail out
+      // instead of re-rendering the dock on every no-op update.
+      const target = current.find((session) => session.id === id);
+      if (!target || target.dirty === dirty) return current;
+      return current.map((session) =>
+        session.id === id ? { ...session, dirty } : session
+      );
+    });
   }, []);
 
+  // `isEditorMinimized` must keep a stable identity across renders. Deriving it
+  // from `sessions` gave it a new identity on every state change, which changed
+  // the context value, which re-rendered every `useEditorDock()` consumer --
+  // including `DockableEditorModal`, whose registration effect depends on
+  // `children`. That closed a cycle and rendered the dock in a tight loop.
+  // Reading through a ref keeps the context value referentially stable.
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+
   const isEditorMinimized = useCallback(
-    (id: string) => sessions.some((session) => session.id === id && session.minimized),
-    [sessions]
+    (id: string) => sessionsRef.current.some((session) => session.id === id && session.minimized),
+    []
   );
 
   const value = useMemo(

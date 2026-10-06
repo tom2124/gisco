@@ -161,18 +161,18 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     if (runningIds.length === 0) return;
 
     const fetchAllMetrics = async () => {
-      for (const id of runningIds) {
-        try {
-          const m = await api.getContainerMetrics(id);
-          setMetrics((prev) => ({ ...prev, [id]: m }));
-        } catch {
-          // ignore transient metrics failure
+      try {
+        const { metrics: batch } = await api.getContainerMetricsBulk(runningIds);
+        if (Object.keys(batch).length > 0) {
+          setMetrics((prev) => ({ ...prev, ...batch }));
         }
+      } catch {
+        // Ignore a transient metrics failure; the next tick retries.
       }
     };
 
-    fetchAllMetrics();
-    const interval = setInterval(fetchAllMetrics, 4000);
+    void fetchAllMetrics();
+    const interval = setInterval(() => void fetchAllMetrics(), 4000);
     return () => clearInterval(interval);
   }, [details]);
 

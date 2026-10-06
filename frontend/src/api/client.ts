@@ -100,6 +100,16 @@ export const api = {
     }),
   getContainerMetrics: (id: string) =>
     request<ContainerMetrics>(`${API_BASE}/containers/${pathSegment(id)}/metrics`),
+  /**
+   * Stats for many containers in one request, keyed by container id. Ids that
+   * could not be sampled are simply absent, so one container exiting mid-poll
+   * does not discard the rest of the batch.
+   */
+  getContainerMetricsBulk: (ids: string[]) =>
+    request<{ metrics: Record<string, ContainerMetrics> }>(
+      `${API_BASE}/containers/metrics`,
+      { method: 'POST', body: JSON.stringify({ ids }) }
+    ),
 
   // Templates
   listTemplates: () => request<TemplateSummary[]>(`${API_BASE}/templates`),

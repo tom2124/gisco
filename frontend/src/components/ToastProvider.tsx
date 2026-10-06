@@ -1,4 +1,13 @@
-import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
 
 export type ToastKind = 'success' | 'error' | 'info' | 'warning';
@@ -53,8 +62,17 @@ export const ToastProvider: React.FC<PropsWithChildren> = ({ children }) => {
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, []);
 
+  // Both callbacks are stable, so memoise the value object. Inline, this object
+  // was a new identity on every render, so the app-level 10s poll re-rendered
+  // every `useToast()` consumer in the tree even when nothing they read had
+  // changed.
+  const value = useMemo(
+    () => ({ showToast, dismissToast }),
+    [dismissToast, showToast]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, dismissToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className="toast-viewport" aria-live="polite" aria-atomic="false">
         {toasts.map((toast) => (

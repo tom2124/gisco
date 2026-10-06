@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AlertTriangle, Copy, Plus, Trash2 } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { DockableEditorModal, useEditorDock } from './EditorDock';
@@ -34,8 +40,7 @@ interface TemplateStackModalProps {
   onNotify: (message: string, kind: 'success' | 'error') => void;
 }
 
-const slotKey = (slot: TemplateSlot, index: number) =>
-  `${slot.template_id}#${slot.instance ?? ''}#${index}`;
+
 
 /**
  * Create one stack from several templates, including repeated instances of the
@@ -51,9 +56,23 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
 }) => {
   const { setEditorDirty } = useEditorDock();
 
+  // Slots carry a stable id for their whole life. React keys must come from
+  // this, never from the instance name: the name is editable, so keying on it
+  // changed the key mid-keystroke and remounted the slot (losing input focus on
+  // every character). Renaming or reordering then cannot steal focus either.
+  const nextSlotId = useRef(0);
+  const makeSlot = useCallback(
+    (template_id: string): TemplateSlot & { uid: number } => ({
+      uid: nextSlotId.current++,
+      template_id,
+      instance: null,
+    }),
+    []
+  );
+
   // One slot per selected template, un-named to begin with.
-  const [slots, setSlots] = useState<TemplateSlot[]>(() =>
-    templateIds.map((template_id) => ({ template_id }))
+  const [slots, setSlots] = useState<(TemplateSlot & { uid: number })[]>(() =>
+    templateIds.map((template_id) => makeSlot(template_id))
   );
   const [stackName, setStackName] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -63,8 +82,13 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
   const [mergeError, setMergeError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  // Only the parts the merge endpoint cares about. `uid` is local bookkeeping
+  // and must not trigger a refetch.
   const slotsKey = useMemo(
-    () => JSON.stringify(slots),
+    () =>
+      JSON.stringify(
+        slots.map(({ template_id, instance }) => ({ template_id, instance }))
+      ),
     [slots]
   );
 
@@ -106,9 +130,9 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
     [result]
   );
 
-  // Slot identity is positional, so a given slot keeps its parameter values
-  // while the user renames or adds instances around it.
-  const slotIdents = useMemo(() => slots.map(slotKey), [slots]);
+  // Stable per-slot React key. Survives renaming the instance, so the input
+  // holding the cursor is never unmounted while it is being typed into.
+  const slotKey = (slot: { uid: number }) => `slot-${slot.uid}`;
 
   const allParamNames = useMemo(() => {
     const names: string[] = [];
@@ -132,10 +156,17 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
     return `${base || 'stack'}-1`.slice(0, 48);
   }, [slots]);
 
-  const preview = useMemo(
-    () => (result ? interpolateCompose(result.compose, values) : ''),
-    [result, values]
-  );
+  // Recomputing the whole preview and pushing it into CodeMirror on every
+  // keystroke was the source of the typing lag and heap growth (each update
+  // replaced the entire editor document). Debounced so a burst of typing
+  // settles into one render.
+  const [previewText, setPreviewText] = useState('');
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setPreviewText(result ? interpolateCompose(result.compose, values) : '');
+    }, 200);
+    return () => window.clearTimeout(handle);
+  }, [result, values]);
 
   // Only write a runtime var when the user actually gave it a value; writing
   // an empty one would break compose's automatic substitution.
@@ -161,7 +192,7 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
     );
 
   const addInstance = (templateId: string) =>
-    setSlots((prev) => [...prev, { template_id: templateId, instance: null }]);
+    setSlots((prev) => [...prev, makeSlot(templateId)]);
 
   const removeSlot = (index: number) =>
     setSlots((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
@@ -288,7 +319,7 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
               const valuesForSlot =
                 plan?.params.filter((p) => !isRuntimeVar(p)) ?? [];
               return (
-                <div key={slotIdents[index]} className="compose-slot">
+                <div key={slotKey(slot)} className="compose-slot">
                   <div className="compose-slot-head">
                     <span className="compose-slot-name">
                       {templateName(slot.template_id)}
@@ -395,7 +426,7 @@ export const TemplateStackModal: React.FC<TemplateStackModalProps> = ({
             )}
           </div>
           <CodeEditor
-            value={preview}
+            value={previewText}
             onChange={() => {}}
             language="yaml"
             height="260px"

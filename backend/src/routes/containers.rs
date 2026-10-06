@@ -5,7 +5,7 @@ use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 
-use crate::docker::stats::get_single_stats;
+use crate::docker::stats::{get_bulk_stats, get_single_stats};
 use crate::routes::error::docker_error;
 use crate::routes::AppState;
 
@@ -19,9 +19,18 @@ pub struct DeleteContainerQuery {
     pub force: Option<bool>,
 }
 
+#[derive(Deserialize)]
+pub struct BulkMetricsRequest {
+    pub ids: Vec<String>,
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", get(list_containers))
+        // Static segment, so it wins over `/{id}` regardless of registration
+        // order. A POST list also sidesteps URL length limits that a query
+        // string of hundreds of ids would hit.
+        .route("/metrics", post(bulk_container_metrics))
         .route("/{id}", get(inspect_container))
         .route("/{id}", delete(remove_container))
         .route("/{id}/{action}", post(container_action))
@@ -94,6 +103,24 @@ async fn remove_container(
         ),
         Err(e) => docker_error(e),
     }
+}
+
+/// Stats for several containers in one request, keyed by container id.
+///
+/// Ids that cannot be sampled are omitted from the map rather than erroring, so
+/// a container that exits mid-poll does not discard the whole batch.
+async fn bulk_container_metrics(
+    State(state): State<AppState>,
+    Json(payload): Json<BulkMetricsRequest>,
+) -> impl IntoResponse {
+    if payload.ids.is_empty() {
+        return (StatusCode::OK, Json(serde_json::json!({ "metrics": {} })));
+    }
+    let metrics = get_bulk_stats(&state.docker.client, &payload.ids).await;
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "metrics": metrics })),
+    )
 }
 
 async fn container_metrics(
