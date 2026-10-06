@@ -1401,3 +1401,55 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* ============================================================
+   Cursor affordances
+   ============================================================
+   Left to `cursor: auto`, the browser shows its own idea of
+   what a control does, which is not always right here: a
+   checkbox gets a plain arrow rather than a pointer, and a
+   disabled text input still shows a caret you cannot use.
+   Declared per element type so each state can differ.
+
+   Scoped to real form controls. A blanket `cursor: pointer`
+   on everything would also hit CodeMirror's caret and
+   xterm's, which manage their own.
+
+   Rows and other clickable non-buttons already set their
+   cursor inline at each call site, so they are not repeated
+   here. */
+
+input[type='text'],
+textarea {
+  cursor: text;
+}
+
+/* Choices, not free text. */
+input[type='checkbox'],
+input[type='radio'],
+select,
+[role='button'] {
+  cursor: pointer;
+}
+
+/* A caret over a control that ignores input invites the user
+   to keep trying. */
+input:disabled,
+select:disabled,
+textarea:disabled,
+[role='button'][aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* Read-only text is still selectable, so it keeps the caret. */
+input:read-only,
+textarea:read-only {
+  cursor: text;
+}
+
+/* A label delegates the click to the control inside it, so the
+   whole label should read as clickable, not just the box. */
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']) {
+  cursor: pointer;
+}
