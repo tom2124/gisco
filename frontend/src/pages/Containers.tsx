@@ -9,6 +9,8 @@ import { getErrorMessage, useToast } from '../components/ToastProvider';
 
 interface ContainersProps {
   stacks: StackSummary[];
+  /** Container to reveal, set by global search via `#/containers?focus=<id>`. */
+  focusId?: string | null;
   onRefresh: () => void;
   isRefreshing: boolean;
   onOpenTerminal: (containerId: string, containerName: string, command?: string, interactive?: boolean) => void;
@@ -18,6 +20,7 @@ interface ContainersProps {
 
 export const Containers: React.FC<ContainersProps> = ({
   stacks,
+  focusId,
   onRefresh,
   isRefreshing,
   onOpenTerminal,
@@ -151,6 +154,7 @@ export const Containers: React.FC<ContainersProps> = ({
 
       <ContainerTable
         containers={filtered}
+        focusId={focusId}
         metrics={metrics}
         onOpenTerminal={onOpenTerminal}
         onOpenLogs={onOpenLogs}

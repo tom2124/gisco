@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Edit,
   FileCode,
@@ -166,12 +166,15 @@ interface TemplatesProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   onStackCreated: (stackName: string) => void;
+  /** Row to reveal, set by global search via `#/templates?focus=<id>`. */
+  focusId?: string | null;
 }
 
 export const Templates: React.FC<TemplatesProps> = ({
   onRefresh,
   isRefreshing,
   onStackCreated,
+  focusId,
 }) => {
   const { showToast } = useToast();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
@@ -180,6 +183,13 @@ export const Templates: React.FC<TemplatesProps> = ({
   // Multi-template composition: which templates are ticked for the next stack.
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showComposeModal, setShowComposeModal] = useState(false);
+
+  // Global search can deep-link to one template; reveal it once it exists.
+  const focusRowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!focusId) return;
+    focusRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusId, templates.length]);
 
   const toggleSelected = (id: string) =>
     setSelectedIds((prev) =>
@@ -322,10 +332,12 @@ export const Templates: React.FC<TemplatesProps> = ({
           {templates.map((tpl, idx) => (
             <div
               key={tpl.id}
+              ref={focusId === tpl.id ? focusRowRef : undefined}
               onClick={() => toggleSelected(tpl.id)}
+              data-template-id={tpl.id}
               className={`list-row${idx % 2 === 1 ? ' list-row-alt' : ''}${
                 selectedIds.includes(tpl.id) ? ' list-row-selected' : ''
-              }`}
+              }${focusId === tpl.id ? ' list-row-focus' : ''}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',

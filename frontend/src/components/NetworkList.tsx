@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Network, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { NetworkGraph, ContainerNode, HostPortNode } from '../types';
 import NetworkContainerDetail from './NetworkContainerDetail';
@@ -11,10 +11,13 @@ import { filterUserNetworks } from '../utils/networks';
 interface NetworkListProps {
   graph: NetworkGraph;
   onNetworkDeleted?: () => void;
-  onNavigateToContainers?: () => void;
   onSelectStack?: (stackName: string) => void;
   /** Ordering of the container rows inside each expanded network. */
   sortMode?: SortMode;
+  /** Network to reveal (and expand) when arriving from global search. */
+  focusId?: string | null;
+  /** Receives the container id so the Containers page can reveal that row. */
+  onNavigateToContainers?: (containerId?: string) => void;
 }
 
 const SUB_COLUMNS = 6;
@@ -22,12 +25,21 @@ const SUB_COLUMNS = 6;
 export const NetworkList: React.FC<NetworkListProps> = ({
   graph,
   onNetworkDeleted,
-  onNavigateToContainers,
   onSelectStack,
   sortMode = 'state',
+  focusId,
+  onNavigateToContainers,
 }) => {
   const [expandedNetworks, setExpandedNetworks] = useState<Set<string>>(new Set());
   const [expandedContainer, setExpandedContainer] = useState<string | null>(null);
+
+  // Global search deep-links to a network: expand it and scroll it into view.
+  const focusRowRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    if (!focusId) return;
+    setExpandedNetworks((prev) => new Set(prev).add(focusId));
+    focusRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusId, graph.networks.length]);
 
   // Build network -> containers mapping
   const networkContainers = useMemo(() => {
@@ -102,7 +114,11 @@ export const NetworkList: React.FC<NetworkListProps> = ({
             return (
               <React.Fragment key={net.id}>
                 <tr
-                  className={`network-row ${hasContainers ? 'network-row-expandable' : 'network-row-static'}`}
+                  ref={focusId === net.id ? focusRowRef : undefined}
+                  data-network-id={net.id}
+                  className={`network-row ${hasContainers ? 'network-row-expandable' : 'network-row-static'}${
+                    focusId === net.id ? ' list-row-focus' : ''
+                  }`}
                   onClick={() => toggleNetwork(net.id, hasContainers)}
                   style={{ cursor: hasContainers ? 'pointer' : 'default' }}
                 >

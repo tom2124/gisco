@@ -20,6 +20,8 @@ interface DashboardProps {
   stacks: StackSummary[];
   onSelectTab: (tab: string) => void;
   onSelectStack: (name: string) => void;
+  /** Jump to one container, revealed on the Containers page. */
+  onOpenContainer?: (id: string) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
   /** Increments on each global refresh; re-syncs the dashboard's own data. */
@@ -61,10 +63,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   stacks,
   onSelectTab,
   onSelectStack,
+  onOpenContainer,
   onRefresh,
   isRefreshing,
   refreshToken,
 }) => {
+  /** Prefer revealing the container; fall back to the plain list. */
+  const openContainer = (id: string) => {
+    if (onOpenContainer) onOpenContainer(id);
+    else onSelectTab('containers');
+  };
   const { showToast } = useToast();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
   const [images, setImages] = useState<ImageSummary[]>([]);
@@ -221,7 +229,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ) : (
             <div className="dashboard-list">
               {attentionContainers.slice(0, 6).map((container) => (
-                <button key={container.Id} className="dashboard-list-row" onClick={() => onSelectTab('containers')}>
+                <button key={container.Id} className="dashboard-list-row" onClick={() => openContainer(container.Id)}>
                   <span className="status-dot warning" />
                   <span className="dashboard-list-main">
                     <strong>{containerName(container)}</strong>
@@ -279,7 +287,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ) : (
             <div className="dashboard-list">
               {recentContainers.map((container) => (
-                <button key={container.Id} className="dashboard-list-row" onClick={() => onSelectTab('containers')}>
+                <button key={container.Id} className="dashboard-list-row" onClick={() => openContainer(container.Id)}>
                   <span className={`status-dot ${container.State === 'running' ? 'online' : ''}`} />
                   <span className="dashboard-list-main">
                     <strong>{containerName(container)}</strong>

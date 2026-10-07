@@ -10,11 +10,17 @@ import { getErrorMessage, useToast } from '../components/ToastProvider';
 import { filterUserNetworks } from '../utils/networks';
 
 interface NetworksProps {
-  onNavigateToContainers?: () => void;
+  onNavigateToContainers?: (containerId?: string) => void;
   onSelectStack?: (stackName: string) => void;
+  /** Network to reveal, set by global search via `#/networks?focus=<id>`. */
+  focusId?: string | null;
 }
 
-export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSelectStack }) => {
+export const Networks: React.FC<NetworksProps> = ({
+  onNavigateToContainers,
+  onSelectStack,
+  focusId,
+}) => {
   const { showToast } = useToast();
   const [graph, setGraph] = useState<NetworkGraph | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +99,7 @@ export const Networks: React.FC<NetworksProps> = ({ onNavigateToContainers, onSe
         ) : (
           <NetworkList
             graph={graph}
+            focusId={focusId}
             onNetworkDeleted={fetchNetworks}
             onNavigateToContainers={onNavigateToContainers}
             onSelectStack={onSelectStack}

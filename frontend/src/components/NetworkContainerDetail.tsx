@@ -8,7 +8,8 @@ interface NetworkContainerDetailProps {
   container: ContainerNode;
   networkId: string;
   containerHostPorts: HostPortNode[];
-  onNavigateToContainers?: () => void;
+  /** Receives the container id so the target row can be revealed. */
+  onNavigateToContainers?: (containerId?: string) => void;
   onSelectStack?: (stackName: string) => void;
 }
 
@@ -103,7 +104,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
         <button
           className="btn btn-secondary btn-icon"
           title="View in Containers List"
-          onClick={onNavigateToContainers}
+          onClick={() => onNavigateToContainers?.(container.id)}
           disabled={!onNavigateToContainers}
         >
           <ExternalLink size={14} />

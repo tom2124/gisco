@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { StackSummary, SystemStatus } from './types';
 import { api } from './api/client';
 import { getErrorMessage, useToast } from './components/ToastProvider';
+import GlobalSearch from './components/GlobalSearch';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
 const Stacks = lazy(() => import('./pages/Stacks').then(({ Stacks }) => ({ default: Stacks })));
@@ -48,8 +49,10 @@ const VALID_TABS = new Set([
   'settings',
 ]);
 
-function parseHash(): { tab: string; stackName: string | null } {
-  const parts = window.location.hash.replace(/^#\/?/, '').split('/');
+function parseHash(): { tab: string; stackName: string | null; focus: string | null } {
+  const raw = window.location.hash.replace(/^#\/?/, '');
+  const [path, search = ''] = raw.split('?');
+  const parts = path.split('/');
   const tab = VALID_TABS.has(parts[0]) ? parts[0] : 'dashboard';
   let stackName: string | null = null;
   if (tab === 'stacks' && parts[1]) {
@@ -59,14 +62,24 @@ function parseHash(): { tab: string; stackName: string | null } {
       // Ignore malformed percent escapes and fall back to the stacks list.
     }
   }
-  return { tab, stackName };
+  // `?focus=<id>` asks a list page to reveal one row (used by global search).
+  let focus: string | null = null;
+  const focusParam = new URLSearchParams(search).get('focus');
+  if (focusParam) {
+    try {
+      focus = decodeURIComponent(focusParam);
+    } catch {
+      focus = null;
+    }
+  }
+  return { tab, stackName, focus };
 }
 
 export const App: React.FC = () => {
   // Hash routing (#/stacks/foo): the fragment never reaches the server, so
   // this survives refresh and back/forward with zero backend changes.
   const [route, setRoute] = useState(parseHash);
-  const { tab: currentTab, stackName: selectedStackName } = route;
+  const { tab: currentTab, stackName: selectedStackName, focus: routeFocus } = route;
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [stacks, setStacks] = useState<StackSummary[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -169,16 +182,24 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const navigate = (tab: string, stackName: string | null = null) => {
-    const hash =
-      tab === 'stacks' && stackName
-        ? `#/stacks/${encodeURIComponent(stackName)}`
-        : `#/${tab}`;
+  const navigate = (tab: string, stackName: string | null = null, focus: string | null = null) => {
+    let hash: string;
+    if (tab === 'stacks' && stackName) {
+      hash = `#/stacks/${encodeURIComponent(stackName)}`;
+    } else {
+      hash = `#/${tab}`;
+    }
+    if (focus) hash += `?focus=${encodeURIComponent(focus)}`;
     if (window.location.hash === hash) {
-      setRoute({ tab, stackName });
+      setRoute({ tab, stackName, focus });
     } else {
       window.location.hash = hash;
     }
+  };
+
+  /** Jump straight to a search result's page and row. */
+  const handleNavigateTo = (href: string) => {
+    window.location.hash = href;
   };
 
   const handleSelectTab = (tab: string) => {
@@ -187,6 +208,11 @@ export const App: React.FC = () => {
 
   const handleSelectStack = (stackName: string) => {
     navigate('stacks', stackName);
+  };
+
+  /** Reveal one container on the Containers page, via its focus anchor. */
+  const handleOpenContainer = (containerId: string) => {
+    navigate('containers', null, containerId);
   };
 
   const openTerminal = (id: string, name: string, command = '') => {
@@ -249,6 +275,7 @@ export const App: React.FC = () => {
             stacks={stacks}
             onSelectTab={handleSelectTab}
             onSelectStack={handleSelectStack}
+            onOpenContainer={handleOpenContainer}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
             refreshToken={globalRefreshToken}
@@ -276,6 +303,7 @@ export const App: React.FC = () => {
 
         {currentTab === 'templates' && (
           <Templates
+            focusId={routeFocus}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
             onStackCreated={(name) => handleSelectStack(name)}
@@ -285,6 +313,7 @@ export const App: React.FC = () => {
         {currentTab === 'containers' && (
           <Containers
             stacks={stacks}
+            focusId={routeFocus}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
             onOpenTerminal={openTerminal}
@@ -295,7 +324,10 @@ export const App: React.FC = () => {
 
         {currentTab === 'networks' && (
           <Networks
-            onNavigateToContainers={() => handleSelectTab('containers')}
+            focusId={routeFocus}
+            onNavigateToContainers={(containerId) =>
+              containerId ? handleOpenContainer(containerId) : handleSelectTab('containers')
+            }
             onSelectStack={handleSelectStack}
           />
         )}
@@ -312,6 +344,8 @@ export const App: React.FC = () => {
           />
         )}
         </Suspense>
+
+        <GlobalSearch stacks={stacks} onNavigate={handleNavigateTo} />
       </main>
 
       {/* Keep every terminal mounted so minimized sessions stay interactive. */}

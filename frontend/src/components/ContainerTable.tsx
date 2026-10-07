@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Play,
   Square,
@@ -30,6 +30,8 @@ interface ContainerTableProps {
   isStackView?: boolean;
   /** Group rows under per-stack headers (Containers page). Off for single-stack views. */
   groupByStack?: boolean;
+  /** Container to reveal (and expand) when arriving from global search. */
+  focusId?: string | null;
   /** Stack names to badge as external (same indicator as Stacks/StackDetail). */
   externalStackNames?: Set<string>;
   /** Row ordering within each group (or the flat list). Defaults to state, then name. */
@@ -116,8 +118,17 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   sortMode = 'state',
   showNetworks = false,
   detailRenderer,
+  focusId,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Global search deep-links to a container: expand and scroll to it.
+  const focusRowRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    if (!focusId) return;
+    if (detailRenderer) setExpandedId(focusId);
+    focusRowRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [detailRenderer, focusId]);
   const handleExecAction = (containerId: string, containerName: string) => {
     // No explicit shell: backend prefers bash, falls back to POSIX sh
     onOpenTerminal(containerId, containerName, '', true);
@@ -195,7 +206,10 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
     return (
       <React.Fragment key={id}>
         <tr
+          ref={focusId === id ? focusRowRef : undefined}
+          data-container-id={id}
           onClick={detailRenderer ? () => setExpandedId(expandedId === id ? null : id) : undefined}
+          className={focusId === id ? 'list-row-focus' : undefined}
           style={detailRenderer ? { cursor: 'pointer' } : undefined}
         >
         <td style={{ boxShadow: `inset 3px 0 0 ${accent}` }}>
