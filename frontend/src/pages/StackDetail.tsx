@@ -79,6 +79,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [actionHistory, setActionHistory] = useState<ActionHistoryItem[]>([]);
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
   const [isEditorResizing, setIsEditorResizing] = useState(false);
   const [editorMaxHeight, setEditorMaxHeight] = useState(360);
@@ -194,6 +195,34 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       showToast(`Save failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Per-container actions, matching the Containers page so a container can be
+  // driven from either view. Refreshing the stack re-reads container state.
+  const handleContainerAction = async (
+    id: string,
+    action: 'start' | 'stop' | 'restart' | 'pause' | 'unpause'
+  ) => {
+    setActionLoading(`${id}-${action}`);
+    try {
+      await api.containerAction(id, action);
+      await fetchDetails();
+      showToast(`${action} completed.`, 'success');
+    } catch (err: unknown) {
+      showToast(`Action failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteContainer = async (id: string) => {
+    try {
+      await api.removeContainer(id, true);
+      await fetchDetails();
+      showToast('Container deleted.', 'success');
+    } catch (err: unknown) {
+      showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     }
   };
 
@@ -588,6 +617,9 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             metrics={metrics}
             onOpenTerminal={onOpenTerminal}
             onOpenLogs={onOpenLogs}
+            onContainerAction={handleContainerAction}
+            onDeleteContainer={handleDeleteContainer}
+            actionLoading={actionLoading}
             isStackView={true}
             showStackColumn={false}
             groupByStack={false}

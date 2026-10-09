@@ -152,9 +152,13 @@ impl DockerService {
     }
 
     pub async fn remove_container(&self, id: &str, force: bool) -> Result<()> {
+        // `v` stays false: deleting a container must not destroy its volumes.
+        // Compose-declared named volumes are unaffected either way, but an
+        // anonymous volume would be silently discarded and recreated empty on
+        // the next `up`, which reads as data loss. Matches `docker compose rm`.
         let options = Some(RemoveContainerOptions {
             force,
-            v: true,
+            v: false,
             ..Default::default()
         });
         self.client.remove_container(id, options).await?;

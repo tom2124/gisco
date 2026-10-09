@@ -151,17 +151,30 @@ impl StacksManager {
                         })
                         .unwrap_or_default();
 
+                    let compose_content = fs::read_to_string(&c_file).unwrap_or_default();
+                    // Count the services the compose file *declares*, not the
+                    // containers that happen to exist. Counting containers made
+                    // the denominator shrink when one was deleted out-of-band,
+                    // so a stack missing a service still read as fully Running.
+                    let declared_services = extract_services_from_yaml(&compose_content).len();
+
                     let stack_containers = containers_by_project.get(&stack_name);
                     let (status, running_count, total_count) = if let Some(conts) = stack_containers
                     {
-                        let total = conts.len();
                         let running = conts
                             .iter()
                             .filter(|c| c.state.as_deref() == Some("running"))
                             .count();
+                        // If the file could not be parsed we do not know the
+                        // real total, so fall back to what is running.
+                        let total = if declared_services > 0 {
+                            declared_services
+                        } else {
+                            conts.len()
+                        };
                         (stack_status(total, running), running, total)
                     } else {
-                        (StackStatus::Stopped, 0, 0)
+                        (stack_status(declared_services, 0), 0, declared_services)
                     };
 
                     summaries.push(StackSummary {
@@ -174,9 +187,7 @@ impl StacksManager {
                         has_env,
                         updated_at,
                         external: false,
-                        description: fs::read_to_string(&c_file)
-                            .ok()
-                            .and_then(|content| extract_description(&content)),
+                        description: extract_description(&compose_content),
                     });
                 }
             }
@@ -445,7 +456,10 @@ async fn inspect_containers(
 fn stack_status(total: usize, running: usize) -> StackStatus {
     if total == 0 {
         StackStatus::Stopped
-    } else if running == total {
+    } else if running >= total {
+        // `>=` because one service can run several containers (`deploy.replicas`
+        // or `--scale`), so running containers may legitimately exceed the
+        // number of declared services.
         StackStatus::Running
     } else if running > 0 {
         StackStatus::Partial
@@ -870,6 +884,12 @@ mod tests {
         assert_eq!(stack_status(3, 3), StackStatus::Running);
         assert_eq!(stack_status(3, 1), StackStatus::Partial);
         assert_eq!(stack_status(3, 0), StackStatus::Stopped);
+        // A declared service with its container deleted: one of three still up.
+        assert_eq!(stack_status(3, 2), StackStatus::Partial);
+        // One service running two containers (replicas/--scale) is still Running.
+        assert_eq!(stack_status(1, 2), StackStatus::Running);
+        // A stopped stack still reports how many services it declares.
+        assert_eq!(stack_status(4, 0), StackStatus::Stopped);
     }
 
     #[test]
