@@ -1591,3 +1591,10 @@ label:has(> input[type='radio']) {
   background: rgba(56, 189, 248, 0.14);
   box-shadow: inset 3px 0 0 var(--primary);
 }
+
+/* State dot in search results, in the slot the kind icon would occupy. */
+.search-palette-dot {
+  width: 7px;
+  height: 7px;
+  margin: 0 3px;
+}

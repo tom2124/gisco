@@ -30,8 +30,30 @@ export interface SearchResult {
   title: string;
   /** Secondary line: description, image, driver... */
   detail?: string;
+  /** Full text for the row's tooltip, where there is more to say. */
+  hint?: string;
+  /**
+   * State dot, reusing the same classes the rest of the UI uses:
+   * `status-dot` alone is the "stopped" grey.
+   */
+  dot?: 'online' | 'warning' | 'error';
   /** Literal `#/...` the result navigates to. */
   href: string;
+}
+
+/** Map a compose stack status onto the shared status-dot variants. */
+export function stackDot(status: StackSummary['status']): SearchResult['dot'] {
+  if (status === 'Running') return 'online';
+  if (status === 'Partial') return 'warning';
+  return undefined;
+}
+
+/** Same mapping for a container's Docker state. */
+export function containerDot(state?: string): SearchResult['dot'] {
+  if (state === 'running') return 'online';
+  if (state === 'paused' || state === 'restarting') return 'warning';
+  if (state === 'dead') return 'error';
+  return undefined;
 }
 
 interface GlobalSearchProps {
@@ -161,11 +183,17 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
     const all: SearchResult[] = [];
 
     for (const stack of stacks) {
+      const services =
+        stack.total_services > 0
+          ? `${stack.running_services}/${stack.total_services} services running`
+          : 'no services';
       all.push({
         kind: 'stack',
         id: stack.name,
         title: stack.name,
         detail: stack.description,
+        hint: `${stack.name} · ${stack.status} · ${services}`,
+        dot: stackDot(stack.status),
         href: `#/stacks/${encodeURIComponent(stack.name)}`,
       });
     }
@@ -185,6 +213,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
         id: container.Id,
         title: name,
         detail: `${container.Image} · ${container.State}`,
+        hint: `${name} · ${container.Image} · ${container.State}`,
+        dot: containerDot(container.State),
         href: `#/containers?focus=${encodeURIComponent(container.Id)}`,
       });
     }
@@ -313,10 +343,23 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
                   <li
                     data-active={index === active}
                     className="search-palette-item"
+                    title={result.hint}
                     onMouseEnter={() => setActive(index)}
                     onClick={() => choose(result)}
                   >
-                    <Icon size={14} className="search-palette-icon" />
+                    {result.dot !== undefined || result.kind === 'stack' ||
+                    result.kind === 'container' ? (
+                      // Reserve the slot for every stack/container so titles
+                      // stay aligned whether or not the state warrants a colour.
+                      <span
+                        className={`status-dot search-palette-dot${
+                          result.dot ? ' ' + result.dot : ''
+                        }`}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Icon size={14} className="search-palette-icon" />
+                    )}
                     <span className="search-palette-title">{result.title}</span>
                     {result.detail && (
                       <span className="search-palette-detail">{result.detail}</span>
