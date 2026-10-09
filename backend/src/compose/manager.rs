@@ -879,6 +879,54 @@ mod tests {
     }
 
     #[test]
+    fn test_extract_services_with_fragments() {
+        // Anchors, aliases and `<<` merge keys are Compose "fragments". They
+        // only affect values, never the top-level service keys, so the count
+        // must be unaffected -- but only if the YAML actually parses.
+        let yaml = r#"
+x-envs: &envs
+  LOG_LEVEL: debug
+  REGION: eu
+x-volume: &default-volume
+  driver: local
+services:
+  first:
+    image: alpine
+    environment:
+      <<: *envs
+      EXTRA: yes
+  second:
+    image: alpine
+    environment: *envs
+volumes:
+  shared-a:
+    <<: *default-volume
+  shared-b: *default-volume
+"#;
+        let mut svcs = extract_services_from_yaml(yaml);
+        svcs.sort();
+        assert_eq!(svcs, vec!["first", "second"]);
+    }
+
+    #[test]
+    fn test_extract_services_with_alias_only() {
+        // A bare alias with no merge key, as in Docker's own docs.
+        let yaml = r#"
+services:
+  first:
+    image: alpine
+    environment: &env
+      - CONFIG_KEY
+  second:
+    image: alpine
+    environment: *env
+"#;
+        let mut svcs = extract_services_from_yaml(yaml);
+        svcs.sort();
+        assert_eq!(svcs, vec!["first", "second"]);
+    }
+
+    #[test]
     fn test_stack_status() {
         assert_eq!(stack_status(0, 0), StackStatus::Stopped);
         assert_eq!(stack_status(3, 3), StackStatus::Running);
