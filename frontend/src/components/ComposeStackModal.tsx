@@ -135,9 +135,9 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
 
   return (
     <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontWeight: 600, fontSize: '0.85rem' }}>
               Stack Name *
             </label>
             <input
@@ -147,13 +147,13 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: 'var(--space-4)' }}>
               A directory will be created for this stack in your stacks folder.
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontWeight: 600, fontSize: '0.85rem' }}>
               Compose File{composeEditable ? '' : ' (read-only)'}
             </label>
             <CodeEditor
@@ -168,25 +168,25 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
 
           {vars.length > 0 && (
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontWeight: 600, fontSize: '0.85rem' }}>
                 Environment Variables ({vars.length})
               </label>
               <div
                 style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                  gap: '10px',
+                  gap: 'var(--space-12)',
                 }}
               >
                 {vars.map((v) => (
                   <div key={v.name}>
                     <label
                       className="font-mono"
-                      style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', color: 'var(--text-dim)' }}
+                      style={{ display: 'block', marginBottom: 'var(--space-4)', fontSize: '0.75rem', color: 'var(--text-dim)' }}
                     >
                       {v.name}
                       {v.auto && (
-                        <span className="badge" style={{ fontSize: '0.62rem', marginLeft: '6px' }}>
+                        <span className="badge" style={{ fontSize: '0.62rem', marginLeft: 'var(--space-8)' }}>
                           auto · {v.autoSource}
                         </span>
                       )}
@@ -214,7 +214,7 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '6px' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: 'var(--space-8)' }}>
                 Written to the stack&apos;s <code>.env</code> file and interpolated by compose
                 into the file above. Variables marked <span className="badge" style={{ fontSize: '0.62rem' }}>auto</span> are
                 supplied by compose/docker themselves and stay out of <code>.env</code> unless
@@ -224,7 +224,7 @@ const ComposeStackEditor: React.FC<ComposeStackModalProps> = ({
           )}
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontWeight: 600, fontSize: '0.85rem' }}>
               Preview (variables applied)
             </label>
             <CodeEditor

@@ -168,7 +168,7 @@ const EditorModalFrame: React.FC<
           <div>
             <h3>{title}</h3>
             {subtitle && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}>
                 {subtitle}
               </div>
             )}

@@ -3,6 +3,7 @@ import { Server, Folder, Shield } from 'lucide-react';
 import { Header } from '../components/Header';
 import { SystemStatus } from '../types';
 import { APP_VERSION } from '../generated/version';
+import ThemePicker from '../components/ThemePicker';
 
 interface SettingsProps {
   status: SystemStatus | null;
@@ -24,15 +25,15 @@ export const Settings: React.FC<SettingsProps> = ({
         isRefreshing={isRefreshing}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 'var(--space-16)' }}>
         {/* Docker Daemon Status */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-16)' }}>
             <Server size={20} color="var(--primary)" />
             <h3>Docker Daemon Connection</h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)', fontSize: '0.9rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Connection Status</span>
               <span
@@ -62,16 +63,19 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
+        {/* Appearance */}
+        <ThemePicker />
+
         {/* Storage & Ownership Configuration */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginBottom: 'var(--space-16)' }}>
             <Folder size={20} color="var(--accent-cyan)" />
             <h3>Storage & Ownership</h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.9rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)', fontSize: '0.9rem' }}>
             <div>
-              <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginBottom: '4px' }}>
+              <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginBottom: 'var(--space-4)' }}>
                 STACK DIRECTORY (GISCO_STACK_DIR)
               </div>
               <div
@@ -79,7 +83,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 style={{
                   fontSize: '0.82rem',
                   background: 'var(--bg-code)',
-                  padding: '8px 12px',
+                  padding: 'var(--space-8) var(--space-12)',
                   borderRadius: 'var(--radius-sm)',
                   wordBreak: 'break-all',
                 }}
@@ -89,7 +93,7 @@ export const Settings: React.FC<SettingsProps> = ({
             </div>
 
             <div>
-              <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginBottom: '4px' }}>
+              <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginBottom: 'var(--space-4)' }}>
                 TEMPLATE DIRECTORY (GISCO_TEMPLATE_DIR)
               </div>
               <div
@@ -97,7 +101,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 style={{
                   fontSize: '0.82rem',
                   background: 'var(--bg-code)',
-                  padding: '8px 12px',
+                  padding: 'var(--space-8) var(--space-12)',
                   borderRadius: 'var(--radius-sm)',
                   wordBreak: 'break-all',
                 }}
@@ -106,7 +110,7 @@ export const Settings: React.FC<SettingsProps> = ({
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-8)' }}>
               <span style={{ color: 'var(--text-muted)' }}>Default User Ownership</span>
               <span className="font-mono" style={{ color: 'var(--primary)', fontWeight: 600 }}>
                 UID: {status?.default_uid} · GID: {status?.default_gid}
@@ -117,12 +121,12 @@ export const Settings: React.FC<SettingsProps> = ({
 
         {/* About */}
         <div className="card" style={{ gridColumn: '1 / -1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', marginBottom: 'var(--space-16)' }}>
             <Shield size={20} color="var(--status-running)" />
             <h3>About Gisco</h3>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', fontSize: '0.88rem', color: 'var(--text-muted)' }}>
             <div>
               <a
                 href="https://github.com/tom2124/gisco"

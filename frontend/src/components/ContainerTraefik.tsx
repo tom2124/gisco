@@ -13,8 +13,8 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
   if (!info) return null;
 
   return (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '4px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-8)' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Traefik Routing
         </span>
@@ -34,18 +34,18 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
           Traefik labels present but no routers defined.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
           {info.routers.map((router) => {
             const servicePort = info.services.find((s) => s.name === router.service)?.port;
             return (
               <div key={`${router.protocol}:${router.name}`} style={{
-                background: 'rgba(16, 185, 129, 0.07)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
+                background: 'var(--success-wash)',
+                border: '1px solid var(--success-wash-hover)',
                 borderRadius: 'var(--radius-md)',
-                padding: '6px 10px',
+                padding: 'var(--space-8) var(--space-12)',
                 fontSize: '0.78rem',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
                   <span className="font-mono" style={{ fontWeight: 700, color: 'var(--text-main)' }}>
                     {router.name}
                   </span>
@@ -60,9 +60,9 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                   ))}
                 </div>
                 {router.hosts.length > 0 ? (
-                  <div className="font-mono" style={{ color: 'var(--text-success)', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                  <div className="font-mono" style={{ color: 'var(--text-success)', fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4) var(--space-12)' }}>
                     {router.hosts.map((host) => (
-                      <span key={host} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span key={host} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                         <Copyable text={host}>
                           <span>{host}</span>
                         </Copyable>
@@ -89,7 +89,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
                   </Copyable>
                 ) : null}
                 {(router.service || router.middlewares.length > 0) && (
-                  <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                  <div style={{ marginTop: 'var(--space-4)', fontSize: '0.72rem', color: 'var(--text-dim)' }}>
                     {router.service && (
                       <span className="font-mono">
                         → {router.service}{servicePort ? `:${servicePort}` : ''}

@@ -79,7 +79,7 @@ export const Networks: React.FC<NetworksProps> = ({
         }
       />
 
-      <div style={{ padding: '16px 0 0' }}>
+      <div style={{ padding: 'var(--space-16) 0 0' }}>
         <div className="page-toolbar">
           <div className="page-toolbar-right">
             <SortSelect value={sortMode} onChange={setSortMode} />
@@ -87,14 +87,14 @@ export const Networks: React.FC<NetworksProps> = ({
         </div>
         {loading && !graph ? (
           <div className="card empty-state">
-            <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+            <Network size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
             <p>Loading networks...</p>
           </div>
         ) : !graph || userNetworkCount === 0 ? (
           <div className="card empty-state">
-            <Network size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+            <Network size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
             <h3>No Networks Found</h3>
-            <p style={{ marginTop: '6px' }}>No user-defined Docker networks found.</p>
+            <p style={{ marginTop: 'var(--space-8)' }}>No user-defined Docker networks found.</p>
           </div>
         ) : (
           <NetworkList
@@ -122,8 +122,8 @@ export const Networks: React.FC<NetworksProps> = ({
               </button>
             </div>
             <div className="modal-body">
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+              <div style={{ marginBottom: 'var(--space-16)' }}>
+                <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
                   Network Name
                 </label>
                 <input
@@ -136,7 +136,7 @@ export const Networks: React.FC<NetworksProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+                <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
                   Driver
                 </label>
                 <select

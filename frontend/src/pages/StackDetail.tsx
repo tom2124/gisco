@@ -384,7 +384,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
 
   if (loading && !details) {
     return (
-      <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div style={{ padding: 'var(--space-32)', textAlign: 'center', color: 'var(--text-muted)' }}>
         Loading stack {stackName}...
       </div>
     );
@@ -393,12 +393,12 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   return (
     <div>
       {/* Navigation & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', marginBottom: 'var(--space-16)', flexWrap: 'wrap' }}>
         <button className="btn btn-secondary btn-icon" onClick={onBack}>
           <ArrowLeft size={18} />
         </button>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
             <h2>{stackName}</h2>
             <span
               className={`badge ${
@@ -417,20 +417,20 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               </span>
             )}
           </div>
-          <div className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+          <div className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: 'var(--space-4)' }}>
             {details?.external
               ? 'External compose project · not managed by gisco'
               : <>{details?.path} · Owner UID: {details?.file_uid}:{details?.file_gid}</>}
           </div>
           {details?.description && (
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 'var(--space-4)' }}>
               {details.description}
             </div>
           )}
         </div>
 
         {/* Action Controls */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-12)' }}>
           {!details?.external && (
             <button
               className="btn btn-primary"
@@ -478,9 +478,9 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       <div
         style={{
           display: 'flex',
-          gap: '8px',
+          gap: 'var(--space-8)',
           borderBottom: '1px solid var(--border-subtle)',
-          marginBottom: '20px',
+          marginBottom: 'var(--space-20)',
         }}
       >
         {!details?.external && (
@@ -515,7 +515,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       {activeTab === 'files' && (
         <>
           <div className="stack-files-toolbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flexWrap: 'wrap' }}>
               <span className={`file-state-dot ${isDirty ? 'dirty' : ''}`} />
               <span style={{ fontSize: '0.8rem', color: isDirty ? 'var(--status-warning)' : 'var(--status-running)' }}>
                 {isDirty ? 'Unsaved changes' : 'All changes saved'}
@@ -552,8 +552,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             gridTemplateColumns: `minmax(0, ${editorSplit}fr) ${EDITOR_DIVIDER_WIDTH}px minmax(0, ${100 - editorSplit}fr)`,
           }}
         >
-          <div className="card" style={{ padding: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+          <div className="card" style={{ padding: 'var(--space-16)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', marginBottom: 'var(--space-8)', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               <span>{details?.compose_file || 'compose.yml'}</span>
               <span>{countLines(composeText)} lines · Compose specification</span>
             </div>
@@ -587,8 +587,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             onKeyDown={handleEditorSplitKeyDown}
           />
 
-          <div className="card" style={{ padding: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+          <div className="card" style={{ padding: 'var(--space-16)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', marginBottom: 'var(--space-8)', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               <span>.env</span>
               <span>{countLines(envText)} lines · Environment variables</span>
             </div>
@@ -601,7 +601,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               placeholder="# KEY=value"
             />
             {!envText && (
-              <div style={{ marginTop: '8px', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: 'var(--space-8)', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
                 No environment variables are currently defined.
               </div>
             )}
@@ -662,7 +662,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               maxHeight: '500px',
               overflowY: 'auto',
               fontSize: '0.85rem',
-              color: '#38bdf8',
+              color: 'var(--primary)',
               whiteSpace: 'pre-wrap',
               fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
             }}

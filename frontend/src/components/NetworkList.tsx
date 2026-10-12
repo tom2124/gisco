@@ -123,27 +123,27 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                   style={{ cursor: hasContainers ? 'pointer' : 'default' }}
                 >
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
                       <div
                         style={{
                           width: '32px',
                           height: '32px',
                           borderRadius: 'var(--radius-md)',
                           background: hasContainers
-                            ? 'linear-gradient(135deg, #10b981, #059669)'
+                            ? 'var(--gradient-success)'
                             : 'transparent',
                           border: hasContainers ? 'none' : '1px solid var(--border-subtle)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: hasContainers ? '#000' : 'var(--text-dim)',
+                          color: hasContainers ? 'var(--text-on-accent)' : 'var(--text-dim)',
                           flexShrink: 0,
                         }}
                       >
                         <Network size={16} />
                       </div>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{net.name}</span>
                           {net.internal && (
                             <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>
@@ -215,7 +215,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
 
                 {isExpanded && (
                   <tr>
-                    <td colSpan={6} style={{ padding: 0, background: 'rgba(0,0,0,0.15)' }}>
+                    <td colSpan={6} style={{ padding: 0, background: 'var(--scrim-subtle)' }}>
                       <table>
                         <thead>
                           <tr>
@@ -249,7 +249,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                   style={{ cursor: 'pointer' }}
                                 >
                                   <td>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                                       <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
                                         {c.name}
                                       </span>
@@ -289,9 +289,9 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                         return true;
                                       });
                                       return unique.length > 0 ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                                           {unique.map((hp, idx) => (
-                                            <span key={idx} style={{ color: '#f59e0b', whiteSpace: 'nowrap' }}>
+                                            <span key={idx} style={{ color: 'var(--status-warning)', whiteSpace: 'nowrap' }}>
                                               {hp.host_port}→{hp.target_container_port}
                                             </span>
                                           ))}
@@ -303,10 +303,10 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-success)' }}>
                                     {traefikRouters.length > 0 ? (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4) var(--space-12)' }}>
                                         {traefikRouters.flatMap((r) =>
                                           r.hosts.map((host) => (
-                                            <span key={`${r.name}:${host}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <span key={`${r.name}:${host}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                                               <Copyable text={host}>
                                                 <span>{host}</span>
                                               </Copyable>
@@ -346,7 +346,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                 </tr>
                                 {showDetail && (
                                   <tr>
-                                    <td colSpan={SUB_COLUMNS} style={{ background: 'rgba(0,0,0,0.2)' }}>
+                                    <td colSpan={SUB_COLUMNS} style={{ background: 'var(--scrim-soft)' }}>
                                       <NetworkContainerDetail
                                         container={c}
                                         networkId={net.id}

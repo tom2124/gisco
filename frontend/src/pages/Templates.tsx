@@ -64,8 +64,8 @@ const NewTemplateEditorContent: React.FC<NewTemplateEditorContentProps> = ({
 
   return (
     <div>
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+      <div style={{ marginBottom: 'var(--space-16)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
           Filename (without .yml)
         </label>
         <input
@@ -78,7 +78,7 @@ const NewTemplateEditorContent: React.FC<NewTemplateEditorContentProps> = ({
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
           Compose File
         </label>
         <CodeEditor value={yaml} onChange={setYaml} language="yaml" height="400px" />
@@ -144,7 +144,7 @@ const EditTemplateEditorContent: React.FC<EditTemplateEditorContentProps> = ({
   return (
     <div>
       <div>
-        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
           Compose File
         </label>
         <CodeEditor value={yaml} onChange={setYaml} language="yaml" height="400px" />
@@ -301,7 +301,7 @@ export const Templates: React.FC<TemplatesProps> = ({
           <span className="tpl-selection-count">
             {selectedIds.length} template{selectedIds.length === 1 ? '' : 's'} selected
           </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
             <button
               className="btn btn-secondary"
               onClick={() => setSelectedIds([])}
@@ -321,9 +321,9 @@ export const Templates: React.FC<TemplatesProps> = ({
 
       {templates.length === 0 && !loading ? (
         <div className="card empty-state">
-          <FileCode size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <FileCode size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
           <h3>No Templates Found</h3>
-          <p style={{ marginTop: '6px', marginBottom: '20px' }}>
+          <p style={{ marginTop: 'var(--space-8)', marginBottom: 'var(--space-20)' }}>
             Add .yml compose files to your template directory.
           </p>
         </div>
@@ -342,18 +342,18 @@ export const Templates: React.FC<TemplatesProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '16px',
+                gap: 'var(--space-16)',
                 flexWrap: 'wrap',
-                padding: '12px 16px',
+                padding: 'var(--space-12) var(--space-16)',
                 cursor: 'pointer',
                 borderBottom: idx === templates.length - 1 ? 'none' : '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', minWidth: 0 }}>
                 <div
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    padding: '8px',
+                    background: 'var(--overlay-soft)',
+                    padding: 'var(--space-8)',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-subtle)',
                     flexShrink: 0,
@@ -363,7 +363,7 @@ export const Templates: React.FC<TemplatesProps> = ({
                   <FileCode size={16} color="var(--primary)" />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-8)', minWidth: 0 }}>
                     <div style={{ fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{tpl.name}</div>
                     {tpl.description && (
                       <span
@@ -387,7 +387,7 @@ export const Templates: React.FC<TemplatesProps> = ({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', borderLeft: '1px solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
                 <input
                   type="checkbox"
                   className="tpl-select"

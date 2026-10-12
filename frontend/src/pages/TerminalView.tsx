@@ -7,6 +7,8 @@ import '@fontsource/iosevka/400.css';
 import '@fontsource/iosevka/600.css';
 import { ClipboardPaste, Copy, X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
 import { api } from '../api/client';
+import { buildTerminalTheme } from '../theme/terminal';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface TerminalViewProps {
   containerId: string;
@@ -59,6 +61,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const termInstanceRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const { theme } = useTheme();
   const [inputShellCmd, setInputShellCmd] = useState(initialCommand);
   const [inputUser, setInputUser] = useState('');
   const [isMaximized, setIsMaximized] = useState(false);
@@ -127,20 +130,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
       // glyph widths even when the underlying font is monospaced.
       lineHeight: 1.2,
       letterSpacing: 0,
-      theme: {
-        background: '#090d16',
-        foreground: '#f1f5f9',
-        cursor: '#38bdf8',
-        selectionBackground: 'rgba(56, 189, 248, 0.3)',
-        black: '#0f172a',
-        red: '#ef4444',
-        green: '#10b981',
-        yellow: '#f59e0b',
-        blue: '#3b82f6',
-        magenta: '#a855f7',
-        cyan: '#06b6d4',
-        white: '#e2e8f0',
-      },
+      theme: buildTerminalTheme(),
     });
 
     const fitAddon = new FitAddon();
@@ -255,6 +245,15 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     };
   }, []);
 
+  // Re-read the terminal's colours when the app theme changes. xterm resolves
+  // its palette at construction time, so it needs to be told explicitly; the
+  // tokens are read again rather than reused because their values differ per
+  // theme. `theme` is a dependency only to trigger the re-read.
+  useEffect(() => {
+    const term = termInstanceRef.current;
+    if (term) term.options.theme = buildTerminalTheme();
+  }, [theme]);
+
   useEffect(() => {
     const terminalElement = terminalRef.current;
     const fitAddon = fitAddonRef.current;
@@ -299,14 +298,14 @@ const TerminalView: React.FC<TerminalViewProps> = ({
         style={isMinimized ? undefined : {
           maxWidth: isMaximized ? '96vw' : '850px',
           height: isMaximized ? '92vh' : '550px',
-          transition: 'all 0.2s ease',
+          transition: 'max-width var(--duration-base) var(--ease-standard), height var(--duration-base) var(--ease-standard)',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
         {isMinimized ? (
           <div className="terminal-dock-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', minWidth: 0 }}>
               <span
                 className={`status-dot ${connected ? 'online' : ''}`}
                 title={connected ? 'Connected' : 'Disconnected'}
@@ -318,7 +317,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                 {connected ? 'Live' : started ? 'Starting…' : 'Disconnected'}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)', flexShrink: 0 }}>
               <button
                 className="btn btn-secondary btn-icon"
                 title="Restore terminal"
@@ -332,9 +331,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({
             </div>
           </div>
         ) : (
-        <div className="modal-header" style={{ padding: '10px 12px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="modal-header" style={{ padding: 'var(--space-12) var(--space-12)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flex: 1, justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
               <span
                 className={`status-dot ${connected ? 'online' : ''}`}
                 title={connected ? 'Connected' : 'Disconnected'}
@@ -342,7 +341,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
               <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                 Terminal: {containerName}
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginLeft: 'var(--space-16)', paddingLeft: 'var(--space-16)', borderLeft: '1px solid var(--border-subtle)' }}>
                 <input
                   type="text"
                   list="shell-options"
@@ -361,7 +360,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                   style={{
                     width: 'auto',
                     minWidth: '130px',
-                    padding: '4px 8px',
+                    padding: 'var(--space-4) var(--space-8)',
                     fontSize: '0.78rem',
                     height: 'auto',
                     fontFamily: 'var(--font-mono)',
@@ -394,7 +393,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                   style={{
                     width: 'auto',
                     minWidth: '90px',
-                    padding: '4px 8px',
+                    padding: 'var(--space-4) var(--space-8)',
                     fontSize: '0.78rem',
                     height: 'auto',
                     fontFamily: 'var(--font-mono)',
@@ -413,15 +412,15 @@ const TerminalView: React.FC<TerminalViewProps> = ({
                   onClick={() => {
                     initTerminal(inputShellCmd, inputUser);
                   }}
-                  style={{ padding: '4px 10px', fontSize: '0.78rem', height: 'auto' }}
+                  style={{ padding: 'var(--space-4) var(--space-12)', fontSize: '0.78rem', height: 'auto' }}
                 >
                   {started ? <RotateCw size={13} /> : <Play size={13} />}
-                  <span style={{ marginLeft: '4px' }}>{started ? 'Restart' : 'Start'}</span>
+                  <span style={{ marginLeft: 'var(--space-4)' }}>{started ? 'Restart' : 'Start'}</span>
                 </button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
               <button
                 className="btn btn-secondary btn-icon"
                 title="Copy selection (Ctrl+C)"
@@ -463,8 +462,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({
           className="terminal-view-body"
           style={{
             flex: 1,
-            background: '#090d16',
-            padding: '12px',
+            background: 'var(--terminal-surface)',
+            padding: 'var(--space-12)',
             overflow: 'hidden',
             minHeight: 0,
           }}

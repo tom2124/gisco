@@ -136,7 +136,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   if (containers.length === 0) {
     return (
       <div className="card empty-state">
-        <Box size={28} style={{ opacity: 0.3, marginBottom: '8px' }} />
+        <Box size={28} style={{ opacity: 0.3, marginBottom: 'var(--space-8)' }} />
         <p>No containers to display.</p>
       </div>
     );
@@ -249,7 +249,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: 'var(--space-4)',
                   color: 'var(--primary)',
                   fontSize: '0.85rem',
                   fontWeight: 500,
@@ -274,7 +274,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                 <td>
                   {isRunning && m ? (
                     <div style={{ fontSize: '0.82rem' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
                           {m.cpu_percent.toFixed(1)}% CPU
                         </span>
@@ -284,7 +284,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                           {m.memory_percent.toFixed(1)}%)
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}>
                         Net: ↓{formatBytes(m.network_rx_bytes)} ↑{formatBytes(m.network_tx_bytes)}
                       </div>
                     </div>
@@ -301,7 +301,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
 
                 <td className="font-mono" style={{ fontSize: '0.8rem' }}>
                   {ports && ports.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                       {ports
                         .filter((p, idx, arr) => {
                           // v4 + v6 publish the same mapping twice (0.0.0.0 vs ::);
@@ -349,7 +349,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                         );
                       }
                       return ifaces.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                           {ifaces.map((iface) => (
                             <div key={iface.network_id}>
                               <div>
@@ -374,7 +374,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
 
                 <td>
                   <div
-                    style={{ display: 'flex', gap: '6px' }}
+                    style={{ display: 'flex', gap: 'var(--space-8)' }}
                     onClick={detailRenderer ? (e) => e.stopPropagation() : undefined}
                   >
                     {isRunning ? (
@@ -456,7 +456,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
               </tr>
               {detailRenderer && expandedId === id && (
                 <tr>
-                  <td colSpan={colCount} style={{ background: 'rgba(0,0,0,0.2)' }}>
+                  <td colSpan={colCount} style={{ background: 'var(--scrim-soft)' }}>
                     {detailRenderer(c)}
                   </td>
                 </tr>
@@ -494,15 +494,15 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                       style={{
                         background: color.soft,
                         borderBottom: `1px solid ${color.border}`,
-                        padding: '10px 16px',
+                        padding: 'var(--space-12) var(--space-16)',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
                         <span
                           style={{
                             width: '10px',
                             height: '10px',
-                            borderRadius: '50%',
+                            borderRadius: 'var(--radius-circle)',
                             background: color.accent,
                             flexShrink: 0,
                           }}

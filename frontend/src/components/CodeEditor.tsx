@@ -50,41 +50,43 @@ const envLanguage = StreamLanguage.define({
   },
 });
 
-// Pastel-on-dark palette (Catppuccin-inspired): bright enough to read
-// against the dark editor background in both yaml and env modes.
+// Pastel-on-dark palette: bright enough to read against the editor
+// background in both yaml and env modes. Colours are semantic tokens, so the
+// editor follows the app theme. CodeMirror injects these as real CSS, so
+// `var()` resolves and nothing has to be reconfigured when the theme changes.
 const pastelHighlight = HighlightStyle.define([
-  { tag: t.comment, color: '#9399b2' },
-  { tag: t.keyword, color: '#cba6f7' },
-  { tag: [t.atom, t.number, t.bool, t.unit], color: '#fab387' },
-  { tag: t.string, color: '#a6e3a1' },
-  { tag: [t.variableName, t.propertyName, t.attributeName], color: '#89dceb' },
-  { tag: t.definition(t.variableName), color: '#f9e2af', fontWeight: '600' },
-  { tag: [t.meta, t.documentMeta], color: '#f9e2af' },
-  { tag: [t.punctuation, t.operator, t.separator], color: '#bac2de' },
-  { tag: t.heading, color: '#f5c2e7', fontWeight: '600' },
-  { tag: t.invalid, color: '#f38ba8' },
+  { tag: t.comment, color: 'var(--syntax-comment)' },
+  { tag: t.keyword, color: 'var(--syntax-keyword)' },
+  { tag: [t.atom, t.number, t.bool, t.unit], color: 'var(--syntax-number)' },
+  { tag: t.string, color: 'var(--syntax-string)' },
+  { tag: [t.variableName, t.propertyName, t.attributeName], color: 'var(--syntax-variable)' },
+  { tag: t.definition(t.variableName), color: 'var(--syntax-definition)', fontWeight: '600' },
+  { tag: [t.meta, t.documentMeta], color: 'var(--syntax-meta)' },
+  { tag: [t.punctuation, t.operator, t.separator], color: 'var(--syntax-punctuation)' },
+  { tag: t.heading, color: 'var(--syntax-heading)', fontWeight: '600' },
+  { tag: t.invalid, color: 'var(--syntax-invalid)' },
 ]);
 
 const giscoTheme = EditorView.theme({
   '&': {
     height: '100%',
     backgroundColor: 'transparent',
-    color: '#e2e8f0',
+    color: 'var(--editor-foreground)',
     fontSize: '0.85rem',
   },
   '.cm-content': {
     fontFamily: 'var(--font-mono)',
     lineHeight: '1.6',
-    caretColor: 'var(--primary)',
-    padding: '16px 0',
+    caretColor: 'var(--editor-caret)',
+    padding: 'var(--space-16) 0',
   },
-  '.cm-cursor': { borderLeftColor: 'var(--primary)' },
+  '.cm-cursor': { borderLeftColor: 'var(--editor-caret)' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
     borderRight: '1px solid var(--border-subtle)',
     color: 'var(--text-dim)',
   },
-  '.cm-activeLine': { backgroundColor: 'rgba(255, 255, 255, 0.03)' },
+  '.cm-activeLine': { backgroundColor: 'var(--editor-active-line)' },
   '.cm-activeLineGutter': { backgroundColor: 'transparent' },
   '.cm-placeholder': { color: 'var(--text-dim)' },
 });

@@ -89,13 +89,13 @@ export const LogsView: React.FC<LogsViewProps> = ({
         style={{
           maxWidth: isMaximized ? '96vw' : '900px',
           height: isMaximized ? '92vh' : '620px',
-          transition: 'all 0.2s ease',
+          transition: 'max-width var(--duration-base) var(--ease-standard), height var(--duration-base) var(--ease-standard)',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <div className="modal-header" style={{ padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="modal-header" style={{ padding: 'var(--space-12) var(--space-12)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
             <span
               className={`status-dot ${connected ? 'online' : ''}`}
               title={connected ? 'Live Streaming' : 'Disconnected'}
@@ -108,7 +108,7 @@ export const LogsView: React.FC<LogsViewProps> = ({
               onChange={(e) => setTail(e.target.value)}
               style={{
                 width: 'auto',
-                padding: '3px 8px',
+                padding: 'var(--space-4) var(--space-8)',
                 fontSize: '0.78rem',
                 height: 'auto',
               }}
@@ -120,14 +120,14 @@ export const LogsView: React.FC<LogsViewProps> = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
             <div style={{ position: 'relative', width: '180px' }}>
               <input
                 type="text"
                 placeholder="Filter logs..."
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                style={{ padding: '4px 10px 4px 28px', fontSize: '0.8rem' }}
+                style={{ padding: 'var(--space-4) var(--space-12) var(--space-4) var(--space-32)', fontSize: '0.8rem' }}
               />
               <Search
                 size={14}
@@ -178,12 +178,12 @@ export const LogsView: React.FC<LogsViewProps> = ({
           className="font-mono"
           style={{
             flex: 1,
-            background: '#060a10',
-            padding: '16px',
+            background: 'var(--bg-code)',
+            padding: 'var(--space-16)',
             overflowY: 'auto',
             fontSize: '0.82rem',
             lineHeight: '1.6',
-            color: '#e2e8f0',
+            color: 'var(--editor-foreground)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all',
             fontFamily: "'Iosevka', 'JetBrains Mono', monospace",

@@ -9,6 +9,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Apply the stored theme before first paint so a reload never flashes the
+      // wrong palette. Kept inline and dependency-free on purpose; must stay in
+      // sync with THEME_STORAGE_KEY / THEME_ATTR in src/theme/ThemeProvider.tsx.
+      (function () {
+        try {
+          var raw = localStorage.getItem('gisco.theme');
+          var theme = 'dark';
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (typeof parsed === 'string') theme = parsed;
+            else if (parsed && typeof parsed.theme === 'string') theme = parsed.theme;
+          }
+          if (theme !== 'dark' && theme !== 'abyss') theme = 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

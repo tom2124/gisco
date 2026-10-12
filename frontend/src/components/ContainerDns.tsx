@@ -38,29 +38,29 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
   if (entries.length === 0) return null;
 
   return (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px', marginTop: '4px' }}>
-      <div style={{ marginBottom: '8px' }}>
+    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
+      <div style={{ marginBottom: 'var(--space-8)' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           DNS Names & Aliases
         </span>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)' }}>
         {entries.map((entry) => (
           <Copyable
             key={`${entry.context}:${entry.value}`}
             text={entry.value}
             style={{
-              background: 'rgba(56, 189, 248, 0.1)',
-              border: '1px solid rgba(56, 189, 248, 0.2)',
+              background: 'var(--accent-wash-hover)',
+              border: '1px solid var(--accent-border)',
               borderRadius: 'var(--radius-md)',
-              padding: '8px 12px',
+              padding: 'var(--space-8) var(--space-12)',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.75rem',
               color: 'var(--text-info)',
             }}
           >
             {entry.value}
-            <span style={{ color: 'var(--text-dim)', marginLeft: '8px', fontSize: '0.7rem' }}>
+            <span style={{ color: 'var(--text-dim)', marginLeft: 'var(--space-8)', fontSize: '0.7rem' }}>
               {entry.context}
             </span>
           </Copyable>

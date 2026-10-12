@@ -168,7 +168,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       />
 
       <div className={`dashboard-health-banner ${status?.docker_connected ? (attentionContainers.length > 0 ? 'warning' : 'healthy') : 'error'}`}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
           <span
             className={`status-dot ${
               !status?.docker_connected ? 'error' : attentionContainers.length > 0 ? 'warning' : 'online'
@@ -176,12 +176,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
           />
           <div>
             <strong>{status?.docker_connected ? 'Docker host online' : 'Docker host unavailable'}</strong>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '2px' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'var(--space-2)' }}>
               {healthMessage}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-16)', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
           {status?.host_name && <span>{status.host_name}</span>}
           {status?.cpu_count != null && <span>{status.cpu_count} CPUs</span>}
           {status?.memory_total != null && <span>{formatBytes(status.memory_total)} RAM</span>}

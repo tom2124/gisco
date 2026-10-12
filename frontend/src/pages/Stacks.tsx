@@ -103,7 +103,7 @@ export const Stacks: React.FC<StacksProps> = ({
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
         actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-12)' }}>
             <button
               className="btn btn-secondary"
               onClick={() => onSelectTab('templates')}
@@ -136,9 +136,9 @@ export const Stacks: React.FC<StacksProps> = ({
 
       {filtered.length === 0 ? (
         <div className="card empty-state">
-          <Layers size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <Layers size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
           <h3>No Stacks Found</h3>
-          <p style={{ marginTop: '6px', marginBottom: '20px' }}>
+          <p style={{ marginTop: 'var(--space-8)', marginBottom: 'var(--space-20)' }}>
             No compose projects found in your stack directory.
           </p>
           <button
@@ -163,19 +163,19 @@ export const Stacks: React.FC<StacksProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: '16px',
+                  gap: 'var(--space-16)',
                   flexWrap: 'wrap',
-                  padding: '12px 16px',
+                  padding: 'var(--space-12) var(--space-16)',
                   cursor: 'pointer',
                   borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', minWidth: 0 }}>
                   <div
                     style={{
                       width: '10px',
                       height: '10px',
-                      borderRadius: '50%',
+                      borderRadius: 'var(--radius-circle)',
                       flexShrink: 0,
                       background:
                         stack.status === 'Running'
@@ -186,7 +186,7 @@ export const Stacks: React.FC<StacksProps> = ({
                     }}
                   />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', minWidth: 0 }}>
                       <span style={{ fontSize: '1rem', fontWeight: 600, flexShrink: 0 }}>{name}</span>
                       {stack.external && (
                         <span className="badge badge-warning" style={{ fontSize: '0.7rem', flexShrink: 0 }}>
@@ -211,7 +211,7 @@ export const Stacks: React.FC<StacksProps> = ({
                     </div>
                     <div
                       className="font-mono"
-                      style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '2px' }}
+                      style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}
                     >
                       {stack.external ? (
                         'Not managed by gisco'
@@ -226,7 +226,7 @@ export const Stacks: React.FC<StacksProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid var(--border-subtle)', paddingLeft: '16px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', borderLeft: '1px solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
                   <span
                     className={`badge ${
                       stack.status === 'Running'
@@ -238,7 +238,7 @@ export const Stacks: React.FC<StacksProps> = ({
                   >
                     {stack.status}
                   </span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                     {/* Up needs a compose file; externals are operated via -p only */}
                     {!stack.external && (
                       <button

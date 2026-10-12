@@ -1,0 +1,390 @@
+/* ============================================================================
+   Design tokens — the single source of truth for visual style.
+
+   Three layers, in this order:
+
+     1. PRIMITIVE   Raw values (colour ramps, spacing steps, durations).
+                    Referenced by nothing outside this file.
+     2. SEMANTIC    The vocabulary components are allowed to use. Themes
+                    override THIS layer only, which is what makes a theme a
+                    data change rather than a rewrite.
+     3. COMPONENT   Narrow exceptions for values a component genuinely cannot
+                    express from the semantic layer. Intentionally almost empty.
+
+   Themes are attribute-selected overrides:
+
+     :root                 dark (the default; nothing changes if unset)
+     [data-theme='abyss']  a second dark variant, proving the mechanism
+
+   Rule that keeps this honest: components reference SEMANTIC tokens only. A
+   primitive leaking into a component rule is what makes a theme impossible
+   later, so `scripts/check-theme-tokens.mjs` fails the build on it.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. PRIMITIVES
+   ------------------------------------------------------------------------ */
+:root {
+  /* Neutral ramp. Values are the exact ones the app has always used. */
+  --slate-1000: #070a10;   /* code surfaces */
+  --slate-950: #090d16;    /* page background */
+  --slate-850: #0f1523;    /* sidebar */
+  --slate-800: #0e1422;    /* inputs */
+  --slate-500: #64748b;    /* dim text */
+  --slate-400: #94a3b8;    /* muted text */
+  --slate-100: #f1f5f9;    /* primary text */
+
+  /* Accent ramps. */
+  --sky-700: #0369a1;
+  --sky-600: #0284c7;
+  --sky-400: #38bdf8;      /* primary */
+  --sky-300: #7dd3fc;
+  --cyan-500: #06b6d4;
+  --indigo-500: #6366f1;
+  --indigo-500-rgb: 99 102 241;
+
+  /* Status ramps. Semantic status names resolve from these and from nowhere
+     else, so a theme cannot silently re-tune them per component. */
+  --emerald-500: #10b981;
+  --emerald-200: #a7f3d0;
+  --amber-500: #f59e0b;
+  --red-500: #ef4444;
+  --red-300: #fca5a5;
+
+  /* Channel triplets, so alpha can be composed rather than re-spelled. */
+  --slate-875-rgb: 19 27 43;   /* card fill */
+  --slate-825-rgb: 26 37 59;   /* card fill, hovered */
+  --slate-500-rgb: 100 116 139;
+  --sky-400-rgb: 56 189 248;
+  --emerald-500-rgb: 16 185 129;
+  --amber-500-rgb: 245 158 11;
+  --red-500-rgb: 239 68 68;
+  --white-rgb: 255 255 255;
+  --black-rgb: 0 0 0;
+
+  /* Syntax palette. Pastel-on-dark, tuned to stay readable against the editor
+     surface in both yaml and .env modes. */
+  --pastel-overlay-0: #9399b2;
+  --pastel-mauve: #cba6f7;
+  --pastel-peach: #fab387;
+  --pastel-green: #a6e3a1;
+  --pastel-sky: #89dceb;
+  --pastel-yellow: #f9e2af;
+  --pastel-lavender: #bac2de;
+  --pastel-pink: #f5c2e7;
+  --pastel-red: #f38ba8;
+
+  /* Terminal ANSI 16. */
+  --slate-200: #e2e8f0;
+  --slate-950-alt: #0f172a;
+  --blue-500: #3b82f6;
+  --purple-500: #a855f7;
+
+  /* Typography. */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --glass-blur: blur(14px);
+}
+
+/* ---------------------------------------------------------------------------
+   2. SEMANTIC — dark (default)
+
+   Every value resolves to exactly what the app used before this file existed,
+   so introducing it is not a visual change. Themes below override this layer.
+   ------------------------------------------------------------------------ */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-main: var(--slate-950);
+  --bg-sidebar: var(--slate-850);
+  --bg-card: rgb(var(--slate-875-rgb) / 0.7);
+  --bg-card-hover: rgb(var(--slate-825-rgb) / 0.85);
+  --bg-input: var(--slate-800);
+  --bg-code: var(--slate-1000);
+
+  /* Text */
+  --text-main: var(--slate-100);
+  --text-muted: var(--slate-400);
+  --text-dim: var(--slate-500);
+
+  /* Borders */
+  --border-subtle: rgb(var(--white-rgb) / 0.07);
+  --border-focus: var(--sky-400);
+  --border-glow: rgb(var(--sky-400-rgb) / 0.25);
+  --border-warning: rgb(var(--amber-500-rgb) / 0.3);
+
+  /* Accent */
+  --primary: var(--sky-400);
+  --primary-glow: rgb(var(--sky-400-rgb) / 0.35);
+  /* Translucent accent for selections and other tinted fills. Kept separate
+     from --primary-glow so themes can retune the two independently, and
+     separate from the raw primitive so anything tinted with the accent moves
+     with the theme rather than pinning itself to the dark palette. */
+  --primary-soft: rgb(var(--sky-400-rgb) / 0.3);
+  --accent-cyan: var(--cyan-500);
+  --accent-indigo: var(--indigo-500);
+
+  /* Status — semantic only. */
+  --status-running: var(--emerald-500);
+  --status-running-bg: rgb(var(--emerald-500-rgb) / 0.12);
+  --status-stopped: var(--slate-500);
+  --status-stopped-bg: rgb(var(--slate-500-rgb) / 0.12);
+  --status-warning: var(--amber-500);
+  --status-warning-bg: rgb(var(--amber-500-rgb) / 0.12);
+  --status-error: var(--red-500);
+  --status-error-bg: rgb(var(--red-500-rgb) / 0.12);
+
+  /* Status text (tinted values rather than indicators) */
+  --text-success: var(--emerald-200);
+  --text-info: var(--sky-300);
+  --text-warning: var(--amber-500);
+  --text-error: var(--red-300);
+
+  /* Tinted surfaces */
+  --surface-warning: rgb(var(--amber-500-rgb) / 0.15);
+
+  /* --- Overlay ramp --------------------------------------------------------
+     The codebase previously used 13 distinct white alphas (0.02, 0.025, 0.035,
+     0.04, 0.045, 0.05, 0.07, 0.08, 0.09, 0.1, 0.12, 0.14, 0.15, 0.2) and 8
+     black ones. None of those were a scale — they were whatever alpha looked
+     right at each site, which is why no two overlays in the app matched. Four
+     graded steps replace them.
+
+     A translucent overlay picks up the colour of whatever is behind it, so it
+     is a *fill* token rather than a colour: the same name is correct over any
+     surface, and over two surfaces it must read as two different results. */
+  --overlay-faint: rgb(var(--white-rgb) / 0.025);  /* stripes, at-rest hovers */
+  --overlay-soft: rgb(var(--white-rgb) / 0.06);   /* hover fills, quiet chips */
+  --overlay-muted: rgb(var(--white-rgb) / 0.12);  /* raised fills, pressed states */
+  --overlay-strong: rgb(var(--white-rgb) / 0.2);  /* scrims over busy content */
+
+  /* Scrims. Black, and only ever over content — never over the page itself. */
+  --scrim-subtle: rgb(var(--black-rgb) / 0.15);
+  --scrim-soft: rgb(var(--black-rgb) / 0.25);
+  --scrim: rgb(var(--black-rgb) / 0.5);
+  --scrim-heavy: rgb(var(--black-rgb) / 0.72);
+
+  /* --- Accent washes -------------------------------------------------------
+     Tinted with the accent rather than white, so hover states read as
+     "this belongs to the accent" instead of merely "brighter". The page-level
+     tint is deliberately the faintest: it sits behind everything. */
+  --accent-tint: rgb(var(--sky-400-rgb) / 0.045);
+  --accent-wash: rgb(var(--sky-400-rgb) / 0.08);
+  --accent-wash-hover: rgb(var(--sky-400-rgb) / 0.14);
+  --accent-border: rgb(var(--sky-400-rgb) / 0.2);
+  --accent-glow-edge: rgb(var(--sky-400-rgb) / 0.3);
+  --accent-indigo-tint: rgb(var(--indigo-500-rgb) / 0.05);
+
+  /* Status washes, two strengths each: at rest, and on hover. */
+  --success-wash: rgb(var(--emerald-500-rgb) / 0.07);
+  --success-wash-hover: rgb(var(--emerald-500-rgb) / 0.18);
+  --warning-wash: rgb(var(--amber-500-rgb) / 0.07);
+  --warning-wash-hover: rgb(var(--amber-500-rgb) / 0.22);
+  --error-wash: rgb(var(--red-500-rgb) / 0.07);
+  --error-wash-hover: rgb(var(--red-500-rgb) / 0.22);
+
+  /* Neutral (stopped) wash, for rows whose state has no colour of its own. */
+  --neutral-wash: rgb(var(--slate-500-rgb) / 0.1);
+
+  /* --- Gradients -----------------------------------------------------------
+     These were inline `linear-gradient(...)` declarations reaching straight at
+     primitives. A gradient is one design decision, not two colours, so it gets
+     a name: a theme can then restyle the primary button without reconstructing
+     it, and the two stops can never drift apart. */
+  --gradient-accent: linear-gradient(135deg, var(--primary), var(--sky-600));
+  --gradient-accent-hover: linear-gradient(135deg, var(--sky-300), var(--sky-700));
+  --gradient-success: linear-gradient(135deg, var(--status-running), var(--emerald-600));
+
+  /* --- Foregrounds on filled surfaces ---------------------------------------
+     These differ because the fills differ in luminance, which is why they are
+     two tokens and not one: the primary button is a light sky fill and needs a
+     dark label, while the danger button is a deep red and needs a light one. */
+  --text-bright: #ffffff;      /* maximum-contrast label/icon, logo gradient */
+  --text-on-accent: #000000;   /* label/icon sitting on the light accent fill */
+
+  /* Terminal chrome. Deliberately not an app surface: the terminal keeps a
+     true-black backdrop so ANSI output is judged against the darkest possible
+     background, with a raised header to separate it from the page. */
+  --terminal-chrome: #000000;
+  --terminal-chrome-raised: #111111;
+
+  /* --- Spacing -------------------------------------------------------------
+     A 4px grid with a single 2px half-step at the bottom. Named by pixel
+     value, so `gap: 8px` maps to `var(--space-8)` with no lookup table, and
+     grepping a value finds every consumer of that step.
+
+     This scale previously had 22 steps, 11 of them off-grid (3, 5, 6, 7, 9,
+     10, 14, 18 and 34px) — historical drift from adding whatever looked right
+     at the time. They are now snapped to the grid, ties going up, so interior
+     gaps gain a little air rather than losing it. A theme overrides these to
+     retune density globally. */
+  --space-2: 2px;    /* half-step: tight icon-to-label gaps, and nothing else */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;  /* the workhorse step */
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  /* Layout dimensions. Not spacing — these are structural measurements that
+     recur across selectors, so they get names rather than being retyped. */
+  --layout-sidebar-width: 220px;
+
+  /* --- Radius --------------------------------------------------------------
+     Promoted out of the primitive layer: a corner radius is itself the design
+     decision, so a theme must be able to retune it without restating the
+     primitive layer. Components reference these names directly. */
+  --radius-sm: 3px;    /* chips, dense controls */
+  --radius-md: 4px;    /* buttons, inputs — the most common */
+  --radius-lg: 6px;    /* cards, modals, panels */
+  --radius-full: 9999px; /* pills, avatars */
+  --radius-circle: 50%;  /* dots, round icon buttons */
+
+  /* --- Elevation -----------------------------------------------------------
+     Two families, deliberately separate:
+       * --shadow-*  casts a shadow — ambient occlusion, depth.
+       * --ring-*    is a glow or outline — focus, attention, state.
+       * --edge-*    is an inset marker stripe.
+
+     They are kept apart because a glow does not read as elevation. The old
+     code conflated them: button "shadows" were hard-coded accent rgba that
+     looked like depth but behaved like attention, so nothing could be retuned
+     coherently.
+
+     Every token below corresponds to a shadow that exists today. Nothing is
+     invented: giving controls that currently have no resting shadow one is a
+     visual decision, and belongs to the design rework rather than to this
+     tokenisation. */
+  --shadow-none: none;
+  --shadow-surface: 0 4px 20px -2px rgb(var(--black-rgb) / 0.5),
+    0 0 0 1px var(--border-subtle);
+  --shadow-raised: 0 8px 30px -4px rgb(var(--black-rgb) / 0.7),
+    0 0 0 1px rgb(var(--sky-400-rgb) / 0.3);
+  --shadow-modal: 0 24px 70px rgb(var(--black-rgb) / 0.72);
+  --shadow-dock: 0 12px 32px rgb(var(--black-rgb) / 0.55);
+  --shadow-toast: 0 12px 32px rgb(var(--black-rgb) / 0.5);
+
+  /* Interactive glow. The primary button's resting and hover states — the only
+     controls with a shadow today. */
+  --ring-interactive: 0 2px 10px rgb(var(--sky-400-rgb) / 0.3);
+  --ring-interactive-hover: 0 4px 16px rgb(var(--sky-400-rgb) / 0.4);
+
+  /* Focus and attention. */
+  --ring-focus: 0 0 0 3px var(--border-glow);
+  --ring-brand: 0 0 16px var(--primary-glow);
+  --ring-active-soft: 0 0 12px rgb(var(--sky-400-rgb) / 0.1);
+  --ring-indicator: 0 0 8px var(--border-glow);
+
+  /* Status indicators. Built from the status channel triplets so a theme that
+     retunes status colour moves these with it. */
+  --ring-status-running: 0 0 8px var(--status-running);
+  --ring-status-warning: 0 0 8px rgb(var(--amber-500-rgb) / 0.55);
+  --ring-status-error: 0 0 8px rgb(var(--red-500-rgb) / 0.55);
+  --ring-status-warning-soft: 0 0 7px rgb(var(--amber-500-rgb) / 0.45);
+
+  /* Inset accent stripe marking the focused row in a list. */
+  --edge-accent: inset 3px 0 0 var(--primary);
+
+  /* --- Motion -------------------------------------------------------------- */
+  --duration-fast: 0.15s;
+  --duration-base: 0.2s;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- Layering ------------------------------------------------------------
+     The stacking ladder, low to high. --z-dock-item was dropped: nothing used
+     it, and the dock and its cards share one level in practice. */
+  --z-raised: 5;      /* in-flow selection bars */
+  --z-sidebar: 40;
+  --z-dock: 45;       /* terminal and editor docks */
+  --z-modal: 50;
+  --z-toast: 2000;
+
+  /* --- Embedded surfaces -------------------------------------------------
+     Code editor and terminal are part of the app theme, not separate skins.
+     Their semantic entries live here so a theme retunes them like anything
+     else. Consumers read these via src/theme/resolve.ts, because both
+     CodeMirror's highlight style and xterm need concrete colours rather than
+     var() references. */
+
+  /* Code editor */
+  --editor-foreground: var(--slate-200);
+  --editor-caret: var(--primary);
+  --editor-active-line: rgb(var(--white-rgb) / 0.03);
+  --syntax-comment: var(--pastel-overlay-0);
+  --syntax-keyword: var(--pastel-mauve);
+  --syntax-number: var(--pastel-peach);
+  --syntax-string: var(--pastel-green);
+  --syntax-variable: var(--pastel-sky);
+  --syntax-definition: var(--pastel-yellow);
+  --syntax-meta: var(--pastel-yellow);
+  --syntax-punctuation: var(--pastel-lavender);
+  --syntax-heading: var(--pastel-pink);
+  --syntax-invalid: var(--pastel-red);
+
+  /* Terminal surface + selection */
+  --terminal-surface: var(--bg-main);
+  --terminal-foreground: var(--text-main);
+  --terminal-cursor: var(--primary);
+  --terminal-selection: var(--primary-soft);
+
+  /* ANSI 16. The bright variants deliberately alias their base colours: that
+     is exactly what xterm falls back to when the bright keys are absent, so
+     wiring them in changes nothing visually today while leaving a theme free
+     to give them real values later. */
+  --ansi-black: var(--slate-950-alt);
+  --ansi-red: var(--red-500);
+  --ansi-green: var(--emerald-500);
+  --ansi-yellow: var(--amber-500);
+  --ansi-blue: var(--blue-500);
+  --ansi-magenta: var(--purple-500);
+  --ansi-cyan: var(--cyan-500);
+  --ansi-white: var(--slate-200);
+  --ansi-bright-black: var(--ansi-black);
+  --ansi-bright-red: var(--ansi-red);
+  --ansi-bright-green: var(--ansi-green);
+  --ansi-bright-yellow: var(--ansi-yellow);
+  --ansi-bright-blue: var(--ansi-blue);
+  --ansi-bright-magenta: var(--ansi-magenta);
+  --ansi-bright-cyan: var(--ansi-cyan);
+  --ansi-bright-white: var(--ansi-white);
+}
+
+/* ---------------------------------------------------------------------------
+   THEMES
+
+   Each theme overrides the SEMANTIC layer only. If you find yourself wanting to
+   change a primitive here, that usually means the semantic vocabulary is
+   missing a concept.
+   ------------------------------------------------------------------------ */
+
+/* Second dark variant: cooler, higher-contrast surfaces with a slightly
+   brighter accent. Exists to prove a theme is a data change, not a rewrite. */
+[data-theme='abyss'] {
+  color-scheme: dark;
+
+  --bg-main: #060a14;
+  --bg-sidebar: #0a1122;
+  --bg-card: rgb(16 26 46 / 0.78);
+  --bg-card-hover: rgb(24 38 63 / 0.9);
+  --bg-input: #0a1020;
+  --bg-code: #04070f;
+
+  --text-main: #eef4ff;
+  --text-muted: #9db0cc;
+  --text-dim: #6b7f9e;
+
+  --border-subtle: rgb(var(--white-rgb) / 0.09);
+
+  --primary: #4cc9f0;
+  --primary-glow: rgb(76 201 240 / 0.4);
+  --primary-soft: rgb(76 201 240 / 0.3);
+}
+
+/* ---------------------------------------------------------------------------
+   3. COMPONENT
+
+   Empty by design. Add an entry only when a component cannot be expressed from
+   the semantic layer, and prefer adding a semantic token instead.
+   ------------------------------------------------------------------------ */

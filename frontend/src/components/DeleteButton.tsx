@@ -67,7 +67,7 @@ export const DeleteButton: React.FC<DeleteButtonProps> = ({
       disabled={isDisabled}
       style={{ opacity: isDisabled && !armed ? 0.5 : 1 }}
     >
-      <Trash2 size={size} color={armed ? 'var(--status-error)' : '#fff'} />
+      <Trash2 size={size} color={armed ? 'var(--status-error)' : 'var(--text-bright)'} />
     </button>
   );
 };

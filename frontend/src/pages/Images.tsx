@@ -136,7 +136,7 @@ export const Images: React.FC = () => {
 
       {images.length === 0 && !loading ? (
         <div className="card empty-state">
-          <Disc size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <Disc size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
           <h3>No Images Found</h3>
         </div>
       ) : (
@@ -212,7 +212,7 @@ export const Images: React.FC = () => {
             <div className="modal-header">
               <div>
                 <h3>Prune Unused Images</h3>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}>
                   Docker will remove{' '}
                   {includeTagged ? 'all untagged and tagged' : 'untagged'} images that no
                   container references.
@@ -232,10 +232,10 @@ export const Images: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '9px',
-                  marginBottom: '16px',
-                  padding: '10px 12px',
-                  background: 'rgba(255, 255, 255, 0.04)',
+                  gap: 'var(--space-8)',
+                  marginBottom: 'var(--space-16)',
+                  padding: 'var(--space-12) var(--space-12)',
+                  background: 'var(--overlay-soft)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
@@ -249,14 +249,14 @@ export const Images: React.FC = () => {
                 />
                 <span>
                   <strong>Include tagged images</strong>
-                  <span style={{ display: 'block', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '2px' }}>
+                  <span style={{ display: 'block', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: 'var(--space-2)' }}>
                     Turn off to prune only untagged ({'<none>:<none>'}) images. Tagged images are
                     often still needed by stopped stacks, so this removes more than you may expect.
                   </span>
                 </span>
               </label>
 
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-12)', alignItems: 'center', marginBottom: 'var(--space-16)' }}>
                 <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>{pruneCandidates.length}</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   candidate image{pruneCandidates.length === 1 ? '' : 's'}
@@ -270,15 +270,15 @@ export const Images: React.FC = () => {
               </div>
 
               {pruneCandidates.length > 0 ? (
-                <div className="card" style={{ padding: '10px 12px', maxHeight: '220px', overflowY: 'auto' }}>
+                <div className="card" style={{ padding: 'var(--space-12) var(--space-12)', maxHeight: '220px', overflowY: 'auto' }}>
                   {pruneCandidates.map((img) => (
                     <div
                       key={img.Id}
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        gap: '12px',
-                        padding: '6px 0',
+                        gap: 'var(--space-12)',
+                        padding: 'var(--space-8) 0',
                         borderBottom: '1px solid var(--border-subtle)',
                       }}
                     >
@@ -335,7 +335,7 @@ export const Images: React.FC = () => {
               </button>
             </div>
             <div className="modal-body">
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--space-8)', fontSize: '0.85rem' }}>
                 Image Reference
               </label>
               <input
@@ -345,7 +345,7 @@ export const Images: React.FC = () => {
                 onChange={(e) => setPullImageName(e.target.value)}
                 autoFocus
               />
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '6px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 'var(--space-8)' }}>
                 Image will be pulled directly through the Docker daemon
               </div>
             </div>

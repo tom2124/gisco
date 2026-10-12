@@ -19,7 +19,7 @@ const sectionTitle = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
-  marginBottom: '6px',
+  marginBottom: 'var(--space-8)',
 } as const;
 
 /**
@@ -41,7 +41,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
       : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '4px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-4) 0' }}>
       {(iface?.mac_address || iface?.gateway) && (
         <div>
           <div style={sectionTitle}>Interface · {iface?.network_name}</div>
@@ -56,7 +56,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
       {(container.hostname || fqdn) && (
         <div>
           <div style={sectionTitle}>Hostnames</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)' }}>
             {container.hostname && (
               <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-info)' }}>
                 {container.hostname}
@@ -79,9 +79,9 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px',
+          gap: 'var(--space-12)',
           borderTop: '1px solid var(--border-subtle)',
-          paddingTop: '10px',
+          paddingTop: 'var(--space-12)',
         }}
       >
         <div className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>

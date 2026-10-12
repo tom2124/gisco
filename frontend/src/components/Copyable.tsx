@@ -69,7 +69,7 @@ export const Copyable: React.FC<CopyableProps> = ({ text, children, style }) => 
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '6px',
+        gap: 'var(--space-8)',
         cursor: 'pointer',
         ...style,
       }}

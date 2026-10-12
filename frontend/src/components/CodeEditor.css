@@ -46,7 +46,7 @@
 
 .cm-editor ::-webkit-scrollbar-thumb {
   background: var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
 }
 
 .cm-editor ::-webkit-scrollbar-thumb:hover {

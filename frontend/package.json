@@ -9,7 +9,10 @@
     "build": "tsc -b && vite build",
     "prebuild": "node scripts/gen-version.cjs",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run && npm run theme:tokens",
+    "theme:tokens": "node scripts/check-theme-tokens.mjs",
+    "theme:tokens:report": "node scripts/check-theme-tokens.mjs --report",
+    "theme:audit": "python3 scripts/audit-tokens.py"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

@@ -29,7 +29,7 @@ const sectionTitle = {
   fontWeight: 600,
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
-  marginBottom: '6px',
+  marginBottom: 'var(--space-8)',
 } as const;
 
 /**
@@ -42,11 +42,11 @@ export const StackContainerDetail: React.FC<StackContainerDetailProps> = ({ cont
   const macRows = container.interfaces.filter((i) => i.mac_address || i.gateway);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '4px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-12)', padding: 'var(--space-4) 0' }}>
       {macRows.length > 0 && (
         <div>
           <div style={sectionTitle}>Interfaces</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             {macRows.map((iface) => (
               <div
                 key={iface.network_id}

@@ -16,7 +16,7 @@ export const SortSelect: React.FC<SortSelectProps> = ({
     style={{
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
+      gap: 'var(--space-8)',
       fontSize: '0.85rem',
       color: 'var(--text-muted)',
       whiteSpace: 'nowrap',

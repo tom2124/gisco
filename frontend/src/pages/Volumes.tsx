@@ -164,12 +164,12 @@ export const Volumes: React.FC = () => {
 
       {volumes.length === 0 && !loading ? (
         <div className="card empty-state">
-          <HardDrive size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+          <HardDrive size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
           <h3>No Volumes Found</h3>
         </div>
       ) : visibleVolumes.length === 0 && !loading ? (
         <div className="card empty-state">
-          <Search size={28} style={{ opacity: 0.3, marginBottom: '10px' }} />
+          <Search size={28} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
           <h3>No Matching Volumes</h3>
           <p>Try a different name, driver, scope, or mountpoint.</p>
         </div>
@@ -183,7 +183,7 @@ export const Volumes: React.FC = () => {
                   placeholder="Search volumes, drivers, mountpoints..."
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  style={{ paddingLeft: '34px' }}
+                  style={{ paddingLeft: 'var(--space-32)' }}
                 />
                 <Search
                   size={15}
@@ -282,8 +282,8 @@ export const Volumes: React.FC = () => {
                           <td
                             colSpan={6}
                             style={{
-                              padding: '10px 16px',
-                              background: 'rgba(0, 0, 0, 0.18)',
+                              padding: 'var(--space-12) var(--space-16)',
+                              background: 'var(--scrim-soft)',
                               borderTop: '1px solid var(--border-subtle)',
                             }}
                           >
@@ -292,7 +292,7 @@ export const Volumes: React.FC = () => {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '10px',
+                                gap: 'var(--space-12)',
                                 minWidth: 0,
                                 overflowX: 'auto',
                                 whiteSpace: 'nowrap',
@@ -323,7 +323,7 @@ export const Volumes: React.FC = () => {
             <div className="modal-header">
               <div>
                 <h3>Prune Unused Volumes</h3>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}>
                   Docker will remove {includeNamedVolumes ? 'named and anonymous' : 'anonymous'} volumes with no container references.
                 </div>
               </div>
@@ -341,10 +341,10 @@ export const Volumes: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '9px',
-                  marginBottom: '16px',
-                  padding: '10px 12px',
-                  background: 'rgba(255, 255, 255, 0.04)',
+                  gap: 'var(--space-8)',
+                  marginBottom: 'var(--space-16)',
+                  padding: 'var(--space-12) var(--space-12)',
+                  background: 'var(--overlay-soft)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
@@ -358,13 +358,13 @@ export const Volumes: React.FC = () => {
                 />
                 <span>
                   <strong>Include named volumes</strong>
-                  <span style={{ display: 'block', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '2px' }}>
+                  <span style={{ display: 'block', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: 'var(--space-2)' }}>
                     Turn off to prune only anonymous volumes.
                   </span>
                 </span>
               </label>
 
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-12)', alignItems: 'center', marginBottom: 'var(--space-16)' }}>
                 <div style={{ fontSize: '1.8rem', fontWeight: 700 }}>{unusedVolumes.length}</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                   known unused volume{unusedVolumes.length === 1 ? '' : 's'}
@@ -374,15 +374,15 @@ export const Volumes: React.FC = () => {
               </div>
 
               {unknownUsageCount > 0 && (
-                <div className="badge badge-warning" style={{ marginBottom: '12px', whiteSpace: 'normal', textAlign: 'left' }}>
+                <div className="badge badge-warning" style={{ marginBottom: 'var(--space-12)', whiteSpace: 'normal', textAlign: 'left' }}>
                   {unknownUsageCount} volume{unknownUsageCount === 1 ? '' : 's'} have unavailable usage data. Docker will determine their usage when pruning.
                 </div>
               )}
 
               {unusedVolumes.length > 0 ? (
-                <div className="card" style={{ padding: '10px 12px', maxHeight: '220px', overflowY: 'auto' }}>
+                <div className="card" style={{ padding: 'var(--space-12) var(--space-12)', maxHeight: '220px', overflowY: 'auto' }}>
                   {unusedVolumes.map((volume) => (
-                    <div key={volume.Name} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div key={volume.Name} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', padding: 'var(--space-8) 0', borderBottom: '1px solid var(--border-subtle)' }}>
                       <span className="font-mono" style={{ fontSize: '0.8rem', overflowWrap: 'anywhere' }}>{volume.Name}</span>
                       <span className="font-mono" style={{ color: 'var(--text-dim)', fontSize: '0.78rem', flexShrink: 0 }}>
                         {formatBytes(volume.UsageData?.Size ?? -1)}
