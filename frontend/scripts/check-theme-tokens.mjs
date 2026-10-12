@@ -137,6 +137,22 @@ const RADIUS_CSS = /(?<![\w-])border-radius\s*:\s*([^;}]+)/g;
 const RADIUS_TSX = /\bborderRadius\s*:\s*'([^']+)'/g;
 const SHADOW_CSS = /(?<![\w-])box-shadow\s*:\s*([^;}]+)/g;
 const INLINE_TSX = /\b(transition|animation|transitionDuration)\s*:\s*'([^']+)'/g;
+/** A declaration with no value.
+ *
+ *  Two shapes, and the first version of this rule only caught the first one:
+ *    `background: ;`            — the value is empty
+ *    `border: 1px solid ;`      — the value is empty at the *end* of a shorthand
+ *
+ *  The second form is the same silent drop and three of them shipped, so the
+ *  pattern now matches any declaration whose value ends in whitespace right
+ *  before the semicolon. Valid CSS does sometimes allow that trailing space, but
+ *  nothing in this codebase writes it, and a false positive costs one fix while
+ *  a false negative costs an invisible bug.
+ *
+ *  `content` is excluded because `content: ''` on a pseudo-element is required.
+ */
+const EMPTY_CSS = /(?<![\w-])(?!content\b)([a-z-]+)\s*:\s*([^;{}]*);/g;
+const EMPTY_VALUE = /^$|[^;{}]*\s$/;
 /** A px length in a declaration means it is not tokenised. */
 const RAW_PX = /(?:^|[\s(,])-?\d*\.?\d+px/;
 
@@ -177,6 +193,11 @@ for (const file of walk(SRC)) {
     if (!m[1].includes('var(--')) report('raw-shadow', `box-shadow: ${m[1]}`, m.index);
   }
 
+  // An empty declaration is silently dropped by the CSS parser: the property
+  // reverts to its inherited or initial value with no error anywhere. Five of
+  // these shipped once (`background: ;` left a toast and the template selection
+  // bar transparent, and three borders vanished). It is invisible in review and
+  // invisible at runtime, so it is checked mechanically.
   // Inline style objects. A declaration there is just as much a bypass as one
   // in a stylesheet, and `transition: all` in particular hides what it animates.
   for (const block of text.match(/style=\{\{[\s\S]*?\}\}/g) ?? []) {
@@ -192,6 +213,94 @@ for (const file of walk(SRC)) {
   }
 }
 
+
+// --- Named CSS colours ----------------------------------------------------
+// RAW_COLOUR matches hex and rgb() only, so `color: red` passed the guard
+// cleanly. Named colours are just as much a bypass of the token layer — and a
+// debug value left in the stylesheet is exactly how that happens.
+//
+// Scoped to declaration positions and a fixed colour vocabulary, so the word
+// "red" in prose or a class name is not a false positive. `transparent` and
+// `currentColor` are allowed: they mean "no colour here", which is a real
+// design decision rather than a bypass.
+const NAMED = 'aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|darkblue|darkcyan|darkgoldenrod|darkgray|darkgreen|darkgrey|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|darksalmon|darkseagreen|darkslateblue|darkslategray|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dimgrey|dodgerblue|firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|green|greenyellow|grey|honeydew|hotpink|indianred|indigo|ivory|khaki|lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgray|lightgreen|lightgrey|lightpink|lightsalmon|lightseagreen|lightskyblue|lightslategray|lightsteelblue|lightyellow|lime|limegreen|linen|magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|papayawhip|peachpuff|peru|pink|plum|powderblue|purple|rebeccapurple|red|rosybrown|royalblue|saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|snow|springgreen|steelblue|tan|teal|thistle|tomato|turquoise|violet|wheat|white|whitesmoke|yellow|yellowgreen';
+const NAMED_DECL = /(?:^|[;{}\s])((?:color|background|border|border-color|border-top|border-right|border-bottom|border-left|border-top-color|border-right-color|border-bottom-color|border-left-color|outline|outline-color|fill|stroke|box-shadow|caret-color|accent-color))\s*:\s*([^;}]*)/gi;
+for (const file of walk(SRC)) {
+  if (!/\.(css|tsx?)$/.test(file)) continue;
+  if (file === TOKEN_FILE) continue;
+  const rel = relative(ROOT, file);
+  const text = readFileSync(file, 'utf8');
+  let m;
+  NAMED_DECL.lastIndex = 0;
+  while ((m = NAMED_DECL.exec(text)) !== null) {
+    const value = m[2];
+    // `var(--x)` is the whole point. A value that merely *names* a token
+    // (`t['--ansi-bright-black']`) is also fine, and skipping on `--` covers
+    // both without trying to tell them apart.
+    if (value.includes('var(--') || value.includes('--')) continue;
+    const hit = new RegExp(`\\b(?:${NAMED})\\b`, 'i').exec(value);
+    if (!hit) continue;
+    violations.push({
+      key: `${rel}:${text.slice(0, m.index).split('\n').length}`,
+      kind: 'named-colour',
+      line: `${m[1]}: ${value.trim()}`.slice(0, 110),
+      allowed: false,
+    });
+  }
+}
+
+// --- Label casing must be a token ------------------------------------------
+// `text-transform` and `font-variant` were hard-coded in three places, which
+// made them unreachable by a theme: the badges and table headers were uppercase
+// in every theme whether it wanted them or not. Same class of blind spot as
+// border width was.
+const CASING_CSS = /(?<![\w-])(text-transform|font-variant(?:-caps)?)\s*:\s*([^;}]+)/g;
+const CASING_TSX = /\b(textTransform|fontVariant)\s*:\s*'([^']+)'/g;
+for (const file of walk(SRC)) {
+  if (!file.endsWith('.css') || file === TOKEN_FILE) continue;
+  const rel = relative(ROOT, file);
+  const text = readFileSync(file, 'utf8');
+  let m;
+  CASING_CSS.lastIndex = 0;
+  while ((m = CASING_CSS.exec(text)) !== null) {
+    if (!m[2].includes('var(--')) {
+      violations.push({
+        key: `${rel}:${text.slice(0, m.index).split('\n').length}`,
+        kind: 'raw-casing',
+        line: `${m[1]}: ${m[2]}`,
+        allowed: false,
+      });
+    }
+  }
+}
+
+// --- Empty declarations (CSS only) ----------------------------------------
+// An empty declaration is silently dropped by the CSS parser: the property
+// reverts to its inherited or initial value with no error anywhere. Five of
+// these shipped once (`background: ;` left a toast and the template selection
+// bar transparent, and three borders vanished). It is invisible in review and
+// invisible at runtime, so it is checked mechanically.
+//
+// CSS only, and `content` excluded: `content: ''` on a pseudo-element is
+// required, not a mistake. In TypeScript an empty string is a legitimate value
+// (a form field's initial state), and tsc is the right tool for those.
+for (const file of walk(SRC)) {
+  if (!file.endsWith('.css') || file === TOKEN_FILE) continue;
+  const rel = relative(ROOT, file);
+  const text = readFileSync(file, 'utf8');
+  const lineStart = (index) => text.slice(0, index).split('\n').length;
+  let m;
+  EMPTY_CSS.lastIndex = 0;
+  while ((m = EMPTY_CSS.exec(text)) !== null) {
+    if (!EMPTY_VALUE.test(m[2])) continue;
+    violations.push({
+      key: `${rel}:${lineStart(m.index)}`,
+      kind: 'empty-declaration',
+      line: `${m[1]}: ${m[2].trim()};`.replace(/\s+;/, ' ;'),
+      allowed: false,
+    });
+  }
+}
 
 const blocking = violations.filter((v) => !v.allowed);
 

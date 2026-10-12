@@ -1,8 +1,58 @@
 @import './theme/tokens.css';
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 
+
+/* --- Themed chrome --------------------------------------------------------
+   Two rules that let a theme restyle text and icons globally, without every
+   component opting in.
+
+   Icons: lucide draws with round caps and round joins at a 2px stroke, which is
+   a friendly, organic look. These properties override the SVG presentation
+   attributes, so a theme can make the entire set read as technical by changing
+   three token values. No icon component has to change and no parallel icon set
+   has to be maintained for a theme with a different icon language.
+
+   Small caps: applied to structural labels only. Small caps in body copy is
+   genuinely hard to read at UI sizes, so prose, logs, compose files and code are
+   deliberately left alone. `:where()` keeps specificity at zero so this never
+   fights a component's own typography. */
+
+.lucide,
+[class*='lucide-'] {
+  stroke-width: var(--icon-stroke-width);
+  stroke-linecap: var(--icon-linecap);
+  stroke-linejoin: var(--icon-linejoin);
+}
+
+/* Label casing for nav items and buttons. Kept separate from the display rule:
+   labels are UI text at 13px, where the display face's small caps were costing
+   legibility. `.where()`-style zero specificity is not needed here because
+   these are plain class selectors that own this property outright. */
+.nav-item,
+.btn {
+  text-transform: var(--text-transform-labels);
+  letter-spacing: var(--letter-spacing-labels);
+}
+
+/* Display text — headings, the wordmark and the big stat numbers.
+
+   Deliberately NOT buttons, nav items, table headers or badges. A display face
+   earns its keep at large sizes and loses it at 13px: Oswald measures ~10%
+   narrower than Outfit for the same string, and small caps (synthesised, since
+   the face has no true small-caps glyphs) squeezes it a further ~11% while
+   shrinking the x-height. Measured on "Container stopped" at 13.6px, that is
+   79.6px against Outfit's 99.3px — a 20% compression compounding two ways.
+   So the display face is confined to text that is actually large, and small
+   caps go with it.
+
+   `:where()` keeps specificity at zero so this never fights a component. */
+:where(h1, h2, h3, h4, h5, h6, .logo-text, .logo-badge, .dashboard-metric > strong) {
+  font-family: var(--font-display);
+  font-variant: var(--font-variant-caps);
+  letter-spacing: var(--letter-spacing-display);
+}
 
 * {
   box-sizing: border-box;
@@ -48,7 +98,7 @@ code, pre, .font-mono {
 .sidebar {
   width: 220px;
   background: var(--bg-sidebar);
-  border-right: 1px solid var(--border-subtle);
+  border-right: var(--border-width) solid var(--border-subtle);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -63,7 +113,7 @@ code, pre, .font-mono {
   display: flex;
   align-items: center;
   gap: var(--space-12);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
 }
 
 .logo-badge {
@@ -115,7 +165,7 @@ code, pre, .font-mono {
     border-color var(--duration-base) var(--ease-standard),
     color var(--duration-base) var(--ease-standard),
     box-shadow var(--duration-base) var(--ease-standard);
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
 }
 
 .nav-item:hover {
@@ -132,7 +182,7 @@ code, pre, .font-mono {
 
 .sidebar-footer {
   padding: var(--space-12);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-width) solid var(--border-subtle);
 }
 
 .daemon-pill {
@@ -142,7 +192,7 @@ code, pre, .font-mono {
   padding: var(--space-8) var(--space-12);
   background: var(--scrim);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   font-size: 0.8rem;
   color: var(--text-muted);
 }
@@ -186,7 +236,7 @@ code, pre, .font-mono {
   gap: var(--space-20);
   margin-bottom: var(--space-20);
   padding-bottom: var(--space-16);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
 }
 
 .page-title-group h1 {
@@ -216,7 +266,7 @@ code, pre, .font-mono {
   margin-bottom: var(--space-16);
   padding: var(--space-12) var(--space-12);
   background: var(--overlay-faint);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-lg);
 }
 
@@ -257,7 +307,7 @@ code, pre, .font-mono {
   font-size: 0.82rem;
   line-height: 1.55;
   background: var(--accent-tint);
-  border: 1px solid var(--accent-wash-hover);
+  border: var(--border-width) solid var(--accent-wash-hover);
   border-radius: var(--radius-lg);
 }
 
@@ -292,8 +342,8 @@ code, pre, .font-mono {
   align-items: flex-start;
   gap: var(--space-12);
   padding: var(--space-12) var(--space-12) var(--space-12) var(--space-16);
-  background: ;
-  border: 1px solid var(--border-subtle);
+  background: var(--surface-float);
+  border: var(--border-width) solid var(--border-subtle);
   border-left: 3px solid var(--text-muted);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-toast);
@@ -361,7 +411,7 @@ code, pre, .font-mono {
   padding: var(--space-16) var(--space-16);
   margin-bottom: var(--space-16);
   background: var(--success-wash);
-  border: 1px solid var(--success-wash-hover);
+  border: var(--border-width) solid var(--success-wash-hover);
   border-radius: var(--radius-lg);
 }
 
@@ -456,7 +506,7 @@ code, pre, .font-mono {
   width: 100%;
   padding: var(--space-8) var(--space-8);
   background: transparent;
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-md);
   color: var(--text-main);
   font-family: inherit;
@@ -533,7 +583,7 @@ code, pre, .font-mono {
 .card {
   background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-16);
   box-shadow: var(--shadow-surface);
@@ -592,7 +642,7 @@ code, pre, .font-mono {
   margin-bottom: var(--space-12);
   padding: var(--space-8) var(--space-12);
   background: var(--overlay-faint);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -622,7 +672,7 @@ code, pre, .font-mono {
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-8) var(--space-12);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
   background: var(--overlay-faint);
 }
 
@@ -701,7 +751,8 @@ code, pre, .font-mono {
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
+  box-shadow: var(--control-depth);
   transition: background var(--duration-base) var(--ease-standard),
     border-color var(--duration-base) var(--ease-standard),
     color var(--duration-base) var(--ease-standard),
@@ -716,13 +767,33 @@ code, pre, .font-mono {
   background: var(--gradient-accent);
   color: var(--text-on-accent);
   font-weight: 600;
+  border-color: var(--accent);
+  /* The accent glow is a *primary* affordance. It lives here rather than on
+     --control-depth so it never leaks onto secondary and icon buttons, which
+     take the neutral depth from .btn. */
   box-shadow: var(--ring-interactive);
 }
 
 .btn-primary:hover {
-  background: var(--gradient-accent-hover);
   box-shadow: var(--ring-interactive-hover);
+}
+
+.btn-primary:active {
+  box-shadow: var(--ring-interactive-hover);
+}
+
+.btn-primary:hover {
+  background: var(--gradient-accent-hover);
+  box-shadow: var(--control-depth-hover);
   transform: translateY(-1px);
+}
+
+.btn:active {
+  /* A pressed control sinks toward the surface. Paired with a translate in
+     themes that use an extruded (offset-shadow) depth model, where the offset
+     alone would not read as movement. */
+  transform: translateY(1px);
+  box-shadow: var(--control-depth-press);
 }
 
 .btn-secondary {
@@ -731,15 +802,19 @@ code, pre, .font-mono {
   color: var(--text-main);
 }
 
+.btn:hover {
+  box-shadow: var(--control-depth-hover);
+  transform: translateY(-1px);
+}
+
 .btn-secondary:hover {
   background: var(--overlay-muted);
   border-color: var(--overlay-strong);
-  transform: translateY(-1px);
 }
 
 .btn-danger {
   background: var(--error-wash-hover);
-  border-color: ;
+  border-color: var(--border-danger);
   color: var(--text-error);
 }
 
@@ -781,26 +856,26 @@ textarea:focus-visible {
   align-items: center;
   gap: var(--space-8);
   padding: var(--space-2) var(--space-8);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-full);
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0.02em;
-  text-transform: uppercase;
+  text-transform: var(--text-transform-headers);
   white-space: nowrap;
 }
 
 .badge-running {
   background: var(--status-running-bg);
   color: var(--status-running);
-  border: 1px solid ;
+  border: var(--border-width) solid var(--border-running);
 }
 
 .badge-stopped {
   background: var(--status-stopped-bg);
   color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
 }
 
 .badge-neutral {
@@ -812,19 +887,19 @@ textarea:focus-visible {
 .badge-warning {
   background: var(--status-warning-bg);
   color: var(--status-warning);
-  border-color: ;
+  border-color: var(--border-warning);
 }
 
 .badge-partial {
   background: var(--status-warning-bg);
   color: var(--status-warning);
-  border-color: ;
+  border-color: var(--border-warning);
 }
 
 .badge-error {
   background: var(--status-error-bg);
   color: var(--status-error);
-  border: 1px solid ;
+  border: var(--border-width) solid var(--border-danger);
 }
 
 /* Network rows */
@@ -853,7 +928,7 @@ textarea:focus-visible {
   gap: var(--space-4);
   padding: var(--space-4) var(--space-8);
   background: transparent;
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-md);
   color: var(--text-muted);
   font-family: inherit;
@@ -881,7 +956,7 @@ textarea:focus-visible {
 .table-container {
   overflow-x: auto;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   background: var(--bg-card);
   box-shadow: var(--shadow-surface);
   backdrop-filter: var(--glass-blur);
@@ -905,15 +980,15 @@ th {
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.7rem;
-  text-transform: uppercase;
+  text-transform: var(--text-transform-headers);
   letter-spacing: 0.06em;
   white-space: nowrap;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
 }
 
 td {
   padding: var(--space-8) var(--space-12);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
   color: var(--text-main);
   vertical-align: middle;
 }
@@ -930,7 +1005,7 @@ tr:hover td {
 input, select, textarea {
   width: 100%;
   background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: var(--space-8) var(--space-12);
   color: var(--text-main);
@@ -984,7 +1059,7 @@ input:focus, select:focus, textarea:focus {
 
 .modal-card {
   background: var(--bg-sidebar);
-  border: 1px solid var(--overlay-strong);
+  border: var(--border-width) solid var(--overlay-strong);
   box-shadow: var(--shadow-modal);
   border-radius: var(--radius-lg);
   max-width: 680px;
@@ -1010,7 +1085,7 @@ input:focus, select:focus, textarea:focus {
 
 .terminal-dock-card {
   background: var(--bg-sidebar);
-  border: 1px solid var(--overlay-muted);
+  border: var(--border-width) solid var(--overlay-muted);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-dock);
   overflow: hidden;
@@ -1025,7 +1100,7 @@ input:focus, select:focus, textarea:focus {
   gap: var(--space-12);
   padding: var(--space-8) var(--space-12) var(--space-8) var(--space-16);
   background: var(--overlay-soft);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
 }
 
 .terminal-dock .terminal-view-body {
@@ -1039,7 +1114,7 @@ input:focus, select:focus, textarea:focus {
 
 .modal-header {
   padding: var(--space-16) var(--space-16);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1061,7 +1136,7 @@ input:focus, select:focus, textarea:focus {
 
 .modal-footer {
   padding: var(--space-12) var(--space-16);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-width) solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-8);
@@ -1092,7 +1167,7 @@ input:focus, select:focus, textarea:focus {
 
 .editor-dock-card {
   background: var(--bg-sidebar);
-  border: 1px solid var(--overlay-muted);
+  border: var(--border-width) solid var(--overlay-muted);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-dock);
   overflow: hidden;
@@ -1135,7 +1210,7 @@ input:focus, select:focus, textarea:focus {
 
 .terminal-window {
   background: var(--terminal-chrome);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-md);
   overflow: hidden;
   display: flex;
@@ -1148,7 +1223,7 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--overlay-muted);
+  border-bottom: var(--border-width) solid var(--overlay-muted);
 }
 
 .terminal-body {
@@ -1207,7 +1282,7 @@ input:focus, select:focus, textarea:focus {
   padding: var(--space-12) var(--space-12);
   color: var(--status-warning);
   background: var(--status-warning-bg);
-  border: 1px solid ;
+  border: var(--border-width) solid var(--border-warning);
   border-radius: var(--radius-md);
   font-size: 0.78rem;
   line-height: 1.5;
@@ -1247,7 +1322,7 @@ input:focus, select:focus, textarea:focus {
   gap: var(--space-8);
   padding: var(--space-12) var(--space-12);
   background: var(--overlay-faint);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -1331,7 +1406,7 @@ input:focus, select:focus, textarea:focus {
   gap: var(--space-2);
   padding: var(--space-8) var(--space-12);
   background: var(--overlay-faint);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-md);
 }
 
@@ -1359,8 +1434,8 @@ input:focus, select:focus, textarea:focus {
   flex-wrap: wrap;
   margin-bottom: var(--space-12);
   padding: var(--space-12) var(--space-16);
-  background: ;
-  border: 1px solid var(--accent-glow-edge);
+  background: var(--surface-float);
+  border: var(--border-width) solid var(--accent-glow-edge);
   border-radius: var(--radius-lg);
   backdrop-filter: var(--glass-blur);
 }
@@ -1435,7 +1510,7 @@ label:has(> input[type='radio']) {
   align-self: flex-start;
   margin-top: 12vh;
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-raised);
   backdrop-filter: var(--glass-blur);
@@ -1447,7 +1522,7 @@ label:has(> input[type='radio']) {
   align-items: center;
   gap: var(--space-12);
   padding: var(--space-12) var(--space-16);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
   color: var(--text-dim);
 }
 
@@ -1472,7 +1547,7 @@ label:has(> input[type='radio']) {
   padding: var(--space-2) var(--space-4);
   color: var(--text-dim);
   background: var(--overlay-soft);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
 
@@ -1489,7 +1564,7 @@ label:has(> input[type='radio']) {
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
+  text-transform: var(--text-transform-headers);
 }
 
 .search-palette-item {
@@ -1543,7 +1618,7 @@ label:has(> input[type='radio']) {
   align-items: center;
   gap: var(--space-16);
   padding: var(--space-8) var(--space-16);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-width) solid var(--border-subtle);
   color: var(--text-dim);
   font-size: 0.72rem;
 }

@@ -355,7 +355,7 @@ export const Templates: React.FC<TemplatesProps> = ({
                     background: 'var(--overlay-soft)',
                     padding: 'var(--space-8)',
                     borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-subtle)',
+                    border: 'var(--border-width) solid var(--border-subtle)',
                     flexShrink: 0,
                     display: 'flex',
                   }}
@@ -387,7 +387,7 @@ export const Templates: React.FC<TemplatesProps> = ({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', borderLeft: '1px solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', borderLeft: 'var(--border-width) solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
                 <input
                   type="checkbox"
                   className="tpl-select"

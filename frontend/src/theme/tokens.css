@@ -1,20 +1,24 @@
 /* ============================================================================
    Design tokens — the single source of truth for visual style.
 
-   Three layers, in this order:
+   Two layers, in this order:
 
-     1. PRIMITIVE   Raw values (colour ramps, spacing steps, durations).
-                    Referenced by nothing outside this file.
-     2. SEMANTIC    The vocabulary components are allowed to use. Themes
-                    override THIS layer only, which is what makes a theme a
-                    data change rather than a rewrite.
-     3. COMPONENT   Narrow exceptions for values a component genuinely cannot
-                    express from the semantic layer. Intentionally almost empty.
+     1. PRIMITIVE   Raw colour values (ramps and channel triplets). Referenced
+                    by nothing outside this file.
+     2. SEMANTIC    Everything a theme may change: colours, spacing, radius,
+                    elevation, motion, layering, typefaces and casing. This is
+                    the vocabulary components are allowed to use.
 
-   Themes are attribute-selected overrides:
+   Spacing, radius, shadows, motion and z-index are semantic rather than
+   primitive: a corner radius or a spacing step *is* the design decision, so a
+   theme has to be able to retune it directly.
 
-     :root                 dark (the default; nothing changes if unset)
-     [data-theme='abyss']  a second dark variant, proving the mechanism
+   Themes are attribute-selected overrides of the semantic layer:
+
+     :root                 industrial — the default. No attribute required, so
+                            an unset attribute renders the default correctly.
+     [data-theme='dark']   the previous default, kept as an alternative. Lists
+                            only the tokens that actually differ.
 
    Rule that keeps this honest: components reference SEMANTIC tokens only. A
    primitive leaking into a component rule is what makes a theme impossible
@@ -52,7 +56,8 @@
   --red-300: #fca5a5;
 
   /* Channel triplets, so alpha can be composed rather than re-spelled. */
-  --slate-875-rgb: 19 27 43;   /* card fill */
+  --slate-875-rgb: 19 27 43;
+  --slate-850-rgb: 15 21 35;   /* card fill */
   --slate-825-rgb: 26 37 59;   /* card fill, hovered */
   --slate-500-rgb: 100 116 139;
   --sky-400-rgb: 56 189 248;
@@ -80,9 +85,9 @@
   --blue-500: #3b82f6;
   --purple-500: #a855f7;
 
-  /* Typography. */
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Typography. The faces themselves are primitive values; where they are
+     *assigned* (which face is the UI face, which is the display face) is a
+     design decision, so those tokens live in the semantic layer below. */
   --glass-blur: blur(14px);
 }
 
@@ -96,43 +101,43 @@
   color-scheme: dark;
 
   /* Surfaces */
-  --bg-main: var(--slate-950);
-  --bg-sidebar: var(--slate-850);
-  --bg-card: rgb(var(--slate-875-rgb) / 0.7);
-  --bg-card-hover: rgb(var(--slate-825-rgb) / 0.85);
-  --bg-input: var(--slate-800);
+  --bg-main: #0b0b0c;
+  --bg-sidebar: #131315;
+  --bg-card: rgb(28 28 30 / 0.92);
+  --bg-card-hover: rgb(40 40 44 / 0.95);
+  --bg-input: #101012;
   --bg-code: var(--slate-1000);
 
   /* Text */
-  --text-main: var(--slate-100);
-  --text-muted: var(--slate-400);
-  --text-dim: var(--slate-500);
+  --text-main: #f5f5f5;
+  --text-muted: #a8a8ad;
+  --text-dim: #7a7a80;
 
   /* Borders */
-  --border-subtle: rgb(var(--white-rgb) / 0.07);
+  --border-subtle: rgb(255 255 255 / 0.26);
   --border-focus: var(--sky-400);
   --border-glow: rgb(var(--sky-400-rgb) / 0.25);
-  --border-warning: rgb(var(--amber-500-rgb) / 0.3);
+  --border-warning: rgb(250 204 21 / 0.5);
 
   /* Accent */
-  --primary: var(--sky-400);
-  --primary-glow: rgb(var(--sky-400-rgb) / 0.35);
+  --primary: #ff6b00;
+  --primary-glow: rgb(255 107 0 / 0.4);
   /* Translucent accent for selections and other tinted fills. Kept separate
      from --primary-glow so themes can retune the two independently, and
      separate from the raw primitive so anything tinted with the accent moves
      with the theme rather than pinning itself to the dark palette. */
-  --primary-soft: rgb(var(--sky-400-rgb) / 0.3);
+  --primary-soft: rgb(255 107 0 / 0.3);
   --accent-cyan: var(--cyan-500);
   --accent-indigo: var(--indigo-500);
 
   /* Status — semantic only. */
-  --status-running: var(--emerald-500);
+  --status-running: #22c55e;
   --status-running-bg: rgb(var(--emerald-500-rgb) / 0.12);
-  --status-stopped: var(--slate-500);
+  --status-stopped: #7a7a80;
   --status-stopped-bg: rgb(var(--slate-500-rgb) / 0.12);
-  --status-warning: var(--amber-500);
+  --status-warning: #facc15;
   --status-warning-bg: rgb(var(--amber-500-rgb) / 0.12);
-  --status-error: var(--red-500);
+  --status-error: #ef4444;
   --status-error-bg: rgb(var(--red-500-rgb) / 0.12);
 
   /* Status text (tinted values rather than indicators) */
@@ -142,7 +147,7 @@
   --text-error: var(--red-300);
 
   /* Tinted surfaces */
-  --surface-warning: rgb(var(--amber-500-rgb) / 0.15);
+  --surface-warning: rgb(250 204 21 / 0.14);
 
   /* --- Overlay ramp --------------------------------------------------------
      The codebase previously used 13 distinct white alphas (0.02, 0.025, 0.035,
@@ -154,10 +159,10 @@
      A translucent overlay picks up the colour of whatever is behind it, so it
      is a *fill* token rather than a colour: the same name is correct over any
      surface, and over two surfaces it must read as two different results. */
-  --overlay-faint: rgb(var(--white-rgb) / 0.025);  /* stripes, at-rest hovers */
-  --overlay-soft: rgb(var(--white-rgb) / 0.06);   /* hover fills, quiet chips */
-  --overlay-muted: rgb(var(--white-rgb) / 0.12);  /* raised fills, pressed states */
-  --overlay-strong: rgb(var(--white-rgb) / 0.2);  /* scrims over busy content */
+  --overlay-faint: rgb(255 255 255 / 0.04);  /* stripes, at-rest hovers */
+  --overlay-soft: rgb(255 255 255 / 0.11);   /* hover fills, quiet chips */
+  --overlay-muted: rgb(255 255 255 / 0.14);  /* raised fills, pressed states */
+  --overlay-strong: rgb(255 255 255 / 0.22);  /* scrims over busy content */
 
   /* Scrims. Black, and only ever over content — never over the page itself. */
   --scrim-subtle: rgb(var(--black-rgb) / 0.15);
@@ -169,20 +174,20 @@
      Tinted with the accent rather than white, so hover states read as
      "this belongs to the accent" instead of merely "brighter". The page-level
      tint is deliberately the faintest: it sits behind everything. */
-  --accent-tint: rgb(var(--sky-400-rgb) / 0.045);
-  --accent-wash: rgb(var(--sky-400-rgb) / 0.08);
-  --accent-wash-hover: rgb(var(--sky-400-rgb) / 0.14);
-  --accent-border: rgb(var(--sky-400-rgb) / 0.2);
+  --accent-tint: transparent;
+  --accent-wash: rgb(255 107 0 / 0.1);
+  --accent-wash-hover: rgb(255 107 0 / 0.18);
+  --accent-border: rgb(255 107 0 / 0.45);
   --accent-glow-edge: rgb(var(--sky-400-rgb) / 0.3);
-  --accent-indigo-tint: rgb(var(--indigo-500-rgb) / 0.05);
+  --accent-indigo-tint: transparent;
 
   /* Status washes, two strengths each: at rest, and on hover. */
-  --success-wash: rgb(var(--emerald-500-rgb) / 0.07);
-  --success-wash-hover: rgb(var(--emerald-500-rgb) / 0.18);
-  --warning-wash: rgb(var(--amber-500-rgb) / 0.07);
-  --warning-wash-hover: rgb(var(--amber-500-rgb) / 0.22);
-  --error-wash: rgb(var(--red-500-rgb) / 0.07);
-  --error-wash-hover: rgb(var(--red-500-rgb) / 0.22);
+  --success-wash: rgb(34 197 94 / 0.1);
+  --success-wash-hover: rgb(34 197 94 / 0.22);
+  --warning-wash: rgb(250 204 21 / 0.1);
+  --warning-wash-hover: rgb(250 204 21 / 0.24);
+  --error-wash: rgb(239 68 68 / 0.1);
+  --error-wash-hover: rgb(239 68 68 / 0.24);
 
   /* Neutral (stopped) wash, for rows whose state has no colour of its own. */
   --neutral-wash: rgb(var(--slate-500-rgb) / 0.1);
@@ -192,22 +197,103 @@
      primitives. A gradient is one design decision, not two colours, so it gets
      a name: a theme can then restyle the primary button without reconstructing
      it, and the two stops can never drift apart. */
-  --gradient-accent: linear-gradient(135deg, var(--primary), var(--sky-600));
-  --gradient-accent-hover: linear-gradient(135deg, var(--sky-300), var(--sky-700));
+  --gradient-accent: linear-gradient(135deg, #ff6b00, #d94f00);
+  --gradient-accent-hover: linear-gradient(135deg, #ff8533, #e85c00);
   --gradient-success: linear-gradient(135deg, var(--status-running), var(--emerald-600));
+
+  /* Floating chrome that sits over content — the toast stack and the template
+     selection bar. Opaque enough to read against a busy table, but not so
+     opaque that it reads as a page surface. */
+  --surface-float: rgb(19 19 21 / 0.98);
+
+  /* Danger border, mirroring --border-warning. Added while recovering a lost
+     declaration: the danger button was falling back to the transparent border
+     from .btn, so it had no visible edge at rest. */
+  --border-danger: rgb(239 68 68 / 0.5);
+
+  /* Status borders. --border-warning and --border-danger already existed; this
+     completes the set so every status has a matching border, and so no badge or
+     callout has to reach for a one-off alpha again. */
+  --border-running: rgb(var(--emerald-500-rgb) / 0.3);
 
   /* --- Foregrounds on filled surfaces ---------------------------------------
      These differ because the fills differ in luminance, which is why they are
      two tokens and not one: the primary button is a light sky fill and needs a
      dark label, while the danger button is a deep red and needs a light one. */
   --text-bright: #ffffff;      /* maximum-contrast label/icon, logo gradient */
-  --text-on-accent: #000000;   /* label/icon sitting on the light accent fill */
+  --text-on-accent: #0a0a0a;   /* label/icon sitting on the light accent fill */
 
   /* Terminal chrome. Deliberately not an app surface: the terminal keeps a
      true-black backdrop so ANSI output is judged against the darkest possible
      background, with a raised header to separate it from the page. */
   --terminal-chrome: #000000;
   --terminal-chrome-raised: #111111;
+
+  /* --- Typefaces -----------------------------------------------------------
+     The face values themselves are primitives; which face does which job is a
+     design decision, so these live here where a theme can change them.
+     `--font-display` defaults to the UI face, so a theme gets a second typeface
+     only by asking for one. */
+  --font-sans: 'IBM Plex Sans Condensed', 'Outfit', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Oswald', 'IBM Plex Sans Condensed', sans-serif;
+
+  /* --- Label casing --------------------------------------------------------
+     Split into two because the app already disagrees with itself: badges,
+     table headers and palette groups were hard-coded uppercase in every theme,
+     while nav items and buttons were sentence case. Hard-coding it meant no
+     theme could change it.
+
+     `--text-transform-headers` defaults to `uppercase` so those elements look
+     exactly as they always have; `--text-transform-labels` defaults to `none`
+     so nav and buttons are untouched. A theme opts in per group.
+  */
+  --text-transform-labels: uppercase;
+  --text-transform-headers: uppercase;
+  /* Uppercase at UI sizes wants a little air or it reads cramped. */
+  --letter-spacing-labels: 0.05em;
+
+  /* --- Lines ---------------------------------------------------------------
+     Border *width* was the one visual dimension no theme could reach: colour
+     tokens existed, so a theme could change how loud a border looked but not
+     how thick it was. A theme that wants hard, heavy rules needs this. */
+  --border-width: 2px;
+  --border-width-strong: 3px;
+
+  /* --- Typography extras --------------------------------------------------
+     `--font-variant-caps` is `normal` everywhere but an industrial-style theme,
+     which wants its labels in small caps. Applied to chrome text only: small
+     caps in body copy is hard to read at UI sizes. */
+  --font-variant-caps: small-caps;
+  /* Display text gets wider tracking, which small caps need in order not to
+     look cramped. */
+  --letter-spacing-display: 0.06em;
+
+  /* --- Icon treatment ------------------------------------------------------
+     lucide draws with round caps and round joins at a 2px stroke. That is a
+     friendly, organic look; a theme can make the whole set read as technical by
+     changing these three values, rather than shipping a parallel icon set.
+     CSS overrides the SVG presentation attributes, so no icon component has to
+     change. */
+  --icon-stroke-width: 2.5;
+  --icon-linecap: square;
+  --icon-linejoin: miter;
+
+  /* --- Control depth -------------------------------------------------------
+     The shadow a control casts to read as raised. Dark themes get a soft accent
+     glow; a theme that wants physical, extruded controls overrides all three
+     states. Separate from --shadow-* because "raised" and "glowing" are
+     different physical claims. */
+  --control-depth: inset 1px 1px 0 rgb(255 255 255 / 0.16),
+    inset -1px -1px 0 rgb(0 0 0 / 0.55),
+    4px 4px 0 #1c1c1f;
+  --control-depth-hover: inset 1px 1px 0 rgb(255 255 255 / 0.16),
+    inset -1px -1px 0 rgb(0 0 0 / 0.55),
+    6px 6px 0 #1c1c1f;
+  --control-depth-press: inset 1px 1px 0 rgb(255 255 255 / 0.08),
+    inset -1px -1px 0 rgb(0 0 0 / 0.7),
+    1px 1px 0 #1c1c1f;
 
   /* --- Spacing -------------------------------------------------------------
      A 4px grid with a single 2px half-step at the bottom. Named by pixel
@@ -236,11 +322,11 @@
      Promoted out of the primitive layer: a corner radius is itself the design
      decision, so a theme must be able to retune it without restating the
      primitive layer. Components reference these names directly. */
-  --radius-sm: 3px;    /* chips, dense controls */
-  --radius-md: 4px;    /* buttons, inputs — the most common */
-  --radius-lg: 6px;    /* cards, modals, panels */
-  --radius-full: 9999px; /* pills, avatars */
-  --radius-circle: 50%;  /* dots, round icon buttons */
+  --radius-sm: 0px;    /* chips, dense controls */
+  --radius-md: 0px;    /* buttons, inputs — the most common */
+  --radius-lg: 0px;    /* cards, modals, panels */
+  --radius-full: 0px; /* pills, avatars */
+  --radius-circle: 0px;  /* dots, round icon buttons */
 
   /* --- Elevation -----------------------------------------------------------
      Two families, deliberately separate:
@@ -258,23 +344,21 @@
      visual decision, and belongs to the design rework rather than to this
      tokenisation. */
   --shadow-none: none;
-  --shadow-surface: 0 4px 20px -2px rgb(var(--black-rgb) / 0.5),
-    0 0 0 1px var(--border-subtle);
-  --shadow-raised: 0 8px 30px -4px rgb(var(--black-rgb) / 0.7),
-    0 0 0 1px rgb(var(--sky-400-rgb) / 0.3);
-  --shadow-modal: 0 24px 70px rgb(var(--black-rgb) / 0.72);
-  --shadow-dock: 0 12px 32px rgb(var(--black-rgb) / 0.55);
-  --shadow-toast: 0 12px 32px rgb(var(--black-rgb) / 0.5);
+  --shadow-surface: none;
+  --shadow-raised: 4px 4px 0 #000;
+  --shadow-modal: 8px 8px 0 #000;
+  --shadow-dock: 5px 5px 0 #000;
+  --shadow-toast: 4px 4px 0 #000;
 
   /* Interactive glow. The primary button's resting and hover states — the only
      controls with a shadow today. */
-  --ring-interactive: 0 2px 10px rgb(var(--sky-400-rgb) / 0.3);
-  --ring-interactive-hover: 0 4px 16px rgb(var(--sky-400-rgb) / 0.4);
+  --ring-interactive: var(--control-depth);
+  --ring-interactive-hover: var(--control-depth-hover);
 
   /* Focus and attention. */
-  --ring-focus: 0 0 0 3px var(--border-glow);
-  --ring-brand: 0 0 16px var(--primary-glow);
-  --ring-active-soft: 0 0 12px rgb(var(--sky-400-rgb) / 0.1);
+  --ring-focus: 0 0 0 var(--border-width-strong) var(--primary);
+  --ring-brand: none;
+  --ring-active-soft: none;
   --ring-indicator: 0 0 8px var(--border-glow);
 
   /* Status indicators. Built from the status channel triplets so a theme that
@@ -285,11 +369,11 @@
   --ring-status-warning-soft: 0 0 7px rgb(var(--amber-500-rgb) / 0.45);
 
   /* Inset accent stripe marking the focused row in a list. */
-  --edge-accent: inset 3px 0 0 var(--primary);
+  --edge-accent: inset 4px 0 0 var(--primary);
 
   /* --- Motion -------------------------------------------------------------- */
-  --duration-fast: 0.15s;
-  --duration-base: 0.2s;
+  --duration-fast: 0.08s;
+  --duration-base: 0.12s;
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* --- Layering ------------------------------------------------------------
@@ -354,33 +438,16 @@
 /* ---------------------------------------------------------------------------
    THEMES
 
-   Each theme overrides the SEMANTIC layer only. If you find yourself wanting to
+   A theme overrides the SEMANTIC layer only. If you find yourself wanting to
    change a primitive here, that usually means the semantic vocabulary is
    missing a concept.
    ------------------------------------------------------------------------ */
 
 /* Second dark variant: cooler, higher-contrast surfaces with a slightly
    brighter accent. Exists to prove a theme is a data change, not a rewrite. */
-[data-theme='abyss'] {
-  color-scheme: dark;
 
-  --bg-main: #060a14;
-  --bg-sidebar: #0a1122;
-  --bg-card: rgb(16 26 46 / 0.78);
-  --bg-card-hover: rgb(24 38 63 / 0.9);
-  --bg-input: #0a1020;
-  --bg-code: #04070f;
 
-  --text-main: #eef4ff;
-  --text-muted: #9db0cc;
-  --text-dim: #6b7f9e;
 
-  --border-subtle: rgb(var(--white-rgb) / 0.09);
-
-  --primary: #4cc9f0;
-  --primary-glow: rgb(76 201 240 / 0.4);
-  --primary-soft: rgb(76 201 240 / 0.3);
-}
 
 /* ---------------------------------------------------------------------------
    3. COMPONENT
@@ -388,3 +455,81 @@
    Empty by design. Add an entry only when a component cannot be expressed from
    the semantic layer, and prefer adding a semantic token instead.
    ------------------------------------------------------------------------ */
+/* The previous default, kept as an alternative. Only the tokens that
+   actually differ from the base are listed — everything else is inherited. */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --border-subtle: rgb(var(--white-rgb) / 0.07);
+  --bg-card-hover: rgb(var(--slate-825-rgb) / 0.85);
+  --radius-sm: 3px;
+  --overlay-strong: rgb(var(--white-rgb) / 0.2);
+  --radius-md: 4px;
+  --border-width: 1px;
+  --edge-accent: inset 3px 0 0 var(--primary);
+  --shadow-toast: 0 12px 32px rgb(var(--black-rgb) / 0.5);
+  --control-depth-press: 0 1px 1px rgb(var(--black-rgb) / 0.4);
+  --ring-active-soft: 0 0 12px rgb(var(--sky-400-rgb) / 0.1);
+  --duration-fast: 0.15s;
+  --duration-base: 0.2s;
+  --shadow-raised: 0 8px 30px -4px rgb(var(--black-rgb) / 0.7),
+    0 0 0 1px rgb(var(--sky-400-rgb) / 0.3);
+  --radius-circle: 50%;
+  --overlay-faint: rgb(var(--white-rgb) / 0.025);
+  --primary-glow: rgb(var(--sky-400-rgb) / 0.35);
+  --ring-interactive: 0 2px 10px rgb(var(--sky-400-rgb) / 0.3);
+  --icon-linejoin: round;
+  --shadow-surface: 0 4px 20px -2px rgb(var(--black-rgb) / 0.5),
+    0 0 0 1px var(--border-subtle);
+  --ring-interactive-hover: 0 4px 16px rgb(var(--sky-400-rgb) / 0.4);
+  --bg-main: var(--slate-950);
+  --text-transform-labels: none;
+  --icon-stroke-width: 2;
+  --accent-tint: rgb(var(--sky-400-rgb) / 0.045);
+  --gradient-accent: linear-gradient(135deg, var(--primary), var(--sky-600));
+  --warning-wash-hover: rgb(var(--amber-500-rgb) / 0.22);
+  --overlay-muted: rgb(var(--white-rgb) / 0.12);
+  --font-variant-caps: normal;
+  --status-warning: var(--amber-500);
+  --error-wash-hover: rgb(var(--red-500-rgb) / 0.22);
+  --control-depth-hover: 0 2px 6px rgb(var(--black-rgb) / 0.5);
+  --text-main: var(--slate-100);
+  --warning-wash: rgb(var(--amber-500-rgb) / 0.07);
+  --radius-full: 9999px;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --border-width-strong: 2px;
+  --accent-border: rgb(var(--sky-400-rgb) / 0.2);
+  --text-on-accent: #000000;
+  --letter-spacing-labels: normal;
+  --success-wash-hover: rgb(var(--emerald-500-rgb) / 0.18);
+  --shadow-modal: 0 24px 70px rgb(var(--black-rgb) / 0.72);
+  --shadow-dock: 0 12px 32px rgb(var(--black-rgb) / 0.55);
+  --text-dim: var(--slate-500);
+  --status-running: var(--emerald-500);
+  --bg-sidebar: var(--slate-850);
+  --border-warning: rgb(var(--amber-500-rgb) / 0.3);
+  --surface-float: rgb(var(--slate-850-rgb) / 0.96);
+  --error-wash: rgb(var(--red-500-rgb) / 0.07);
+  --accent-indigo-tint: rgb(var(--indigo-500-rgb) / 0.05);
+  --success-wash: rgb(var(--emerald-500-rgb) / 0.07);
+  --control-depth: 0 1px 2px rgb(var(--black-rgb) / 0.4);
+  --surface-warning: rgb(var(--amber-500-rgb) / 0.15);
+  --bg-input: var(--slate-800);
+  --letter-spacing-display: normal;
+  --status-stopped: var(--slate-500);
+  --status-error: var(--red-500);
+  --accent-wash-hover: rgb(var(--sky-400-rgb) / 0.14);
+  --radius-lg: 6px;
+  --ring-focus: 0 0 0 3px var(--border-glow);
+  --border-danger: rgb(var(--red-500-rgb) / 0.3);
+  --primary: var(--sky-400);
+  --ring-brand: 0 0 16px var(--primary-glow);
+  --gradient-accent-hover: linear-gradient(135deg, var(--sky-300), var(--sky-700));
+  --icon-linecap: round;
+  --primary-soft: rgb(var(--sky-400-rgb) / 0.3);
+  --font-display: var(--font-sans);
+  --overlay-soft: rgb(var(--white-rgb) / 0.06);
+  --text-muted: var(--slate-400);
+  --accent-wash: rgb(var(--sky-400-rgb) / 0.08);
+  --bg-card: rgb(var(--slate-875-rgb) / 0.7);
+}

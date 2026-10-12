@@ -13,7 +13,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
   if (!info) return null;
 
   return (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
+    <div style={{ borderTop: 'var(--border-width) solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-8)' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Traefik Routing
@@ -40,7 +40,7 @@ export const ContainerTraefik: React.FC<ContainerTraefikProps> = ({ labels }) =>
             return (
               <div key={`${router.protocol}:${router.name}`} style={{
                 background: 'var(--success-wash)',
-                border: '1px solid var(--success-wash-hover)',
+                border: 'var(--border-width) solid var(--success-wash-hover)',
                 borderRadius: 'var(--radius-md)',
                 padding: 'var(--space-8) var(--space-12)',
                 fontSize: '0.78rem',

@@ -3,7 +3,7 @@
 .cm-editor {
   position: relative;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   background: var(--bg-code);
   overflow: hidden;
   text-align: left;
@@ -20,13 +20,13 @@
 /* Dark styling for the built-in search panel (Mod-F) */
 .cm-editor .cm-panel.cm-search {
   background: var(--bg-code);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-width) solid var(--border-subtle);
   color: var(--text-main);
 }
 
 .cm-editor .cm-panel.cm-search input[type='text'] {
   background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width) solid var(--border-subtle);
   color: var(--text-main);
 }
 

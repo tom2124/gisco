@@ -332,126 +332,171 @@ const TerminalView: React.FC<TerminalViewProps> = ({
           </div>
         ) : (
         <div className="modal-header" style={{ padding: 'var(--space-12) var(--space-12)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', flex: 1, justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)' }}>
-              <span
-                className={`status-dot ${connected ? 'online' : ''}`}
-                title={connected ? 'Connected' : 'Disconnected'}
-              />
-              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                Terminal: {containerName}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', marginLeft: 'var(--space-16)', paddingLeft: 'var(--space-16)', borderLeft: '1px solid var(--border-subtle)' }}>
-                <input
-                  type="text"
-                  list="shell-options"
-                  value={inputShellCmd}
-                  onChange={(e) => setInputShellCmd(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const newCmd = e.currentTarget.value;
-                      setInputShellCmd(newCmd);
-                      initTerminal(newCmd, inputUser);
-                    }
-                  }}
-                  placeholder="Shell (auto: bash → sh)"
-                  title="Shell to execute (empty = auto: bash, fallback sh)"
-                  style={{
-                    width: 'auto',
-                    minWidth: '130px',
-                    padding: 'var(--space-4) var(--space-8)',
-                    fontSize: '0.78rem',
-                    height: 'auto',
-                    fontFamily: 'var(--font-mono)',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-main)',
-                  }}
+          {/* `.modal-header` is `display: flex` (row) in the stylesheet, so the
+              rows below need an explicit column wrapper. Without it they become
+              side-by-side flex items and the controls wrap inside themselves. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-8)', flex: 1, minWidth: 0 }}>
+            {/* Row 1 — identity on the left, terminal actions on the right. They
+                share a row because both describe the session: the title names it,
+                the actions address it. */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-12)',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', minWidth: 0 }}>
+                <span
+                  className={`status-dot ${connected ? 'online' : ''}`}
+                  title={connected ? 'Connected' : 'Disconnected'}
                 />
-                <datalist id="shell-options">
-                  <option value="/bin/sh" />
-                  <option value="/bin/bash" />
-                  <option value="/bin/zsh" />
-                </datalist>
-                <input
-                  type="text"
-                  list="user-options"
-                  value={inputUser}
-                  onChange={(e) => setInputUser(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const newUser = e.currentTarget.value;
-                      setInputUser(newUser);
-                      initTerminal(inputShellCmd, newUser);
-                    }
-                  }}
-                  placeholder="User (auto)"
-                  title="User to execute as (empty = container default)"
+                <span
                   style={{
-                    width: 'auto',
-                    minWidth: '90px',
-                    padding: 'var(--space-4) var(--space-8)',
-                    fontSize: '0.78rem',
-                    height: 'auto',
-                    fontFamily: 'var(--font-mono)',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-main)',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
-                />
-                <datalist id="user-options">
-                  <option value="root" />
-                </datalist>
-                <button
-                  className="btn btn-primary"
-                  title={started ? 'Restart Shell' : 'Start Shell'}
-                  onClick={() => {
-                    initTerminal(inputShellCmd, inputUser);
-                  }}
-                  style={{ padding: 'var(--space-4) var(--space-12)', fontSize: '0.78rem', height: 'auto' }}
+                  title={`Terminal: ${containerName}`}
                 >
-                  {started ? <RotateCw size={13} /> : <Play size={13} />}
-                  <span style={{ marginLeft: 'var(--space-4)' }}>{started ? 'Restart' : 'Start'}</span>
+                  Terminal: {containerName}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-8)', flexShrink: 0 }}>
+                <button
+                  className="btn btn-secondary btn-icon"
+                  title="Copy selection (Ctrl+C)"
+                  onClick={copySelection}
+                  disabled={!hasSelection}
+                >
+                  <Copy size={14} />
+                </button>
+                <button
+                  className="btn btn-secondary btn-icon"
+                  title="Paste clipboard (Ctrl+Shift+V)"
+                  onClick={pasteClipboard}
+                >
+                  <ClipboardPaste size={14} />
+                </button>
+                <button
+                  className="btn btn-secondary btn-icon"
+                  title="Minimize terminal"
+                  onClick={onMinimize}
+                >
+                  <Minus size={14} />
+                </button>
+                <button
+                  className="btn btn-secondary btn-icon"
+                  title={isMaximized ? 'Restore' : 'Maximize'}
+                  onClick={() => setIsMaximized(!isMaximized)}
+                >
+                  {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </button>
+                <button className="btn btn-secondary btn-icon" onClick={onClose}>
+                  <X size={14} />
                 </button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
+            {/* Row 2 — how to start a shell. Left-aligned; the space to its right
+                is deliberately left empty rather than stretched. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                list="shell-options"
+                value={inputShellCmd}
+                onChange={(e) => setInputShellCmd(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const newCmd = e.currentTarget.value;
+                    setInputShellCmd(newCmd);
+                    initTerminal(newCmd, inputUser);
+                  }
+                }}
+                placeholder="Shell (auto: bash → sh)"
+                title="Shell to execute (empty = auto: bash, fallback sh)"
+                style={{
+                  width: 'auto',
+                  // Sized from the input's own layout, not from the character
+                  // count: setting this string as the value and reading
+                  // scrollWidth puts "Shell (auto: bash → sh)" at 205px, so
+                  // anything under that clips the trailing "h)". 30ch clears it
+                  // with room to spare, and being font-relative it survives a
+                  // typeface change.
+                  minWidth: '30ch',
+                  padding: 'var(--space-4) var(--space-8)',
+                  fontSize: '0.78rem',
+                  height: 'auto',
+                  fontFamily: 'var(--font-mono)',
+                  background: 'var(--bg-input)',
+                  border: 'var(--border-width) solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-main)',
+                }}
+              />
+              <datalist id="shell-options">
+                <option value="/bin/sh" />
+                <option value="/bin/bash" />
+                <option value="/bin/zsh" />
+              </datalist>
+              <input
+                type="text"
+                list="user-options"
+                value={inputUser}
+                onChange={(e) => setInputUser(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const newUser = e.currentTarget.value;
+                    setInputUser(newUser);
+                    initTerminal(inputShellCmd, newUser);
+                  }
+                }}
+                placeholder="User (auto)"
+                title="User to execute as (empty = container default)"
+                style={{
+                  width: 'auto',
+                  // Sized from the input's own layout, not from the character
+                  // count: setting this string as the value and reading
+                  // scrollWidth puts "Shell (auto: bash → sh)" at 205px, so
+                  // anything under that clips the trailing "h)". 30ch clears it
+                  // with room to spare, and being font-relative it survives a
+                  // typeface change.
+                  minWidth: '30ch',
+                  padding: 'var(--space-4) var(--space-8)',
+                  fontSize: '0.78rem',
+                  height: 'auto',
+                  fontFamily: 'var(--font-mono)',
+                  background: 'var(--bg-input)',
+                  border: 'var(--border-width) solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-main)',
+                }}
+              />
+              <datalist id="user-options">
+                <option value="root" />
+              </datalist>
               <button
-                className="btn btn-secondary btn-icon"
-                title="Copy selection (Ctrl+C)"
-                onClick={copySelection}
-                disabled={!hasSelection}
+                className="btn btn-primary"
+                title={started ? 'Restart Shell' : 'Start Shell'}
+                onClick={() => {
+                  initTerminal(inputShellCmd, inputUser);
+                }}
+                style={{
+                  padding: 'var(--space-4) var(--space-12)',
+                  fontSize: '0.78rem',
+                  height: 'auto',
+                  flexShrink: 0,
+                }}
               >
-                <Copy size={14} />
-              </button>
-              <button
-                className="btn btn-secondary btn-icon"
-                title="Paste clipboard (Ctrl+Shift+V)"
-                onClick={pasteClipboard}
-              >
-                <ClipboardPaste size={14} />
-              </button>
-              <button
-                className="btn btn-secondary btn-icon"
-                title="Minimize terminal"
-                onClick={onMinimize}
-              >
-                <Minus size={14} />
-              </button>
-              <button
-                className="btn btn-secondary btn-icon"
-                title={isMaximized ? 'Restore' : 'Maximize'}
-                onClick={() => setIsMaximized(!isMaximized)}
-              >
-                {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              </button>
-              <button className="btn btn-secondary btn-icon" onClick={onClose}>
-                <X size={14} />
+                {started ? <RotateCw size={13} /> : <Play size={13} />}
+                <span style={{ marginLeft: 'var(--space-4)' }}>{started ? 'Restart' : 'Start'}</span>
               </button>
             </div>
           </div>

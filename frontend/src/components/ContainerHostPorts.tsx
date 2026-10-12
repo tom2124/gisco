@@ -7,7 +7,7 @@ interface ContainerHostPortsProps {
 
 export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containerHostPorts }) => (
   containerHostPorts.length > 0 ? (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
+    <div style={{ borderTop: 'var(--border-width) solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-8)' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Host Port Mappings
@@ -20,7 +20,7 @@ export const ContainerHostPorts: React.FC<ContainerHostPortsProps> = ({ containe
         {containerHostPorts.map((hp, idx) => (
           <div key={idx} style={{
             background: 'var(--warning-wash)',
-            border: '1px solid var(--warning-wash-hover)',
+            border: 'var(--border-width) solid var(--warning-wash-hover)',
             borderRadius: 'var(--radius-md)',
             padding: 'var(--space-8) var(--space-12)',
             fontFamily: 'var(--font-mono)',

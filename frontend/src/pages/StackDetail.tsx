@@ -479,7 +479,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
         style={{
           display: 'flex',
           gap: 'var(--space-8)',
-          borderBottom: '1px solid var(--border-subtle)',
+          borderBottom: 'var(--border-width) solid var(--border-subtle)',
           marginBottom: 'var(--space-20)',
         }}
       >

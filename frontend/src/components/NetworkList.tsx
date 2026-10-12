@@ -170,7 +170,7 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                   </td>
                   <td>
                     {hostPorts.length > 0 ? (
-                      <span className="badge" style={{ background: 'var(--surface-warning)', color: 'var(--text-warning)', border: '1px solid var(--border-warning)' }}>
+                      <span className="badge" style={{ background: 'var(--surface-warning)', color: 'var(--text-warning)', border: 'var(--border-width) solid var(--border-warning)' }}>
                         {hostPorts.length} host port(s)
                       </span>
                     ) : (

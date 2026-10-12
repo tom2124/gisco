@@ -38,7 +38,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
   if (entries.length === 0) return null;
 
   return (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
+    <div style={{ borderTop: 'var(--border-width) solid var(--border-subtle)', paddingTop: 'var(--space-12)', marginTop: 'var(--space-4)' }}>
       <div style={{ marginBottom: 'var(--space-8)' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           DNS Names & Aliases
@@ -51,7 +51,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
             text={entry.value}
             style={{
               background: 'var(--accent-wash-hover)',
-              border: '1px solid var(--accent-border)',
+              border: 'var(--border-width) solid var(--accent-border)',
               borderRadius: 'var(--radius-md)',
               padding: 'var(--space-8) var(--space-12)',
               fontFamily: 'var(--font-mono)',

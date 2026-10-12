@@ -4,13 +4,13 @@ import { THEMES, useTheme, type ThemeName } from '../theme/ThemeProvider';
 
 /** Short human labels. Add one per entry in THEMES. */
 const LABELS: Record<ThemeName, string> = {
+  industrial: 'Industrial',
   dark: 'Dark',
-  abyss: 'Abyss',
 };
 
 const DESCRIPTIONS: Record<ThemeName, string> = {
-  dark: 'The default palette.',
-  abyss: 'Cooler surfaces with a brighter accent.',
+  industrial: 'The default. Machined panels, square corners, safety orange.',
+  dark: 'Soft glows, rounded corners, cool blue accent.',
 };
 
 /**
@@ -39,7 +39,7 @@ export const ThemePicker: React.FC = () => {
                 gap: 'var(--space-12)',
                 padding: 'var(--space-12) var(--space-12)',
                 background: 'var(--bg-card)',
-                border: '1px solid ' + (selected ? 'var(--primary)' : 'var(--border-subtle)'),
+                border: 'var(--border-width) solid ' + (selected ? 'var(--primary)' : 'var(--border-subtle)'),
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
               }}
@@ -87,7 +87,7 @@ const ThemeSwatch: React.FC<{ theme: ThemeName }> = ({ theme }) => (
       flexShrink: 0,
       padding: 'var(--space-4)',
       background: 'var(--bg-main)',
-      border: '1px solid var(--border-subtle)',
+      border: 'var(--border-width) solid var(--border-subtle)',
       borderRadius: 'var(--radius-sm)',
     }}
   >

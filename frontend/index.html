@@ -4,32 +4,36 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>gisco</title>
-    <meta name="description" content="Lightweight compose-centric Docker management with live topology wiring diagram and terminal" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Runs before any stylesheet so a reload never flashes the wrong
+         palette. Inline and dependency-free on purpose. Must stay in sync
+         with THEME_ATTR / STORAGE_KEY in src/theme/ThemeProvider.tsx;
+         themeRegistry.test.ts asserts the theme list agrees. -->
     <script>
-      // Apply the stored theme before first paint so a reload never flashes the
-      // wrong palette. Kept inline and dependency-free on purpose; must stay in
-      // sync with THEME_STORAGE_KEY / THEME_ATTR in src/theme/ThemeProvider.tsx.
       (function () {
         try {
           var raw = localStorage.getItem('gisco.theme');
-          var theme = 'dark';
+          var theme = 'industrial';
           if (raw) {
             var parsed = JSON.parse(raw);
             if (typeof parsed === 'string') theme = parsed;
             else if (parsed && typeof parsed.theme === 'string') theme = parsed.theme;
           }
-          if (theme !== 'dark' && theme !== 'abyss') theme = 'dark';
+          // Must list exactly the names in THEMES (src/theme/ThemeProvider.tsx).
+          // Nothing can import across into this inline script, so a test asserts
+          // the two lists agree — see themeRegistry.test.ts.
+          if (['industrial', 'dark'].indexOf(theme) === -1) theme = 'industrial';
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.setAttribute('data-theme', 'industrial');
         }
       })();
     </script>
-  </head>
+    <title>gisco</title>
+    <meta name="description" content="Lightweight compose-centric Docker management with live topology wiring diagram and terminal" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

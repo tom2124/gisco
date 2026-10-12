@@ -284,7 +284,7 @@ export const Volumes: React.FC = () => {
                             style={{
                               padding: 'var(--space-12) var(--space-16)',
                               background: 'var(--scrim-soft)',
-                              borderTop: '1px solid var(--border-subtle)',
+                              borderTop: 'var(--border-width) solid var(--border-subtle)',
                             }}
                           >
                             <div
@@ -345,7 +345,7 @@ export const Volumes: React.FC = () => {
                   marginBottom: 'var(--space-16)',
                   padding: 'var(--space-12) var(--space-12)',
                   background: 'var(--overlay-soft)',
-                  border: '1px solid var(--border-subtle)',
+                  border: 'var(--border-width) solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
                 }}
@@ -382,7 +382,7 @@ export const Volumes: React.FC = () => {
               {unusedVolumes.length > 0 ? (
                 <div className="card" style={{ padding: 'var(--space-12) var(--space-12)', maxHeight: '220px', overflowY: 'auto' }}>
                   {unusedVolumes.map((volume) => (
-                    <div key={volume.Name} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', padding: 'var(--space-8) 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div key={volume.Name} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', padding: 'var(--space-8) 0', borderBottom: 'var(--border-width) solid var(--border-subtle)' }}>
                       <span className="font-mono" style={{ fontSize: '0.8rem', overflowWrap: 'anywhere' }}>{volume.Name}</span>
                       <span className="font-mono" style={{ color: 'var(--text-dim)', fontSize: '0.78rem', flexShrink: 0 }}>
                         {formatBytes(volume.UsageData?.Size ?? -1)}

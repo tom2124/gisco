@@ -12,18 +12,18 @@ import React, {
  * Theme registry. Each name maps to a `[data-theme='<name>']` block in
  * `src/theme/tokens.css`.
  *
- * `dark` is the default and is also what bare `:root` provides, so the app
- * renders correctly with no attribute set at all.
+ * `industrial` is the default and is also what bare `:root` provides, so the
+ * app renders correctly with no attribute set at all. `dark` is an override.
  *
- * There is deliberately no "follow OS" option yet: both available themes are
- * dark, so honouring a light OS preference would mean showing a dark UI on
- * purpose, which is worse than ignoring the preference. It becomes meaningful
- * the moment a light theme exists.
+ * There is deliberately no "follow OS" option: both available themes are dark,
+ * so honouring a light OS preference would mean showing a dark UI on purpose,
+ * which is worse than ignoring the preference. It becomes meaningful the moment
+ * a light theme exists.
  */
-export const THEMES = ['dark', 'abyss'] as const;
+export const THEMES = ['industrial', 'dark'] as const;
 export type ThemeName = (typeof THEMES)[number];
 
-export const DEFAULT_THEME: ThemeName = 'dark';
+export const DEFAULT_THEME: ThemeName = 'industrial';
 
 const STORAGE_KEY = 'gisco.theme';
 /** Attribute written to <html>. Mirrored by the pre-paint script in index.html. */

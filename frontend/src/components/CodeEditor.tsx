@@ -83,7 +83,7 @@ const giscoTheme = EditorView.theme({
   '.cm-cursor': { borderLeftColor: 'var(--editor-caret)' },
   '.cm-gutters': {
     backgroundColor: 'transparent',
-    borderRight: '1px solid var(--border-subtle)',
+    borderRight: 'var(--border-width) solid var(--border-subtle)',
     color: 'var(--text-dim)',
   },
   '.cm-activeLine': { backgroundColor: 'var(--editor-active-line)' },

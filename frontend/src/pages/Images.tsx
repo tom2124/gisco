@@ -236,7 +236,7 @@ export const Images: React.FC = () => {
                   marginBottom: 'var(--space-16)',
                   padding: 'var(--space-12) var(--space-12)',
                   background: 'var(--overlay-soft)',
-                  border: '1px solid var(--border-subtle)',
+                  border: 'var(--border-width) solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
                 }}
@@ -279,7 +279,7 @@ export const Images: React.FC = () => {
                         justifyContent: 'space-between',
                         gap: 'var(--space-12)',
                         padding: 'var(--space-8) 0',
-                        borderBottom: '1px solid var(--border-subtle)',
+                        borderBottom: 'var(--border-width) solid var(--border-subtle)',
                       }}
                     >
                       <span className="font-mono" style={{ fontSize: '0.8rem', overflowWrap: 'anywhere' }}>

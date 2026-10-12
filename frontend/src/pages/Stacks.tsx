@@ -226,7 +226,7 @@ export const Stacks: React.FC<StacksProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', borderLeft: '1px solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-12)', borderLeft: 'var(--border-width) solid var(--border-subtle)', paddingLeft: 'var(--space-16)', flexShrink: 0 }}>
                   <span
                     className={`badge ${
                       stack.status === 'Running'

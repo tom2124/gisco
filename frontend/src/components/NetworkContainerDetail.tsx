@@ -80,7 +80,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 'var(--space-12)',
-          borderTop: '1px solid var(--border-subtle)',
+          borderTop: 'var(--border-width) solid var(--border-subtle)',
           paddingTop: 'var(--space-12)',
         }}
       >
