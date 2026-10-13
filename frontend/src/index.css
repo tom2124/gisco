@@ -2,6 +2,31 @@
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
 
+/* --- Terminal face -------------------------------------------------------
+   Iosevka Term, self-hosted. It has no npm package — Fontsource ships only the
+   Default spacing — so the two faces are subset from the upstream release by
+   `scripts/subset-fonts.py`. See public/fonts/PROVENANCE.md.
+
+   Only 400 and 600 are bundled because that is exactly what xterm asks for.
+   Font loading is forced explicitly in TerminalView before the grid is sized;
+   `document.fonts.ready` alone resolves immediately for a face nothing has
+   requested yet, which leaves the columns measured against the fallback. */
+@font-face {
+  font-family: 'Iosevka Term';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/iosevka-term-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Iosevka Term';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/iosevka-term-600.woff2') format('woff2');
+}
+
 
 
 /* --- Themed chrome --------------------------------------------------------

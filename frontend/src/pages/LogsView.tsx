@@ -186,7 +186,7 @@ export const LogsView: React.FC<LogsViewProps> = ({
             color: 'var(--editor-foreground)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all',
-            fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
+            fontFamily: "'Iosevka Term', 'JetBrains Mono', monospace",
           }}
         >
           {filteredLogs.length === 0 ? (

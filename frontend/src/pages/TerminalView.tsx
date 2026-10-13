@@ -3,9 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
-import '@fontsource/iosevka/400.css';
-import '@fontsource/iosevka/600.css';
-import { ClipboardPaste, Copy, X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
+import { ClipboardPaste, Copy, Check, X, Maximize2, Minimize2, Minus, RotateCw, Play } from 'lucide-react';
 import { api } from '../api/client';
 import { buildTerminalTheme } from '../theme/terminal';
 import { useTheme } from '../theme/ThemeProvider';
@@ -47,6 +45,70 @@ const readTextFromClipboard = async (): Promise<string> => {
   return navigator.clipboard.readText();
 };
 
+/**
+ * Bind clipboard chords on a terminal.
+ *
+ * These go through `attachCustomKeyEventHandler`, not `onKey`, and the
+ * difference is the whole point — it was two separate bugs.
+ *
+ * `onKey` fires only for keys xterm's keyboard evaluator maps to something.
+ * Ctrl+Shift+C and Ctrl+Shift+V map to nothing at all, so `onKey` never fired
+ * for them and a handler bound there simply never ran: the conventional copy
+ * and paste chords did nothing, silently.
+ *
+ * And because `onKey` is observational, xterm had already resolved the key and
+ * sent it to the shell regardless of what the listener returned. So the one
+ * chord that did fire, Ctrl+C, copied the selection *and* delivered SIGINT —
+ * killing whatever was running in the container as a side effect of copying.
+ *
+ * `attachCustomKeyEventHandler` runs on the raw keydown, before that mapping,
+ * and returning false stops xterm processing it. Every chord below is seen,
+ * and copy and interrupt are mutually exclusive rather than both happening:
+ *
+ *   Ctrl+C           copies when a selection exists, otherwise interrupts
+ *   Ctrl+Shift+C     copies unconditionally
+ *   Ctrl+Shift+V     pastes
+ *   Shift+Insert     pastes
+ */
+export const attachClipboardKeys = (term: Terminal, onCopied?: (text: string) => void) => {
+  term.attachCustomKeyEventHandler((ev) => {
+    // The handler is also consulted for keyup in some builds; only act on keydown.
+    if (ev.type !== 'keydown') return true;
+
+    const chord = ev.ctrlKey || ev.metaKey;
+    const key = ev.key.toLowerCase();
+    const selection = term.getSelection();
+
+    const isCopy =
+      (chord && ev.shiftKey && key === 'c') ||
+      (chord && !ev.shiftKey && key === 'c' && Boolean(selection)) ||
+      (ev.ctrlKey && ev.key === 'Insert');
+    if (isCopy) {
+      if (selection) {
+        ev.preventDefault();
+        void copyTextToClipboard(selection).then(() => onCopied?.(selection));
+      }
+      // Swallow it either way: a copy chord must never also interrupt the shell.
+      return false;
+    }
+
+    const isPaste = (chord && ev.shiftKey && key === 'v') || (ev.shiftKey && ev.key === 'Insert');
+    if (isPaste) {
+      ev.preventDefault();
+      void readTextFromClipboard()
+        .then((text) => {
+          if (text) term.paste(text);
+        })
+        .catch(() => {
+          // Clipboard access may be denied; leave the session intact.
+        });
+      return false;
+    }
+
+    return true;
+  });
+};
+
 const TerminalView: React.FC<TerminalViewProps> = ({
   containerId,
   containerName,
@@ -69,11 +131,19 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const [started, setStarted] = useState(false);
   const [terminalReady, setTerminalReady] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
+  const [justCopied, setJustCopied] = useState(false);
+  const copiedTimerRef = useRef<number | null>(null);
 
   const copySelection = () => {
     const term = termInstanceRef.current;
     const selection = term?.getSelection();
-    if (term && selection) void copyTextToClipboard(selection);
+    if (term && selection) {
+      void copyTextToClipboard(selection).then(() => {
+        setJustCopied(true);
+        if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = window.setTimeout(() => setJustCopied(false), 1500);
+      });
+    }
   };
 
   const pasteClipboard = async () => {
@@ -90,11 +160,18 @@ const TerminalView: React.FC<TerminalViewProps> = ({
   const initTerminal = async (cmd: string, user: string) => {
     if (!terminalRef.current) return;
 
-    // xterm measures the cell size from the resolved font. If Iosevka has not
-    // loaded yet, the grid is sized for the fallback face and the output looks
-    // misaligned/non-monospaced until something else triggers a re-measure.
+    // xterm measures its cell size from the resolved font, so the face has to be
+    // loaded before the grid is created. `document.fonts.ready` is not enough on
+    // its own: it resolves as soon as there is nothing pending, and a @font-face
+    // nothing has requested yet is not pending — so the grid would be sized
+    // against the fallback and the columns would not line up. Ask for both faces
+    // by name first, which forces the load, then wait.
     try {
-      await document.fonts?.ready;
+      await Promise.all([
+        document.fonts.load("400 14px 'Iosevka Term'"),
+        document.fonts.load("600 14px 'Iosevka Term'"),
+      ]);
+      await document.fonts.ready;
     } catch {
       // Font Loading API unavailable — fall through to the default metrics.
     }
@@ -118,7 +195,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     // Terminal instance
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: "'Iosevka', 'JetBrains Mono', monospace",
+      fontFamily: "'Iosevka Term', 'JetBrains Mono', monospace",
       fontSize: 14,
       // Pin weights to the Iosevka faces we actually bundle (400/600).
       // Otherwise bold ANSI text — which color output enables via SGR 1 —
@@ -187,31 +264,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({
       term.writeln(`\r\n\x1b[31m[gisco]\x1b[0m Connection error. Is the container running?`);
     };
 
-    term.onKey(({ domEvent }) => {
-      if (!domEvent.ctrlKey) return false;
-
-      const shortcut = domEvent.key.toLowerCase();
-      const selection = term.getSelection();
-      // Ctrl+Shift+C is the requested convention, but Firefox reserves it for
-      // its Web Console. Ctrl+C copies whenever a selection exists and still
-      // sends an interrupt when the terminal has no selection.
-      if (shortcut === 'c' && (domEvent.shiftKey || selection)) {
-        if (selection) void copyTextToClipboard(selection);
-        domEvent.preventDefault();
-        return true;
-      }
-      if (shortcut === 'v' && domEvent.shiftKey) {
-        domEvent.preventDefault();
-        void readTextFromClipboard()
-          .then((text) => {
-            if (text) term.paste(text);
-          })
-          .catch(() => {
-            // Clipboard access may be denied by the browser; leave the session intact.
-          });
-        return true;
-      }
-      return false;
+    // Clipboard chords. See attachClipboardKeys for why this is a custom key
+    // handler rather than an onKey listener.
+    attachClipboardKeys(term, () => {
+      setJustCopied(true);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => setJustCopied(false), 1500);
     });
 
     term.onData((data) => {
@@ -235,6 +293,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({
     // Cleanup on unmount
     return () => {
       window.clearTimeout(timer);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.onerror = null;
@@ -370,11 +429,13 @@ const TerminalView: React.FC<TerminalViewProps> = ({
               <div style={{ display: 'flex', gap: 'var(--space-8)', flexShrink: 0 }}>
                 <button
                   className="btn btn-secondary btn-icon"
-                  title="Copy selection (Ctrl+C)"
+                  title={justCopied ? 'Copied' : 'Copy selection (Ctrl+C)'}
                   onClick={copySelection}
                   disabled={!hasSelection}
                 >
-                  <Copy size={14} />
+                  {justCopied
+                    ? <Check size={14} color="var(--status-running)" />
+                    : <Copy size={14} />}
                 </button>
                 <button
                   className="btn btn-secondary btn-icon"

@@ -12,14 +12,14 @@
     "test": "vitest run && npm run theme:tokens",
     "theme:tokens": "node scripts/check-theme-tokens.mjs",
     "theme:tokens:report": "node scripts/check-theme-tokens.mjs --report",
-    "theme:audit": "python3 scripts/audit-tokens.py"
+    "theme:audit": "python3 scripts/audit-tokens.py",
+    "font:build": "python3 scripts/subset-fonts.py"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/legacy-modes": "^6.5.4",
     "@codemirror/search": "^6.7.2",
-    "@fontsource/iosevka": "^5.3.0",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
