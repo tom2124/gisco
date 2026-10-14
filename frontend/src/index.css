@@ -143,8 +143,11 @@ code, pre, .font-mono {
 
 .logo-badge {
   background: linear-gradient(135deg, var(--primary), var(--accent-indigo));
-  width: 32px;
-  height: 32px;
+  /* Grown from 32px alongside .logo-text — at the old text size the badge was
+     the dominant element, and once the word grew it read as a small icon
+     bolted next to a wordmark rather than part of the same lockup. */
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -156,7 +159,9 @@ code, pre, .font-mono {
 }
 
 .logo-text {
-  font-size: 1.15rem;
+  /* The wordmark is the app's identity, not a label — at 1.15rem it read as
+     small print next to the nav items. Sized to sit level with the badge. */
+  font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   background: linear-gradient(to right, var(--text-bright), var(--text-muted));
