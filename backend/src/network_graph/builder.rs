@@ -323,7 +323,16 @@ impl NetworkGraphBuilder {
 
             // Stable ascending IP order: network_settings comes from a
             // HashMap, so interface order would otherwise vary per request.
-            interfaces.sort_by(|a, b| ip_sort_key(&a.ip_address).cmp(&ip_sort_key(&b.ip_address)));
+            // The IP key alone is not a total order: every address-less
+            // interface — host network mode, or an endpoint Docker reports with
+            // no address — produces the identical key, so those would keep
+            // their random HashMap order and shuffle between requests. Network
+            // name breaks the tie and makes the ordering total.
+            interfaces.sort_by(|a, b| {
+                ip_sort_key(&a.ip_address)
+                    .cmp(&ip_sort_key(&b.ip_address))
+                    .then_with(|| a.network_name.cmp(&b.network_name))
+            });
 
             container_nodes.push(ContainerNode {
                 id,

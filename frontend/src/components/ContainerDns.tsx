@@ -1,39 +1,17 @@
 import React, { useMemo } from 'react';
 import { ContainerNode } from '../types';
+import { buildDnsEntries, DnsEntry } from '../utils/dnsEntries';
 import Copyable from './Copyable';
-
-interface DnsEntry {
-  value: string;
-  context: string;
-}
 
 interface ContainerDnsProps {
   container: ContainerNode;
 }
 
 export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
-  const entries = useMemo<DnsEntry[]>(() => {
-    const seen = new Set<string>();
-    const out: DnsEntry[] = [];
-    const push = (value: string | undefined | null, context: string) => {
-      const v = (value || '').trim();
-      if (!v || seen.has(v.toLowerCase())) return;
-      seen.add(v.toLowerCase());
-      out.push({ value: v, context });
-    };
-
-    push(container.name, 'container name');
-    push(container.hostname, 'hostname');
-    if (container.hostname && container.domainname) {
-      push(`${container.hostname}.${container.domainname}`, 'fqdn');
-    }
-    for (const iface of container.interfaces) {
-      for (const alias of iface.aliases || []) {
-        push(alias, iface.network_name);
-      }
-    }
-    return out;
-  }, [container]);
+  // Entry building lives in utils/dnsEntries so it can be unit tested: vitest
+  // here only picks up src/**/*.test.ts, so a test against this component would
+  // be silently ignored rather than failing.
+  const entries = useMemo<DnsEntry[]>(() => buildDnsEntries(container), [container]);
 
   if (entries.length === 0) return null;
 
