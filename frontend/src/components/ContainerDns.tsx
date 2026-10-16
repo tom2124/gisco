@@ -25,7 +25,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-8)' }}>
         {entries.map((entry) => (
           <Copyable
-            key={`${entry.context}:${entry.value}`}
+            key={entry.value.toLowerCase()}
             text={entry.value}
             style={{
               background: 'var(--accent-wash-hover)',
@@ -39,7 +39,7 @@ export const ContainerDns: React.FC<ContainerDnsProps> = ({ container }) => {
           >
             {entry.value}
             <span style={{ color: 'var(--text-dim)', marginLeft: 'var(--space-8)', fontSize: '0.7rem' }}>
-              {entry.context}
+              {entry.contexts.join(', ')}
             </span>
           </Copyable>
         ))}
