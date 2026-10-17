@@ -5,9 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::compose::{
-    strip_description, template_description, valid_path_component, StacksManager,
-};
+use crate::compose::{description, strip_description, valid_path_component, StacksManager};
 use crate::templates::merge::{
     self, Composition, MergeConflict, OnConflict, Slot, SlotPlan, TemplateSource,
 };
@@ -264,7 +262,7 @@ fn template_summary_from_path(path: &Path) -> Option<TemplateSummary> {
     let stem = path.file_stem()?.to_string_lossy().to_string();
     let description = fs::read_to_string(path)
         .ok()
-        .and_then(|content| template_description(&content));
+        .and_then(|content| description(&content));
     Some(TemplateSummary {
         id: stem.clone(),
         name: stem,
@@ -360,6 +358,40 @@ mod tests {
             fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap(),
             "PORT=9090"
         );
+
+        let _ = fs::remove_dir_all(template_dir);
+        let _ = fs::remove_dir_all(stack_dir);
+    }
+
+    #[test]
+    fn test_template_x_desc_is_stripped_on_instantiation() {
+        // End to end for the supported form: the template advertises its blurb,
+        // the instantiated stack must not carry it, and everything else in the
+        // file survives untouched.
+        let template_dir = unique_dir("tplxdesc");
+        let stack_dir = unique_dir("tplxstacks");
+        let source = "x-desc: Reusable demo\n# a user comment\nservices:\n  app:\n    image: alpine\nx-custom:\n  foo: bar\n";
+        fs::write(template_dir.join("demo.yml"), source).unwrap();
+
+        let stacks = StacksManager::new(stack_dir.clone(), 1000, 1000);
+        let manager = TemplatesManager::new(template_dir.clone(), stacks);
+
+        // The template itself shows the description.
+        let summary = manager.list_templates().unwrap().remove(0);
+        assert_eq!(summary.description.as_deref(), Some("Reusable demo"));
+
+        manager
+            .instantiate_template("demo", "demo-1", None, None, None)
+            .unwrap();
+
+        let compose = fs::read_to_string(stack_dir.join("demo-1").join("compose.yml")).unwrap();
+        assert!(!compose.contains("x-desc"), "blurb leaked: {:?}", compose);
+        assert!(compose.contains("image: alpine"));
+        // The user's own comment and unrelated x- fields are left alone.
+        assert!(compose.contains("# a user comment"));
+        assert!(compose.contains("x-custom:"));
+        // And the result is still valid YAML.
+        assert!(serde_yaml::from_str::<serde_json::Value>(&compose).is_ok());
 
         let _ = fs::remove_dir_all(template_dir);
         let _ = fs::remove_dir_all(stack_dir);
