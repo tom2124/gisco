@@ -282,9 +282,19 @@ export const App: React.FC = () => {
           />
         )}
 
+        {/* `StackDetail` is keyed by stack name so switching stacks remounts it.
+            Without the key React reuses the instance and every per-stack piece
+            of state survives: the previous stack's action run (its
+            `isRunningAction` leaves all four action buttons disabled on a stack
+            where nothing is running), its `details` and compose text shown
+            under the new stack's name while the fetch is in flight — editable,
+            and saveable onto the wrong stack — plus its metrics map and dirty
+            flag. Remounting resets all of it at once; enumerating the fields to
+            reset by hand is the version that rots. */}
         {currentTab === 'stacks' &&
           (selectedStackName ? (
             <StackDetail
+              key={selectedStackName}
               stackName={selectedStackName}
               onBack={() => handleSelectTab('stacks')}
               onOpenTerminal={openTerminal}
@@ -375,7 +385,11 @@ export const App: React.FC = () => {
       {/* Live Container Logs Modal */}
       {logsTarget && (
         <Suspense fallback={<ModalLoading />}>
+          {/* Keyed for the same reason as StackDetail: LogsView reconnects on
+            containerId but never clears `logs`, so the previous container's
+            lines would carry over. */}
           <LogsView
+            key={logsTarget.id}
             containerId={logsTarget.id}
             containerName={logsTarget.name}
             onClose={() => setLogsTarget(null)}
