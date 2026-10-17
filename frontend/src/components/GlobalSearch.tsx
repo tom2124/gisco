@@ -20,6 +20,7 @@ import type {
   StackSummary,
   TemplateSummary,
 } from '../types';
+import { orderResults, rankContainer, rankStack } from '../utils/searchOrder';
 
 export type SearchKind = 'stack' | 'template' | 'container' | 'network';
 
@@ -39,6 +40,12 @@ export interface SearchResult {
   dot?: 'online' | 'warning' | 'error';
   /** Literal `#/...` the result navigates to. */
   href: string;
+  /**
+   * Running-before-stopped ordering, from the same rank tables the Stacks and
+   * Containers pages use. Absent for kinds with no runtime state (templates,
+   * networks) and for anything unrecognised, which sorts last.
+   */
+  stateRank?: number;
 }
 
 /** Map a compose stack status onto the shared status-dot variants. */
@@ -195,6 +202,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
         hint: `${stack.name} · ${stack.status} · ${services}`,
         dot: stackDot(stack.status),
         href: `#/stacks/${encodeURIComponent(stack.name)}`,
+        stateRank: rankStack(stack.status),
       });
     }
     for (const template of lists.templates) {
@@ -216,6 +224,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
         hint: `${name} · ${container.Image} · ${container.State}`,
         dot: containerDot(container.State),
         href: `#/containers?focus=${encodeURIComponent(container.Id)}`,
+        stateRank: rankContainer(container.State ?? ''),
       });
     }
     for (const network of lists.networks) {
@@ -232,17 +241,16 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ stacks, onNavigate }
     }
 
     const scored: Array<{ result: SearchResult; score: number }> = [];
+    const trimmed = query.trim();
     for (const result of all) {
-      const value = score(result, query.trim());
+      const value = score(result, trimmed);
       if (value !== null) scored.push({ result, score: value });
     }
-    scored.sort(
-      (a, b) =>
-        b.score - a.score ||
-        KIND_ORDER.indexOf(a.result.kind) - KIND_ORDER.indexOf(b.result.kind) ||
-        a.result.title.localeCompare(b.result.title)
-    );
-    return scored.slice(0, MAX_RESULTS).map((entry) => entry.result);
+    // Ordering lives in utils/searchOrder so it can be unit tested: vitest here
+    // only picks up src/**/*.test.ts, so a test against this component would be
+    // silently ignored. State-then-alphabetical when browsing, relevance when
+    // searching — see the module for why kind stays the outer order.
+    return orderResults(scored, KIND_ORDER, trimmed !== '').slice(0, MAX_RESULTS);
   }, [lists, query, stacks]);
 
   // Keep the highlight inside the list as it shrinks.
