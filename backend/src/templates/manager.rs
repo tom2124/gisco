@@ -5,7 +5,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::compose::{extract_description, strip_description, valid_path_component, StacksManager};
+use crate::compose::{
+    strip_description, template_description, valid_path_component, StacksManager,
+};
 use crate::templates::merge::{
     self, Composition, MergeConflict, OnConflict, Slot, SlotPlan, TemplateSource,
 };
@@ -262,7 +264,7 @@ fn template_summary_from_path(path: &Path) -> Option<TemplateSummary> {
     let stem = path.file_stem()?.to_string_lossy().to_string();
     let description = fs::read_to_string(path)
         .ok()
-        .and_then(|content| extract_description(&content));
+        .and_then(|content| template_description(&content));
     Some(TemplateSummary {
         id: stem.clone(),
         name: stem,

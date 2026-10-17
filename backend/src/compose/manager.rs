@@ -187,7 +187,7 @@ impl StacksManager {
                         has_env,
                         updated_at,
                         external: false,
-                        description: extract_description(&compose_content),
+                        description: stack_description(&compose_content),
                     });
                 }
             }
@@ -298,7 +298,7 @@ impl StacksManager {
 
         let total = containers_info.len();
         let status = stack_status(total, running_count);
-        let description = extract_description(&compose_content);
+        let description = stack_description(&compose_content);
 
         Ok(StackDetails {
             name: name.to_string(),
@@ -628,8 +628,42 @@ pub fn valid_stack_name(name: &str) -> bool {
     re.is_match(name)
 }
 
+/// Top-level extension fields carrying a description.
+///
+/// Compose ignores every top-level `x-` field by design — the one place it
+/// tolerates unrecognised keys (compose-spec, "Extension"). That makes these
+/// safe to add to any compose file: no warning, no validation error, and they
+/// survive `docker compose config` untouched.
+pub const STACK_DESC_KEY: &str = "x-stack-desc";
+pub const TEMPLATE_DESC_KEY: &str = "x-template-desc";
+
+/// Read a top-level `x-…desc` extension field from compose text.
+///
+/// Parsed as YAML rather than pattern-matched on lines. A line scan would also
+/// match an `x-stack-desc` nested under a service, or one inside a comment. A
+/// document that does not parse at all — custom tags such as `!reset`, which
+/// serde_yaml rejects — yields None rather than an error: a description is
+/// optional metadata and must never stop a stack from being read.
+///
+/// Only a string value counts. A number or mapping under the key is treated as
+/// absent, so a stray `x-stack-desc: 3.10` falls through to the deprecated
+/// comment instead of printing "3.1".
+fn extension_description(content: &str, key: &str) -> Option<String> {
+    let doc: serde_json::Value = serde_yaml::from_str(content).ok()?;
+    let text = doc.get(key)?.as_str()?.trim();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
 /// Extract a `# desc: ...` top-level comment (column 0) from compose text.
-/// Only the first match counts; empty descriptions yield None.
+///
+/// **Deprecated.** Superseded by `x-stack-desc` / `x-template-desc`, which take
+/// precedence when present. Retained so compose files already in the wild keep
+/// their description; only the first match counts, and empty descriptions yield
+/// None.
 pub fn extract_description(content: &str) -> Option<String> {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| regex::Regex::new(r"^#[ \t]*desc[ \t]*:(.*)$").unwrap());
@@ -648,17 +682,73 @@ pub fn extract_description(content: &str) -> Option<String> {
     })
 }
 
-/// Remove all top-level `# desc: ...` lines (used when instantiating a
-/// template so the deployed compose file doesn't carry the blurb).
+/// A stack's description: `x-stack-desc` wins, `# desc:` is the deprecated
+/// fallback.
+pub fn stack_description(content: &str) -> Option<String> {
+    extension_description(content, STACK_DESC_KEY).or_else(|| extract_description(content))
+}
+
+/// A template's description: `x-template-desc` wins, `# desc:` is the deprecated
+/// fallback.
+pub fn template_description(content: &str) -> Option<String> {
+    extension_description(content, TEMPLATE_DESC_KEY).or_else(|| extract_description(content))
+}
+
+/// Drop a top-level `key:` line, and the indented body if it opens a block
+/// scalar (`|` or `>`). Without the body handling, stripping `x-template-desc: >`
+/// would leave its continuation lines behind and corrupt the file.
+fn strip_extension_key(content: &str, key: &str) -> String {
+    let mut out: Vec<&str> = Vec::new();
+    let mut lines = content.lines().peekable();
+    while let Some(line) = lines.next() {
+        // A top-level key starts at column 0, so a match here cannot be inside a
+        // block scalar or a service body — those are indented.
+        let matched = line
+            .strip_prefix(key)
+            .and_then(|tail| tail.trim_start_matches([' ', '\t']).strip_prefix(':'));
+        match matched {
+            Some(value) => {
+                let value = value.trim_start_matches([' ', '\t']);
+                if value.starts_with('|') || value.starts_with('>') {
+                    while let Some(next) = lines.peek() {
+                        if next.trim().is_empty() || next.starts_with([' ', '\t']) {
+                            lines.next();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            // `x-stack-desc-something:` shares a prefix but is not our key.
+            None => out.push(line),
+        }
+    }
+    let mut joined = out.join("\n");
+    if content.ends_with('\n') {
+        joined.push('\n');
+    }
+    joined
+}
+
+/// Remove description metadata — the deprecated top-level `# desc:` comments and
+/// the `x-` extension fields — used when instantiating a template so the
+/// deployed compose file doesn't carry the blurb.
+///
+/// Line-based on purpose. Re-serialising the parsed YAML would rewrite the
+/// user's entire file and discard every comment, which is the one thing a tool
+/// editing someone's compose file must not do.
 pub fn strip_description(content: &str) -> String {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| regex::Regex::new(r"^#[ \t]*desc[ \t]*:.*$").unwrap());
-    let kept: Vec<&str> = content
+    let without_comments = content
         .lines()
         .filter(|line| !(line.starts_with('#') && re.is_match(line)))
-        .collect();
-    let mut out = kept.join("\n");
-    if content.ends_with('\n') {
+        .collect::<Vec<_>>()
+        .join("\n");
+    let staged = strip_extension_key(&without_comments, STACK_DESC_KEY);
+    let mut out = strip_extension_key(&staged, TEMPLATE_DESC_KEY);
+    // The intermediate joins drop a trailing newline; restore the original one.
+    if content.ends_with('\n') && !out.ends_with('\n') {
         out.push('\n');
     }
     out
@@ -858,6 +948,110 @@ mod tests {
             strip_description("# desc: one\nservices: {}\n# desc: two"),
             "services: {}"
         );
+    }
+
+    #[test]
+    fn test_stack_description_prefers_extension_field() {
+        // The supported form.
+        assert_eq!(
+            stack_description("x-stack-desc: A neat stack\nservices: {}\n"),
+            Some("A neat stack".to_string())
+        );
+        // Quoted, and with interior colons preserved.
+        assert_eq!(
+            stack_description("x-stack-desc: \"Web: the front end\"\nservices: {}\n"),
+            Some("Web: the front end".to_string())
+        );
+        // Block scalar.
+        assert_eq!(
+            stack_description("x-stack-desc: >\n  spans two\n  lines\nservices: {}\n"),
+            Some("spans two lines".to_string())
+        );
+        // x- wins when the deprecated comment is also present.
+        assert_eq!(
+            stack_description("# desc: old\nx-stack-desc: new\nservices: {}\n"),
+            Some("new".to_string())
+        );
+        // Deprecated comment still works on its own.
+        assert_eq!(
+            stack_description("# desc: old\nservices: {}\n"),
+            Some("old".to_string())
+        );
+        // Only the matching key counts — a template field is not a stack's.
+        assert_eq!(
+            stack_description("x-template-desc: tpl\nservices: {}\n"),
+            None
+        );
+        // A nested x-stack-desc is not top level and must be ignored.
+        assert_eq!(
+            stack_description("services:\n  web:\n    x-stack-desc: sneaky\n"),
+            None
+        );
+        // A commented-out key is a comment, not a field.
+        assert_eq!(stack_description("# x-stack-desc: commented out\n"), None);
+        // Non-string and empty values fall back rather than printing junk.
+        assert_eq!(
+            stack_description("# desc: kept\nx-stack-desc: 3.10\nservices: {}\n"),
+            Some("kept".to_string())
+        );
+        assert_eq!(
+            stack_description("# desc: kept\nx-stack-desc:\nservices: {}\n"),
+            Some("kept".to_string())
+        );
+        // Unparseable YAML must not error — this is optional metadata.
+        assert_eq!(
+            stack_description("x-stack-desc: bad\nservices:\n  a: !reset null\n"),
+            None
+        );
+        assert_eq!(stack_description("services: {}\n"), None);
+    }
+
+    #[test]
+    fn test_template_description_prefers_extension_field() {
+        assert_eq!(
+            template_description("x-template-desc: Reusable demo\nservices: {}\n"),
+            Some("Reusable demo".to_string())
+        );
+        assert_eq!(
+            template_description("# desc: old\nx-template-desc: new\n"),
+            Some("new".to_string())
+        );
+        assert_eq!(
+            template_description("# desc: old\n"),
+            Some("old".to_string())
+        );
+        assert_eq!(template_description("x-stack-desc: s\n"), None);
+    }
+
+    #[test]
+    fn test_strip_description_removes_extension_fields() {
+        assert_eq!(
+            strip_description("x-stack-desc: Blurb\nservices:\n  a:\n    image: x\n"),
+            "services:\n  a:\n    image: x\n"
+        );
+        assert_eq!(
+            strip_description("x-template-desc: Blurb\nservices: {}\n"),
+            "services: {}\n"
+        );
+        // Both keys, and the deprecated comment, go together.
+        assert_eq!(
+            strip_description("# desc: old\nx-stack-desc: a\nx-template-desc: b\nservices: {}\n"),
+            "services: {}\n"
+        );
+        // A block scalar's body must go with its key, or the file is corrupted.
+        assert_eq!(
+            strip_description("x-template-desc: >\n  line one\n  line two\nservices: {}\n"),
+            "services: {}\n"
+        );
+        // A key sharing our prefix is not our key.
+        let prefixed = "x-stack-desc-extra: keep\nservices: {}\n";
+        assert_eq!(strip_description(prefixed), prefixed);
+        // Nested keys are not top level and are left alone.
+        let nested = "services:\n  a:\n    x-stack-desc: keep\n    image: x\n";
+        assert_eq!(strip_description(nested), nested);
+        // Stripping must not disturb other comments or formatting.
+        let preserved = "# a normal comment\nservices: {}\n\n# trailing note\n";
+        assert_eq!(strip_description(preserved), preserved);
     }
 
     #[test]
