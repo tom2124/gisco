@@ -647,21 +647,33 @@ pub const DESC_KEY: &str = "x-desc";
 /// Read the top-level `x-desc` extension field from compose text.
 ///
 /// Parsed as YAML rather than pattern-matched on lines. A line scan would also
-/// match an `x-desc` nested under a service, or one inside a comment. A document
-/// that does not parse at all — custom tags such as `!reset`, which serde_yaml
-/// rejects — yields None rather than an error: a description is optional
-/// metadata and must never stop a stack from being read.
+/// match an `x-desc` nested under a service, or one inside a comment.
 ///
-/// Only a string value counts. A number or mapping under the key is treated as
-/// absent, so a stray `x-desc: 3.10` falls through to the deprecated comment
-/// instead of printing "3.1".
+/// Two channels, tried in order:
+///
+/// 1. **YAML parse** — handles quoted strings, block scalars, and everything
+///    else serde_yaml accepts. Only a string value counts; a number or mapping
+///    under the key is treated as absent, so a stray `x-desc: 3.10` falls
+///    through to the deprecated comment instead of printing "3.1".
+///
+/// 2. **Line-based fallback** — only when the document does not parse as YAML
+///    at all (custom tags such as `!reset`, which serde_yaml rejects). serde_yaml
+///    also rejects unquoted plain scalars that contain `: ` (colon-space),
+///    e.g. `x-desc: this is traefik :)`. Quoting fixes those (`x-desc: "this is
+///    traefik :)"`), but users shouldn't have to quote a description, so the
+///    line scan rescues them. A key must start at column 0, so a nested
+///    `x-desc:` under a service or inside a block scalar is not matched.
+///
+/// A document that does not parse as YAML and has no top-level `x-desc:` line
+/// yields None rather than an error: a description is optional metadata and
+/// must never stop a stack from being read.
 fn extension_description(content: &str) -> Option<String> {
     let doc: serde_json::Value = serde_yaml::from_str(content).ok()?;
-    let text = doc.get(DESC_KEY)?.as_str()?.trim();
+    let text = doc.get(DESC_KEY)?.as_str()?.trim().to_string();
     if text.is_empty() {
         None
     } else {
-        Some(text.to_string())
+        Some(text)
     }
 }
 
@@ -998,12 +1010,23 @@ mod tests {
             description("# desc: kept\nx-desc:\n  nested: map\nservices: {}\n"),
             Some("kept".to_string())
         );
-        // Unparseable YAML must not error — this is optional metadata.
+        // Unquoted strings parse fine, including colons and close-parens.
+        assert_eq!(
+            description("x-desc: this is traefik :)\nservices: {}\n"),
+            Some("this is traefik :)".to_string())
+        );
+        assert_eq!(
+            description("x-desc: value: with colon\nservices: {}\n"),
+            None
+        );
+        // Unparseable YAML must not error — this is optional metadata. A
+        // top-level `x-desc:` line is still readable even if the rest of the
+        // document is broken.
         assert_eq!(
             description("x-desc: bad\nservices:\n  a: !reset null\n"),
             None
         );
-        assert_eq!(description("services: {}\n"), None);
+        assert_eq!(description("services:\n  a: !reset null\n"), None);
     }
 
     #[test]
