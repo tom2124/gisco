@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useState, useRef } from 're
 import {
   ArrowLeft,
   Play,
+  Hammer,
   Square,
   RotateCw,
   Download,
@@ -484,6 +485,17 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               <span>Up</span>
             </button>
           )}
+            {!details?.external && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleActionStream('up-build')}
+                disabled={isRunningAction}
+                title="Rebuild images, then deploy (docker compose up -d --build)"
+              >
+                <Hammer size={15} />
+                <span>Up (build)</span>
+              </button>
+            )}
           <button
             className="btn btn-secondary"
             onClick={() => handleActionStream('restart')}

@@ -18,6 +18,10 @@ pub fn project_action_allowed(action: &str) -> bool {
 fn action_args(action: &str) -> Result<Vec<&'static str>> {
     match action {
         "up" => Ok(vec!["up", "-d", "--remove-orphans"]),
+        // Rebuild the service images before starting them. Kept separate from
+        // plain `up` because it rebuilds every image that has a build section,
+        // which is slow and changes images under the user's feet.
+        "up-build" => Ok(vec!["up", "-d", "--build", "--remove-orphans"]),
         "down" => Ok(vec!["down"]),
         "restart" => Ok(vec!["restart"]),
         "pull" => Ok(vec!["pull"]),
@@ -210,6 +214,27 @@ mod tests {
     fn test_action_args_rejects_unknown() {
         assert!(action_args("up").is_ok());
         assert!(action_args("bogus").is_err());
+    }
+
+    #[test]
+    fn test_action_args_for_up_and_up_build() {
+        assert_eq!(
+            action_args("up").unwrap(),
+            vec!["up", "-d", "--remove-orphans"]
+        );
+        // `--build` rebuilds the images before starting them.
+        assert_eq!(
+            action_args("up-build").unwrap(),
+            vec!["up", "-d", "--build", "--remove-orphans"]
+        );
+    }
+
+    #[test]
+    fn test_up_build_needs_a_compose_file() {
+        // External stacks have no compose file, so neither `up` nor `up-build`
+        // can be run against them.
+        assert!(!project_action_allowed("up"));
+        assert!(!project_action_allowed("up-build"));
     }
 
     #[test]
