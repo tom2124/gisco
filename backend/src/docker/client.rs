@@ -13,6 +13,7 @@ use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -40,6 +41,30 @@ pub struct VolumeUsageSnapshot {
     pub values: HashMap<String, VolumeUsageData>,
     /// A refresh is in flight; `values` may be empty or stale.
     pub pending: bool,
+}
+
+/// Translate a path in this container's filesystem to the path the Docker
+/// daemon uses for the same file, using the container's own mount table.
+///
+/// Returns `None` when the path is not inside any mount, which is the normal
+/// case for a natively-run gisco: the two views agree and no translation is
+/// wanted.
+pub fn map_path_through_mounts(path: &Path, mounts: &[(String, String)]) -> Option<PathBuf> {
+    // Longest destination first, so a nested mount wins over its parent.
+    let mut ordered: Vec<&(String, String)> = mounts.iter().collect();
+    ordered
+        .sort_by_key(|(source, destination)| (std::cmp::Reverse(destination.len()), source.len()));
+    for (source, destination) in ordered {
+        let destination = Path::new(destination);
+        let Ok(remainder) = path.strip_prefix(destination) else {
+            continue;
+        };
+        if remainder.as_os_str().is_empty() {
+            return Some(PathBuf::from(source));
+        }
+        return Some(Path::new(source).join(remainder));
+    }
+    None
 }
 
 #[derive(Clone)]
@@ -117,6 +142,52 @@ impl DockerService {
             .inspect_container(id, None::<InspectContainerOptions>)
             .await?;
         Ok(resp)
+    }
+
+    /// The id of the container this process is running in, if it is one.
+    ///
+    /// Docker sets a container's hostname to the first 12 characters of its id,
+    /// and that is the only identifier available from inside on cgroup v2 (where
+    /// `/proc/self/cgroup` carries no id at all). It is a heuristic — a user can
+    /// override the hostname — so the result is only trusted if the daemon
+    /// recognises it.
+    fn self_container_id() -> Option<String> {
+        let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname").ok()?;
+        let id = hostname.trim();
+        if id.len() == 12 && id.chars().all(|c| c.is_ascii_hexdigit()) {
+            Some(id.to_string())
+        } else {
+            None
+        }
+    }
+
+    /// Map a path in this process's filesystem to the path the Docker daemon
+    /// sees for the same file.
+    ///
+    /// When gisco runs in a container, the Compose CLI resolves a relative path
+    /// in a compose file against the *container's* view of the directory, but
+    /// the daemon resolves the resulting bind mount against the *host's*. A
+    /// relative bind mount therefore names a path the daemon has never heard
+    /// of, and the daemon responds by creating it as a **directory**. The
+    /// container then gets a directory where the application expected a file,
+    /// and the failure surfaces as "not a directory" from inside the container
+    /// — with the real file sitting untouched next to the compose file.
+    ///
+    /// The mapping comes from this container's own mount table, which the daemon
+    /// knows exactly. Returns `None` when gisco is not containerised, when the
+    /// daemon does not recognise this container, or when the path is not inside
+    /// any of its mounts — in all of which case the two views agree and no
+    /// translation is needed.
+    pub async fn host_path_for(&self, path: &Path) -> Option<PathBuf> {
+        let id = Self::self_container_id()?;
+        let inspected = self.inspect_container(&id).await.ok()?;
+        let mounts: Vec<(String, String)> = inspected
+            .mounts
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|m| Some((m.source?, m.destination?)))
+            .collect();
+        map_path_through_mounts(path, &mounts)
     }
 
     pub async fn start_container(&self, id: &str) -> Result<()> {
@@ -444,6 +515,93 @@ mod usage_tests {
             snap.values.get("v1").map(|v| v.size),
             Some(42),
             "stale sizes are served rather than blanked"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_a_path_through_the_container_mount_table() {
+        // The shape the README's deployment produces: the host's stacks
+        // directory mounted at /stacks inside the container.
+        let mounts = vec![
+            (
+                "/var/run/docker.sock".to_string(),
+                "/var/run/docker.sock".to_string(),
+            ),
+            (
+                "/home/user/project/stacks".to_string(),
+                "/stacks".to_string(),
+            ),
+        ];
+        assert_eq!(
+            map_path_through_mounts(Path::new("/stacks/mystack/config.ini"), &mounts),
+            Some(PathBuf::from(
+                "/home/user/project/stacks/mystack/config.ini"
+            ))
+        );
+        assert_eq!(
+            map_path_through_mounts(Path::new("/stacks/mystack"), &mounts),
+            Some(PathBuf::from("/home/user/project/stacks/mystack"))
+        );
+    }
+
+    #[test]
+    fn a_path_outside_every_mount_is_left_alone() {
+        let mounts = vec![(
+            "/home/user/project/stacks".to_string(),
+            "/stacks".to_string(),
+        )];
+        // A natively-run gisco: the daemon sees the same filesystem, so no
+        // translation is wanted and none is offered.
+        assert_eq!(
+            map_path_through_mounts(Path::new("/home/user/project/stacks/x"), &mounts),
+            None
+        );
+        assert_eq!(
+            map_path_through_mounts(Path::new("/etc/passwd"), &mounts),
+            None
+        );
+    }
+
+    #[test]
+    fn a_nested_mount_wins_over_its_parent() {
+        let mounts = vec![
+            ("/host/stacks".to_string(), "/stacks".to_string()),
+            (
+                "/host/stacks/secret".to_string(),
+                "/stacks/secret".to_string(),
+            ),
+        ];
+        assert_eq!(
+            map_path_through_mounts(Path::new("/stacks/secret/x"), &mounts),
+            Some(PathBuf::from("/host/stacks/secret/x"))
+        );
+        assert_eq!(
+            map_path_through_mounts(Path::new("/stacks/other/x"), &mounts),
+            Some(PathBuf::from("/host/stacks/other/x"))
+        );
+    }
+
+    #[test]
+    fn a_mount_of_a_single_file_maps_to_that_file() {
+        let mounts = vec![("/host/config.ini".to_string(), "/etc/gisco.ini".to_string())];
+        assert_eq!(
+            map_path_through_mounts(Path::new("/etc/gisco.ini"), &mounts),
+            Some(PathBuf::from("/host/config.ini"))
+        );
+    }
+
+    #[test]
+    fn a_sibling_path_is_not_mapped() {
+        // "/stacks-other" must not match the "/stacks" mount.
+        let mounts = vec![("/host/stacks".to_string(), "/stacks".to_string())];
+        assert_eq!(
+            map_path_through_mounts(Path::new("/stacks-other/x"), &mounts),
+            None
         );
     }
 }

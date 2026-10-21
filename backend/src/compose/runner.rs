@@ -27,9 +27,54 @@ fn action_args(action: &str) -> Result<Vec<&'static str>> {
     }
 }
 
+/// Build the `docker compose` argument list.
+///
+/// When the daemon's view of the project directory differs from this process's
+/// view — which is the case whenever gisco runs in a container — the project
+/// directory is pointed at the daemon's path so that relative paths in the
+/// compose file resolve to something the daemon can actually see. Without it,
+/// the daemon is handed a container-only path, creates it as a directory, and
+/// the container ends up with a directory where a file was expected.
+///
+/// The `.env` file is passed explicitly, because moving the project directory
+/// would otherwise leave Compose looking for it in a directory this process
+/// cannot read.
+fn compose_args(
+    stack_dir: &Path,
+    project_dir: &Path,
+    compose_file: &str,
+    action_args: &[&str],
+) -> Vec<String> {
+    let mut args: Vec<String> = vec!["compose".to_string()];
+    if project_dir != stack_dir {
+        args.push("--project-directory".to_string());
+        args.push(project_dir.to_string_lossy().to_string());
+        let env_file = stack_dir.join(".env");
+        if env_file.exists() {
+            args.push("--env-file".to_string());
+            args.push(env_file.to_string_lossy().to_string());
+        }
+    }
+    args.push("-f".to_string());
+    args.push(compose_file.to_string());
+    args.extend(action_args.iter().map(|a| a.to_string()));
+    args
+}
+
 impl ComposeRunner {
+    /// Run a compose action, resolving relative paths against `project_dir`.
+    ///
+    /// `project_dir` is the directory the *Docker daemon* sees for this stack,
+    /// which differs from `stack_dir` when gisco runs in a container: the
+    /// Compose CLI resolves relative paths in the compose file against its own
+    /// filesystem, but the daemon resolves the bind mounts it is handed. Pointing
+    /// Compose at the daemon's view of the directory makes the two agree.
+    ///
+    /// `stack_dir` is still the working directory, so the project name and the
+    /// `.env` lookup are unchanged.
     pub async fn run_compose(
         stack_dir: &Path,
+        project_dir: &Path,
         compose_file: &str,
         action: &str,
         tx: Option<mpsc::Sender<String>>,
@@ -37,12 +82,12 @@ impl ComposeRunner {
         let args = action_args(action)?;
 
         info!(
-            "Running docker compose in {:?} with file '{}' action '{}'",
-            stack_dir, compose_file, action
+            "Running docker compose in {:?} (project dir {:?}) with file '{}' action '{}'",
+            stack_dir, project_dir, compose_file, action
         );
 
-        let mut full_args: Vec<&str> = vec!["compose", "-f", compose_file];
-        full_args.extend(args);
+        let owned = compose_args(stack_dir, project_dir, compose_file, &args);
+        let full_args: Vec<&str> = owned.iter().map(|s| s.as_str()).collect();
         Self::execute(stack_dir, &full_args, action, tx).await
     }
 
@@ -165,5 +210,63 @@ mod tests {
     fn test_action_args_rejects_unknown() {
         assert!(action_args("up").is_ok());
         assert!(action_args("bogus").is_err());
+    }
+
+    #[test]
+    fn test_compose_args_are_plain_when_the_views_agree() {
+        let args = compose_args(
+            Path::new("/data/stacks/demo"),
+            Path::new("/data/stacks/demo"),
+            "compose.yml",
+            &["up", "-d"],
+        );
+        assert_eq!(args, vec!["compose", "-f", "compose.yml", "up", "-d"]);
+    }
+
+    #[test]
+    fn test_compose_args_point_at_the_daemons_view_when_it_differs() {
+        let args = compose_args(
+            Path::new("/stacks/demo"),
+            Path::new("/home/user/stacks/demo"),
+            "compose.yml",
+            &["up", "-d"],
+        );
+        assert_eq!(
+            args,
+            vec![
+                "compose",
+                "--project-directory",
+                "/home/user/stacks/demo",
+                "-f",
+                "compose.yml",
+                "up",
+                "-d",
+            ]
+        );
+    }
+
+    #[test]
+    fn test_compose_args_pass_the_env_file_explicitly() {
+        let dir = std::env::temp_dir().join(format!(
+            "gisco_envfile_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(".env"), "A=1\n").unwrap();
+
+        let args = compose_args(
+            &dir,
+            Path::new("/home/user/stacks/demo"),
+            "compose.yml",
+            &["up"],
+        );
+        assert_eq!(args[1], "--project-directory");
+        assert_eq!(args[3], "--env-file");
+        assert!(args[4].ends_with(".env"));
+
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

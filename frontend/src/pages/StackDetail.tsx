@@ -10,7 +10,12 @@ import {
   FileText,
   Box,
 } from 'lucide-react';
-import { StackDetails, StackContainerInfo, ContainerMetrics } from '../types';
+import {
+  BindMountWarning,
+  StackDetails,
+  StackContainerInfo,
+  ContainerMetrics,
+} from '../types';
 import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import { ContainerTable } from '../components/ContainerTable';
@@ -80,6 +85,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Bind mounts that will not resolve, as reported by the last save.
+  const [bindWarnings, setBindWarnings] = useState<BindMountWarning[]>([]);
   const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
   const [isEditorResizing, setIsEditorResizing] = useState(false);
   const [editorMaxHeight, setEditorMaxHeight] = useState(360);
@@ -177,11 +184,37 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     return () => clearInterval(interval);
   }, [details]);
 
+  // Check bind mounts against the stack directory as the user types, so
+  // the warning appears while the file is still being written rather than
+  // only after a save - or, worse, only as a failure from inside the
+  // container.
+  useEffect(() => {
+    if (!composeText.trim()) {
+      setBindWarnings([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      api
+        .checkBindMounts(stackName, composeText)
+        .then((res) => {
+          if (!cancelled) setBindWarnings(res.warnings ?? []);
+        })
+        .catch(() => {
+          // A failed check must not disturb the editor.
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [composeText, stackName]);
+
   const handleSave = async () => {
     if (saving) return;
     try {
       setSaving(true);
-      await api.updateStack(stackName, {
+      const saved = await api.updateStack(stackName, {
         compose_content: composeText,
         env_content: envText,
       });
@@ -189,7 +222,16 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       setLastSavedCompose(composeText);
       setLastSavedEnv(envText);
       setLastSavedAt(savedAt);
-      showToast('Stack saved successfully.', 'success');
+      const warnings = saved.warnings ?? [];
+      setBindWarnings(warnings);
+      if (warnings.length > 0) {
+        showToast(
+          `Saved with ${warnings.length} bind mount ${warnings.length === 1 ? "issue" : "issues"} \u2014 see the bind mount warning below.`,
+          'warning'
+        );
+      } else {
+        showToast('Stack saved successfully.', 'success');
+      }
       await fetchDetails(false, savedAt);
     } catch (err: unknown) {
       showToast(`Save failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
@@ -556,6 +598,18 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-12)', marginBottom: 'var(--space-8)', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
               <span>{details?.compose_file || 'compose.yml'}</span>
               <span>{countLines(composeText)} lines · Compose specification</span>
+                  <span
+                    className={`file-check ${bindWarnings.length > 0 ? 'warning' : ''}`}
+                    title={
+                      bindWarnings.length > 0
+                        ? bindWarnings.map((w) => w.message).join('\n\n')
+                        : 'Checks that relative bind mount sources exist in the stack directory'
+                    }
+                  >
+                    {bindWarnings.length > 0
+                      ? `Bind mount: ${bindWarnings.map((w) => w.source).join(', ')} not found`
+                      : 'Bind mount sources resolved'}
+                  </span>
             </div>
             <CodeEditor
               value={composeText}

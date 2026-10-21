@@ -35,6 +35,24 @@ export interface StackContainerInfo {
   host_ports?: HostPortNode[];
 }
 
+/**
+ * A relative bind-mount source that will not resolve the way it reads.
+ *
+ * Docker creates a missing mount source as a *directory*, so a bind mount of a
+ * file that is not in the stack directory silently becomes a directory mount and
+ * the container gets a directory where the application expects a file.
+ */
+export interface BindMountWarning {
+  /** The source exactly as written, e.g. "./config.ini". */
+  source: string;
+  /** Where it resolves on the host, e.g. "/data/stacks/demo/config.ini". */
+  resolved: string;
+  /** The path exists but is a directory - the state a failed attempt leaves. */
+  is_directory: boolean;
+  /** A full explanation of the problem and how to fix it. */
+  message: string;
+}
+
 export interface StackDetails {
   name: string;
   path: string;

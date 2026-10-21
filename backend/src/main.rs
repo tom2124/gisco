@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
 
     info!("=== Starting gisco (Docker & Compose Manager) ===");
 
-    let config = Config::from_env();
+    let mut config = Config::from_env();
     if let Err(e) = config.ensure_directories() {
         error!("Failed to ensure stack/template directories: {:?}", e);
         return Err(e.into());

@@ -385,6 +385,16 @@ impl StacksManager {
         Ok(())
     }
 
+    /// Bind-mount warnings for a compose file that is about to be saved.
+    /// `project_dir` is the directory the Docker daemon sees for the stack.
+    pub fn bind_mount_warnings(
+        &self,
+        compose_content: &str,
+        project_dir: &Path,
+    ) -> Vec<BindMountWarning> {
+        check_bind_mounts(compose_content, project_dir)
+    }
+
     pub fn stack_exists(&self, name: &str) -> Result<bool> {
         if !valid_path_component(name) {
             anyhow::bail!("Invalid stack name '{}'", name);
@@ -775,6 +785,199 @@ pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// A one-line explanation of a bind-mount warning, for the action stream and
+/// the API.
+pub fn describe_bind_warning(w: &BindMountWarning) -> String {
+    if w.is_directory {
+        format!(
+            "bind mount '{}' resolves to {}, which is a directory. Docker creates a \
+             missing mount source as a directory, so a file bind mount silently \
+             becomes a directory mount and the container reports 'not a \
+             directory'. Remove that directory and put the file there, or mount \
+             an absolute path.",
+            w.source, w.resolved
+        )
+    } else {
+        format!(
+            "bind mount '{}' resolves to {}, which does not exist. Docker creates \
+             a missing mount source as a directory, so a file bind mount silently \
+             becomes a directory mount and the container reports 'not a \
+             directory'. Put the file in the stack directory, or mount an \
+             absolute path.",
+            w.source, w.resolved
+        )
+    }
+}
+
+/// A relative bind-mount source that will not resolve the way it reads.
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct BindMountWarning {
+    /// The source exactly as written, e.g. `./config.ini`.
+    pub source: String,
+    /// Where it resolves on the host, e.g. `/data/stacks/demo/config.ini`.
+    pub resolved: String,
+    /// The path exists but is a directory. This is the state a failed attempt
+    /// leaves behind, because Docker creates a missing mount source as a
+    /// directory — owned by root, so the user cannot simply overwrite it.
+    pub is_directory: bool,
+    /// A full explanation, so the UI does not have to restate it.
+    pub message: String,
+}
+
+/// Does this path look like it names a file rather than a directory?
+///
+/// Only used to decide whether a missing source is worth complaining about: a
+/// missing *directory* mount source is fine, because Docker creates it as a
+/// directory and the mount works. A missing *file* source is not, because Docker
+/// creates it as a directory too and the container then gets a directory where
+/// the application expects a file — which surfaces as "not a directory".
+fn looks_like_file(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    // A dot in the final segment, and not a leading dot ("./config" is a
+    // directory, ".env" is a file, but a bare "." is a directory).
+    match name.rfind('.') {
+        Some(0) | None => false,
+        Some(_) => true,
+    }
+}
+
+/// Extract the host source of a volume spec, if it names one.
+fn volume_source(vol: &serde_yaml::Value) -> Option<String> {
+    match vol {
+        // Long syntax: { type: bind, source: ..., target: ... }
+        serde_yaml::Value::Mapping(m) => {
+            let is_bind = m
+                .get(serde_yaml::Value::String("type".into()))
+                .and_then(|v| v.as_str())
+                == Some("bind");
+            if !is_bind {
+                return None;
+            }
+            m.get(serde_yaml::Value::String("source".into()))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        }
+        // Short syntax: "source:target[:mode]". A spec with no source is an
+        // anonymous volume and names no host path.
+        serde_yaml::Value::String(spec) => {
+            let mut parts = spec.split(':');
+            let source = parts.next().unwrap_or("");
+            if source.is_empty() {
+                None
+            } else {
+                Some(source.to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The target of a volume spec, used only to guess whether the author meant a
+/// file.
+fn volume_target(vol: &serde_yaml::Value) -> Option<String> {
+    match vol {
+        serde_yaml::Value::Mapping(m) => m
+            .get(serde_yaml::Value::String("target".into()))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        serde_yaml::Value::String(spec) => spec.split(':').nth(1).map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+/// Check the bind mounts in a compose file against the stack directory.
+///
+/// A relative bind mount resolves against the *project directory* — the
+/// directory holding the compose file, which for gisco is the stack directory.
+/// gisco only ever writes `compose.yml` and `.env` there, so a file the author
+/// expected to be alongside their compose file is simply absent, and Docker
+/// responds by creating the missing source as a **directory**. The container
+/// then gets a directory where the application expects a file, and the failure
+/// surfaces as "not a directory" — long after the stack is saved, and only
+/// inside the container.
+///
+/// Reporting this at save time turns a confusing runtime error into something
+/// actionable. A document that does not parse yields no warnings rather than
+/// an error: this is advice, not validation.
+pub fn check_bind_mounts(compose_content: &str, stack_dir: &Path) -> Vec<BindMountWarning> {
+    let doc: serde_yaml::Value = match serde_yaml::from_str(compose_content) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    let services = match doc.get("services").and_then(|s| s.as_mapping()) {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
+
+    let mut warnings: Vec<BindMountWarning> = Vec::new();
+    for (_name, svc) in services {
+        let volumes = match svc.get("volumes").and_then(|v| v.as_sequence()) {
+            Some(v) => v,
+            None => continue,
+        };
+        for vol in volumes {
+            let source = match volume_source(vol) {
+                Some(s) => s,
+                None => continue,
+            };
+            // Only relative sources are checked. An absolute path may legitimately
+            // not exist from the daemon's point of view — Docker Desktop shares
+            // only part of the host filesystem — so warning about it would be
+            // a false positive.
+            if !source.starts_with("./") && !source.starts_with("../") {
+                continue;
+            }
+            // A mount of a named volume ("config.ini:/app/x") is not a bind
+            // mount at all and never touches the host path.
+            let target = volume_target(vol);
+            let fileish =
+                looks_like_file(&source) || target.as_deref().map(looks_like_file).unwrap_or(false);
+            if !fileish {
+                continue;
+            }
+
+            let resolved = stack_dir.join(source.trim_start_matches("./"));
+            let resolved = normalize_path(&resolved);
+            if resolved.is_dir() {
+                let warning = BindMountWarning {
+                    source: source.clone(),
+                    resolved: resolved.to_string_lossy().to_string(),
+                    is_directory: true,
+                    message: String::new(),
+                };
+                let message = describe_bind_warning(&warning);
+                warnings.push(BindMountWarning { message, ..warning });
+            } else if !resolved.exists() {
+                let warning = BindMountWarning {
+                    source: source.clone(),
+                    resolved: resolved.to_string_lossy().to_string(),
+                    is_directory: false,
+                    message: String::new(),
+                };
+                let message = describe_bind_warning(&warning);
+                warnings.push(BindMountWarning { message, ..warning });
+            }
+        }
+    }
+    warnings
+}
+
+/// Collapse `..` segments so a warning shows the path Docker will actually
+/// use. `Path::canonicalize` cannot be used: the path usually does not exist.
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => out.push(other),
+        }
+    }
+    out
+}
+
 fn apply_ownership(path: &Path, uid: u32, gid: u32) {
     if let Err(e) = chown(path, Some(Uid::from_raw(uid)), Some(Gid::from_raw(gid))) {
         debug!(
@@ -1077,6 +1280,98 @@ mod tests {
         // A stripped file must still parse as YAML.
         let stripped = strip_description("x-desc: >\n  one\n  two\nservices:\n  a: {}\n");
         assert!(serde_yaml::from_str::<serde_json::Value>(&stripped).is_ok());
+    }
+
+    #[test]
+    fn test_check_bind_mounts_flags_missing_relative_file_sources() {
+        let dir = std::env::temp_dir().join(format!(
+            "gisco_bind_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+
+        // A file source that is not in the stack directory. Docker creates a
+        // missing source as a directory, so this silently becomes a directory
+        // mount and the container gets a directory where a file was expected.
+        let compose = "services:\n  app:\n    image: alpine\n    volumes:\n      - ./config.ini:/app/config.ini\n";
+        let warnings = check_bind_mounts(compose, &dir);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].source, "./config.ini");
+        assert!(warnings[0].resolved.ends_with("config.ini"));
+        assert!(!warnings[0].is_directory);
+
+        // A file that IS there is fine.
+        fs::write(dir.join("config.ini"), "hello").unwrap();
+        assert!(check_bind_mounts(compose, &dir).is_empty());
+
+        // A missing *directory* source is not worth reporting: Docker creates
+        // it as a directory and the mount works.
+        let dir_mount =
+            "services:\n  app:\n    image: alpine\n    volumes:\n      - ./confdir:/app/confdir\n";
+        assert!(check_bind_mounts(dir_mount, &dir).is_empty());
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn test_check_bind_mounts_flags_a_source_docker_turned_into_a_directory() {
+        let dir = std::env::temp_dir().join(format!(
+            "gisco_bind_dir_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        // The state a failed attempt leaves behind: Docker created the missing
+        // source as a root-owned directory.
+        fs::create_dir(dir.join("config.ini")).unwrap();
+
+        let compose = "services:\n  app:\n    image: alpine\n    volumes:\n      - ./config.ini:/app/config.ini\n";
+        let warnings = check_bind_mounts(compose, &dir);
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].is_directory);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn test_check_bind_mounts_ignores_other_volume_kinds() {
+        let dir = std::env::temp_dir().join(format!(
+            "gisco_bind_other_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+
+        // A named volume names no host path.
+        let named = "services:\n  app:\n    image: alpine\n    volumes:\n      - config.ini:/app/config.ini\n";
+        assert!(check_bind_mounts(named, &dir).is_empty());
+
+        // An absolute path is outside gisco's control and may legitimately not
+        // exist from the daemon's point of view.
+        let absolute =
+            "services:\n  app:\n    image: alpine\n    volumes:\n      - /opt/config.ini:/app/config.ini\n";
+        assert!(check_bind_mounts(absolute, &dir).is_empty());
+
+        // Long syntax is understood too.
+        let long = "services:\n  app:\n    image: alpine\n    volumes:\n      - type: bind\n        source: ./config.ini\n        target: /app/config.ini\n";
+        assert_eq!(check_bind_mounts(long, &dir).len(), 1);
+
+        // A long-syntax volume that is not a bind mount names no host path.
+        let named_long = "services:\n  app:\n    image: alpine\n    volumes:\n      - type: volume\n        source: config\n        target: /app/data\n";
+        assert!(check_bind_mounts(named_long, &dir).is_empty());
+
+        // A document that does not parse yields no warnings, not an error.
+        assert!(check_bind_mounts("services:\n  a: !reset null\n", &dir).is_empty());
+        assert!(check_bind_mounts("not yaml at all: [", &dir).is_empty());
+
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]

@@ -64,7 +64,7 @@ impl Config {
         }
     }
 
-    pub fn ensure_directories(&self) -> std::io::Result<()> {
+    pub fn ensure_directories(&mut self) -> std::io::Result<()> {
         if !self.stack_dir.exists() {
             info!("Creating stack directory at {:?}", self.stack_dir);
             std::fs::create_dir_all(&self.stack_dir)?;
@@ -73,6 +73,13 @@ impl Config {
             info!("Creating template directory at {:?}", self.template_dir);
             std::fs::create_dir_all(&self.template_dir)?;
         }
+        // Make both absolute. A relative stack directory makes every path gisco
+        // reports depend on where the process happened to be started: the
+        // resolved path in a bind mount warning would be "data/stacks/foo/...",
+        // which is not a path the user can act on, and the working directory
+        // handed to `docker compose` would be relative for the same reason.
+        self.stack_dir = std::path::absolute(&self.stack_dir)?;
+        self.template_dir = std::path::absolute(&self.template_dir)?;
         Ok(())
     }
 }

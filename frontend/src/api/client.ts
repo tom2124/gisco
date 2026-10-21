@@ -1,4 +1,5 @@
 import {
+  BindMountWarning,
   CompositionResult,
   ContainerMetrics,
   ContainerSummary,
@@ -59,10 +60,13 @@ export const api = {
     custom_uid?: number;
     custom_gid?: number;
   }) =>
-    request<{ status: string; name: string }>(`${API_BASE}/stacks`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+    request<{ status: string; name: string; warnings: BindMountWarning[] }>(
+      `${API_BASE}/stacks`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
   updateStack: (
     name: string,
     data: {
@@ -72,10 +76,22 @@ export const api = {
       custom_gid?: number;
     }
   ) =>
-    request<{ status: string; name: string }>(`${API_BASE}/stacks/${pathSegment(name)}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
+    request<{ status: string; name: string; warnings: BindMountWarning[] }>(
+      `${API_BASE}/stacks/${pathSegment(name)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }
+    ),
+  /** Check bind mounts in content that has not been saved yet. */
+  checkBindMounts: (name: string, compose_content: string) =>
+    request<{ warnings: BindMountWarning[] }>(
+      `${API_BASE}/stacks/${pathSegment(name)}/bind-check`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ compose_content, env_content: '' }),
+      }
+    ),
   deleteStack: (name: string) =>
     request<{ status: string; name: string }>(`${API_BASE}/stacks/${pathSegment(name)}`, {
       method: 'DELETE',
