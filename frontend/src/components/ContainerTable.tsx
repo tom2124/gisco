@@ -213,10 +213,14 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           style={detailRenderer ? { cursor: 'pointer' } : undefined}
         >
         <td style={{ boxShadow: `inset 3px 0 0 ${accent}` }}>
-          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+          <div title={name} style={{ fontWeight: 600, fontSize: '0.95rem' }}>
             {name}
           </div>
-          <div className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+          <div
+            title={`${service ? `service: ${service} · ` : ''}${id.substring(0, 12)} · ${image}`}
+            className="font-mono"
+            style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}
+          >
             {service && `service: ${service} · `}
             <span>{id.substring(0, 12)}</span>
             {' · '}
@@ -238,7 +242,10 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           </span>
         </td>
 
-        <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+        <td
+          className="metric-value"
+          style={{ fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
+        >
           {getContainerUptime(c) || <span style={{ color: 'var(--text-dim)' }}>—</span>}
         </td>
 
@@ -273,29 +280,61 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
 
                 <td>
                   {isRunning && m ? (
-                    <div style={{ fontSize: '0.82rem' }}>
-                      <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                    <div
+                      className="metric-value container-metrics-cell"
+                      style={{ fontSize: '0.82rem' }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 'var(--space-8)',
+                          alignItems: 'center',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <span style={{ color: 'var(--primary)', fontWeight: 600, flexShrink: 0 }}>
                           {m.cpu_percent.toFixed(1)}% CPU
                         </span>
-                        <span>·</span>
-                        <span>
+                        <span style={{ flexShrink: 0 }}>·</span>
+                        <span style={{ flexShrink: 0 }}>
                           {formatBytes(m.memory_usage_bytes)} (
                           {m.memory_percent.toFixed(1)}%)
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: 'var(--space-2)' }}>
+                      {/* Never wraps: a wrapping line is what made the row
+                          change height as the byte counts grew. Clipped with an
+                          ellipsis instead, and the full text in the tooltip. */}
+                      <div
+                        title={`Net: ↓${formatBytes(m.network_rx_bytes)} ↑${formatBytes(m.network_tx_bytes)}`}
+                        style={{
+                          fontSize: '0.72rem',
+                          color: 'var(--text-dim)',
+                          marginTop: 'var(--space-2)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
                         Net: ↓{formatBytes(m.network_rx_bytes)} ↑{formatBytes(m.network_tx_bytes)}
                       </div>
                     </div>
                   ) : isRunning ? (
-                    <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                    // The same fixed-width box, so the column does not change
+                    // width when the first metrics arrive.
+                    <div
+                      className="container-metrics-cell"
+                      style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}
+                    >
                       Reading...
-                    </span>
+                    </div>
                   ) : (
-                    <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                    <div
+                      className="container-metrics-cell"
+                      style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}
+                    >
                       —
-                    </span>
+                    </div>
                   )}
                 </td>
 

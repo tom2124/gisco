@@ -1004,6 +1004,46 @@ table {
   min-width: 820px;
 }
 
+/* The container table re-renders its metrics on every poll, so the columns
+   must not be sized by their content. `table-layout: fixed` keeps every column
+   the same width whatever the numbers say; without it, a CPU value crossing a
+   digit boundary re-sizes the column, which re-wraps the line beneath it and
+   the row changes height — the table appears to twitch under the reader. */
+.container-table {
+  table-layout: fixed;
+  min-width: 1120px;
+}
+
+/* Digits that change on every poll must not change width either: tabular
+   figures give every digit the same advance, so "9.9" and "10.0" occupy the
+   same space. */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The metrics box gets a fixed width on purpose.
+
+   A table lays its columns out from their content, so a cell whose content
+   changes width every poll — "64 MiB" becoming "1.2 GiB" — takes a
+   correspondingly different share of the table, and every other column is
+   re-sized around it. The container name column ends up with a slightly
+   different width on every poll, and a long name that was wrapping onto two
+   lines stops wrapping (or starts), so the row changes height under the
+   reader. Giving the metrics box a fixed width makes its demand constant, and
+   with it the whole row's layout. The contents are clipped rather than
+   wrapped, so the height cannot change either.
+
+   The width and the minimum are both set, and both on the inner box rather
+   than the cell: a `width` on a `<td>` is only a suggestion, and on a
+   over-constrained table the browser will happily shrink the cell to nothing
+   and clip the numbers away. A fixed-width inner box cannot be squeezed, so
+   the table overflows and scrolls instead. */
+.container-metrics-cell {
+  width: 230px;
+  min-width: 230px;
+  overflow: hidden;
+}
+
 th {
   padding: var(--space-8) var(--space-12);
   background: var(--scrim-soft);
