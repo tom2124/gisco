@@ -383,6 +383,7 @@
   --z-sidebar: 40;
   --z-dock: 45;       /* terminal and editor docks */
   --z-modal: 50;
+  --z-dropdown: 48;      /* module menus, inside the page */
   --z-toast: 2000;
 
   /* --- Embedded surfaces -------------------------------------------------

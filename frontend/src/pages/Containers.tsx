@@ -16,6 +16,8 @@ interface ContainersProps {
   onOpenTerminal: (containerId: string, containerName: string, command?: string, interactive?: boolean) => void;
   onOpenLogs: (containerId: string, containerName: string) => void;
   onSelectStack?: (stackName: string) => void;
+  /** Increments on each global refresh; re-syncs the container list. */
+  refreshToken?: number;
 }
 
 export const Containers: React.FC<ContainersProps> = ({
@@ -26,6 +28,7 @@ export const Containers: React.FC<ContainersProps> = ({
   onOpenTerminal,
   onOpenLogs,
   onSelectStack,
+  refreshToken,
 }) => {
   const { showToast } = useToast();
   const [containers, setContainers] = useState<ContainerSummary[]>([]);
@@ -34,6 +37,7 @@ export const Containers: React.FC<ContainersProps> = ({
   const [sortMode, setSortMode] = useState<SortMode>('state');
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [moduleActionLoading, setModuleActionLoading] = useState<string | null>(null);
 
   const fetchContainers = async () => {
     try {
@@ -50,6 +54,15 @@ export const Containers: React.FC<ContainersProps> = ({
   useEffect(() => {
     fetchContainers();
   }, []);
+
+  // The container list is fetched here, not by the app-level poll, so without
+  // this it froze at whatever was true on mount. That matters for the modules a
+  // container matches: a container that becomes eligible — or stops being
+  // eligible — would keep its stale button, or never gain one, until the page
+  // was revisited. The app bumps this token on every global refresh.
+  useEffect(() => {
+    fetchContainers();
+  }, [refreshToken]);
 
   // Poll metrics for running containers
   useEffect(() => {
@@ -95,6 +108,38 @@ export const Containers: React.FC<ContainersProps> = ({
       showToast(`Action failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleModuleAction = async (
+    id: string,
+    moduleId: string,
+    action: { id: string; label: string }
+  ) => {
+    setModuleActionLoading(`${id}:${moduleId}`);
+    try {
+      const result = await api.runModuleAction(id, moduleId, action.id);
+      const detail = result.output?.trim();
+      if (result.ok) {
+        showToast(
+          detail ? `${action.label} — ${detail}` : `${action.label} completed.`,
+          'success'
+        );
+      } else {
+        showToast(
+          detail
+            ? `${action.label} failed: ${detail}`
+            : `${action.label} failed${result.exit_code !== null ? ` (exit ${result.exit_code})` : ''}.`,
+          'error'
+        );
+      }
+    } catch (err: unknown) {
+      showToast(
+        `${action.label} failed: ${getErrorMessage(err, 'Unknown error')}`,
+        'error'
+      );
+    } finally {
+      setModuleActionLoading(null);
     }
   };
 
@@ -159,6 +204,8 @@ export const Containers: React.FC<ContainersProps> = ({
         onOpenTerminal={onOpenTerminal}
         onOpenLogs={onOpenLogs}
         onContainerAction={handleAction}
+        onModuleAction={handleModuleAction}
+        moduleActionLoading={moduleActionLoading}
         onDeleteContainer={handleDelete}
         actionLoading={actionLoading}
         showStackColumn={true}

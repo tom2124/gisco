@@ -65,6 +65,9 @@ pub struct StackContainerInfo {
     pub hostname: Option<String>,
     #[serde(default)]
     pub domainname: Option<String>,
+    /// The modules that apply to this container.
+    #[serde(default)]
+    pub modules: Vec<crate::modules::DetectedModule>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -241,7 +244,13 @@ impl StacksManager {
                 anyhow::bail!("Stack '{}' not found", name);
             }
             let inspected = inspect_containers(docker, &stack_containers).await;
-            let (containers_info, running_count) = container_infos(&stack_containers, &inspected);
+            let envs: HashMap<String, HashMap<String, String>> = inspected
+                .iter()
+                .map(|(id, i)| (id.clone(), i.env.clone()))
+                .collect();
+            let detected = crate::modules::detect_modules(&stack_containers, &envs);
+            let (containers_info, running_count) =
+                container_infos(&stack_containers, &inspected, &detected);
             let services = external_services(&stack_containers);
             let total = containers_info.len();
             let status = stack_status(total, running_count);
@@ -294,7 +303,13 @@ impl StacksManager {
             .await
             .unwrap_or_default();
         let inspected = inspect_containers(docker, &stack_containers).await;
-        let (containers_info, running_count) = container_infos(&stack_containers, &inspected);
+        let envs: HashMap<String, HashMap<String, String>> = inspected
+            .iter()
+            .map(|(id, i)| (id.clone(), i.env.clone()))
+            .collect();
+        let detected = crate::modules::detect_modules(&stack_containers, &envs);
+        let (containers_info, running_count) =
+            container_infos(&stack_containers, &inspected, &detected);
 
         let total = containers_info.len();
         let status = stack_status(total, running_count);
@@ -419,7 +434,14 @@ impl StacksManager {
 /// Hostname/domainname plus per-network aliases per container id, fetched
 /// concurrently. The container list endpoint omits endpoint aliases, so they
 /// are only available from inspect. Failures map to absent entries.
-type ContainerInspectInfo = (Option<String>, Option<String>, HashMap<String, Vec<String>>);
+struct ContainerInspectInfo {
+    hostname: Option<String>,
+    domainname: Option<String>,
+    /// Aliases per network name and per network id.
+    aliases: HashMap<String, Vec<String>>,
+    /// The container's environment.
+    env: HashMap<String, String>,
+}
 
 async fn inspect_containers(
     docker: &DockerService,
@@ -430,6 +452,9 @@ async fn inspect_containers(
         let docker = docker.clone();
         async move {
             let info = docker.inspect_container(&id).await.ok().map(|insp| {
+                // Read the environment before the inspect response is moved
+                // apart below.
+                let env = crate::modules::env_from_inspect(&insp);
                 let hostname = insp.config.as_ref().and_then(|cfg| cfg.hostname.clone());
                 let domainname = insp.config.as_ref().and_then(|cfg| cfg.domainname.clone());
                 // Key aliases by both network name and id; interface lookups
@@ -452,7 +477,12 @@ async fn inspect_containers(
                         }
                     }
                 }
-                (hostname, domainname, aliases)
+                ContainerInspectInfo {
+                    hostname,
+                    domainname,
+                    aliases,
+                    env,
+                }
             });
             (id, info)
         }
@@ -481,6 +511,7 @@ fn stack_status(total: usize, running: usize) -> StackStatus {
 fn container_infos(
     containers: &[ContainerSummary],
     inspected: &HashMap<String, ContainerInspectInfo>,
+    detected: &HashMap<String, Vec<crate::modules::DetectedModule>>,
 ) -> (Vec<StackContainerInfo>, usize) {
     let mut infos = Vec::new();
     let mut running_count = 0;
@@ -557,7 +588,7 @@ fn container_infos(
                     // Union the list aliases (usually empty) with the inspect
                     // aliases, keyed by both network id and name.
                     let mut aliases = endpoint.aliases.clone().unwrap_or_default();
-                    if let Some((_, _, inspected_aliases)) = inspected.get(&id) {
+                    if let Some(inspected_aliases) = inspected.get(&id).map(|i| &i.aliases) {
                         for key in [&network_id, net_name] {
                             if let Some(extra) = inspected_aliases.get(key) {
                                 aliases.extend(extra.iter().cloned());
@@ -584,9 +615,10 @@ fn container_infos(
 
         let (hostname, domainname) = inspected
             .get(&id)
-            .map(|(hostname, domainname, _)| (hostname.clone(), domainname.clone()))
+            .map(|i| (i.hostname.clone(), i.domainname.clone()))
             .unwrap_or((None, None));
 
+        let modules = detected.get(&id).cloned().unwrap_or_default();
         infos.push(StackContainerInfo {
             id,
             name: c_name,
@@ -600,6 +632,7 @@ fn container_infos(
             host_ports,
             hostname,
             domainname,
+            modules,
         });
     }
 
@@ -1063,9 +1096,17 @@ mod tests {
             vec!["api".to_string(), "web".to_string()],
         );
         let mut inspected = HashMap::new();
-        inspected.insert("abc123def456".to_string(), (None, None, inspected_aliases));
+        inspected.insert(
+            "abc123def456".to_string(),
+            ContainerInspectInfo {
+                hostname: None,
+                domainname: None,
+                aliases: inspected_aliases,
+                env: HashMap::new(),
+            },
+        );
 
-        let (infos, running) = container_infos(&containers, &inspected);
+        let (infos, running) = container_infos(&containers, &inspected, &HashMap::new());
         assert_eq!(running, 1);
         assert_eq!(infos.len(), 2);
         assert_eq!(infos[0].name, "myapp-web-1");

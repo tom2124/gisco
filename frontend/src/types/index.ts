@@ -33,6 +33,8 @@ export interface StackContainerInfo {
   domainname?: string;
   labels?: Record<string, string>;
   host_ports?: HostPortNode[];
+  /** The modules that apply to this container. */
+  modules?: ContainerModule[];
 }
 
 /**
@@ -80,6 +82,30 @@ export interface TemplateDetails extends TemplateSummary {
   raw_content: string;
 }
 
+/**
+ * An operation a module offers for a container it matched.
+ *
+ * The command behind an action never reaches the client: the client names the
+ * module and the action, and the backend decides what that means.
+ */
+export interface ContainerModuleAction {
+  id: string;
+  label: string;
+  /** Prompt to show before running, for anything that cannot be undone. */
+  confirm?: string | null;
+  /** Style the entry as destructive. */
+  dangerous: boolean;
+}
+
+/** An application-specific feature set that matched a container. */
+export interface ContainerModule {
+  id: string;
+  label: string;
+  /** Name of a lucide icon; unknown names fall back to a generic one. */
+  icon: string;
+  actions: ContainerModuleAction[];
+}
+
 export interface ContainerSummary {
   Id: string;
   Names: string[];
@@ -96,6 +122,8 @@ export interface ContainerSummary {
     Type?: string;
   }>;
   Labels?: Record<string, string>;
+  /** The modules that apply to this container. */
+  modules?: ContainerModule[];
 }
 
 export interface ContainerMetrics {

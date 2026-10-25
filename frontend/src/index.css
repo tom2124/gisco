@@ -160,8 +160,8 @@ code, pre, .font-mono {
 
 .logo-text {
   /* The wordmark is the app's identity, not a label — at 1.15rem it read as
-     small print next to the nav items. Sized to sit level with the badge. */
-  font-size: 2rem;
+     small print next to the nav items. Sized to match the badge at 40px. */
+  font-size: 2.5rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   background: linear-gradient(to right, var(--text-bright), var(--text-muted));
@@ -1042,6 +1042,16 @@ table {
   width: 230px;
   min-width: 230px;
   overflow: hidden;
+}
+
+/* The actions column holds a variable number of icon buttons (stop,
+   restart, shell, module buttons...). Pin its width so adding or removing a
+   button never re-sizes the column: a shrinking actions column steals width
+   from the name column and makes long container names wrap, which changes
+   the row height on every poll. */
+.actions-cell {
+  width: 200px !important;
+  min-width: 200px;
 }
 
 th {

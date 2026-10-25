@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { ContainerMetrics, ContainerSummary, StackContainerInfo } from '../types';
 import DeleteButton from './DeleteButton';
+import { ModuleMenu, ModuleMenuItem } from './ModuleMenu';
 import { stackColor, STANDALONE_COLOR } from '../utils/stackColors';
 import { parseTraefikLabels } from '../utils/traefik';
 import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
@@ -40,6 +41,13 @@ interface ContainerTableProps {
   showNetworks?: boolean;
   /** Render an expandable detail row per container (stack detail view). */
   detailRenderer?: (c: ContainerSummary | StackContainerInfo) => React.ReactNode;
+  /**
+   * Run a module operation against a container. The caller reports the result;
+   * the module's own command never reaches the browser.
+   */
+  onModuleAction?: (containerId: string, moduleId: string, action: ModuleMenuItem) => void;
+  /** Module operations currently running, as "containerId:moduleId". */
+  moduleActionLoading?: string | null;
 }
 
 const getContainerId = (c: ContainerSummary | StackContainerInfo): string => {
@@ -119,6 +127,8 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   showNetworks = false,
   detailRenderer,
   focusId,
+  onModuleAction,
+  moduleActionLoading,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -202,6 +212,8 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
     const service = getContainerService(c);
     const isRunning = state === 'running';
     const m = metrics[id];
+    // Both container shapes carry the modules the backend detected.
+    const modules = c.modules ?? [];
 
     return (
       <React.Fragment key={id}>
@@ -411,7 +423,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                   </td>
                 )}
 
-                <td>
+                <td className="actions-cell">
                   <div
                     style={{ display: 'flex', gap: 'var(--space-8)' }}
                     onClick={detailRenderer ? (e) => e.stopPropagation() : undefined}
@@ -475,6 +487,22 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                         onConfirm={() => onDeleteContainer(id, name)}
                       />
                     )}
+
+                    {/* Module operations. These show whenever the module
+                        matched the container, running or not: the module's own
+                        predicate decides whether a stopped container
+                        qualifies, and some operations are meaningful on one. */}
+                    {onModuleAction &&
+                      modules.map((module) => (
+                        <ModuleMenu
+                          key={`${id}:${module.id}`}
+                          title={module.label}
+                          icon={module.icon}
+                          items={module.actions}
+                          disabled={moduleActionLoading === `${id}:${module.id}`}
+                          onSelect={(action) => onModuleAction(id, module.id, action)}
+                        />
+                      ))}
                   </div>
                 </td>
                 {detailRenderer && (
@@ -506,7 +534,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
 
   return (
     <div className="table-container">
-      <table>
+      <table className="container-table">
         <thead>
           <tr>
             <th>Container</th>

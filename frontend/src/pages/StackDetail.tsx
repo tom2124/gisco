@@ -32,6 +32,13 @@ interface StackDetailProps {
   onOpenLogs: (containerId: string, containerName: string) => void;
   /** Re-sync the app-level stack list/status after a compose action. */
   onRefresh?: () => void;
+  /**
+   * Increments on each global refresh. The stack's details are fetched here
+   * rather than by the app-level poll, so without this the containers it
+   * showed — and the modules they matched — froze at whatever was true on
+   * mount.
+   */
+  refreshToken?: number;
 }
 
 const DEFAULT_EDITOR_SPLIT = 60; // 3:2 compose-to-env ratio
@@ -70,6 +77,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   onOpenTerminal,
   onOpenLogs,
   onRefresh,
+  refreshToken,
 }) => {
   const { showToast } = useToast();
   const [details, setDetails] = useState<StackDetails | null>(null);
@@ -86,6 +94,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [isRunningAction, setIsRunningAction] = useState(false);
   const [metrics, setMetrics] = useState<Record<string, ContainerMetrics>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [moduleActionLoading, setModuleActionLoading] = useState<string | null>(null);
   // Bind mounts that will not resolve, as reported by the last save.
   const [bindWarnings, setBindWarnings] = useState<BindMountWarning[]>([]);
   const [editorSplit, setEditorSplit] = useState(DEFAULT_EDITOR_SPLIT);
@@ -121,15 +130,23 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     };
   }, [stackName]);
 
-  const fetchDetails = async (resetEditorSplit = false, savedAt?: string) => {
+  const fetchDetails = async (
+    resetEditorSplit = false,
+    savedAt?: string,
+    keepEditor = false
+  ) => {
     try {
       setLoading(true);
       const data = await api.getStack(stackName);
       setDetails(data);
-      setComposeText(data.compose_content);
-      setEnvText(data.env_content || '');
-      setLastSavedCompose(data.compose_content);
-      setLastSavedEnv(data.env_content || '');
+      // A background re-sync must not throw away edits the user has not saved
+      // yet, so the editor keeps what is on screen unless it is clean.
+      if (!keepEditor) {
+        setComposeText(data.compose_content);
+        setEnvText(data.env_content || '');
+        setLastSavedCompose(data.compose_content);
+        setLastSavedEnv(data.env_content || '');
+      }
       if (resetEditorSplit) {
         setLastSavedAt(null);
       }
@@ -152,6 +169,14 @@ export const StackDetail: React.FC<StackDetailProps> = ({
     setActionLogs([]);
     fetchDetails(true);
   }, [stackName]);
+
+  // Re-sync on the app's global refresh, so the containers shown here — and the
+  // modules they match — keep up with reality. The editor is left alone: a
+  // background refresh must not discard unsaved changes.
+  useEffect(() => {
+    void fetchDetails(false, undefined, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   useEffect(() => {
     if (activeTab === 'logs' && logsEndRef.current) {
@@ -256,6 +281,38 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       showToast(`Action failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleModuleAction = async (
+    id: string,
+    moduleId: string,
+    action: { id: string; label: string }
+  ) => {
+    setModuleActionLoading(`${id}:${moduleId}`);
+    try {
+      const result = await api.runModuleAction(id, moduleId, action.id);
+      const detail = result.output?.trim();
+      if (result.ok) {
+        showToast(
+          detail ? `${action.label} — ${detail}` : `${action.label} completed.`,
+          'success'
+        );
+      } else {
+        showToast(
+          detail
+            ? `${action.label} failed: ${detail}`
+            : `${action.label} failed${result.exit_code !== null ? ` (exit ${result.exit_code})` : ''}.`,
+          'error'
+        );
+      }
+    } catch (err: unknown) {
+      showToast(
+        `${action.label} failed: ${getErrorMessage(err, 'Unknown error')}`,
+        'error'
+      );
+    } finally {
+      setModuleActionLoading(null);
     }
   };
 
@@ -686,6 +743,8 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             onContainerAction={handleContainerAction}
             onDeleteContainer={handleDeleteContainer}
             actionLoading={actionLoading}
+            onModuleAction={handleModuleAction}
+            moduleActionLoading={moduleActionLoading}
             isStackView={true}
             showStackColumn={false}
             groupByStack={false}

@@ -300,6 +300,7 @@ export const App: React.FC = () => {
               onOpenTerminal={openTerminal}
               onOpenLogs={(id, name) => setLogsTarget({ id, name })}
               onRefresh={fetchGlobalData}
+              refreshToken={globalRefreshToken}
             />
           ) : (
             <Stacks
@@ -326,6 +327,7 @@ export const App: React.FC = () => {
             focusId={routeFocus}
             onRefresh={fetchGlobalData}
             isRefreshing={isRefreshing}
+            refreshToken={globalRefreshToken}
             onOpenTerminal={openTerminal}
             onOpenLogs={(id, name) => setLogsTarget({ id, name })}
             onSelectStack={handleSelectStack}

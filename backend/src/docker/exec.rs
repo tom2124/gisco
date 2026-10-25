@@ -192,3 +192,88 @@ pub async fn handle_exec_terminal(
 
     Ok(())
 }
+
+/// The result of running a command to completion in a container.
+#[derive(Clone, Debug, Default)]
+pub struct CommandOutcome {
+    /// The command's exit code, if Docker reported one.
+    pub exit_code: Option<i64>,
+    /// Combined stdout and stderr.
+    pub output: String,
+}
+
+impl CommandOutcome {
+    pub fn succeeded(&self) -> bool {
+        self.exit_code == Some(0)
+    }
+}
+
+/// Run a command in a container and wait for it to finish.
+///
+/// Unlike the terminal path this is not interactive: no TTY, no stdin, and the
+/// output is collected so the caller can report what happened. Used by module
+/// actions, where the result matters more than the stream.
+pub async fn run_command(
+    docker: &Docker,
+    container_id: &str,
+    command: &str,
+    user: Option<&str>,
+) -> Result<CommandOutcome> {
+    let create_options = CreateExecOptions {
+        attach_stdin: Some(false),
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        tty: Some(false),
+        cmd: Some(vec![
+            "/bin/sh".to_string(),
+            "-c".to_string(),
+            command.to_string(),
+        ]),
+        user: user.map(|u| u.to_string()),
+        ..Default::default()
+    };
+
+    let exec = docker
+        .create_exec(container_id, create_options)
+        .await
+        .with_context(|| format!("Failed to create exec for container {}", container_id))?;
+    let exec_id = exec.id.clone();
+
+    let start = docker
+        .start_exec(
+            &exec_id,
+            Some(StartExecOptions {
+                detach: false,
+                tty: false,
+                ..Default::default()
+            }),
+        )
+        .await
+        .with_context(|| format!("Failed to start exec in container {}", container_id))?;
+
+    let mut output = String::new();
+    match start {
+        StartExecResults::Attached {
+            output: mut stream, ..
+        } => {
+            // Read to end of stream, then ask Docker for the exit code.
+            while let Some(Ok(chunk)) = stream.next().await {
+                // LogOutput is an enum (stdout/stderr/stdin) with a Display
+                // impl that yields the message.
+                output.push_str(&chunk.to_string());
+            }
+        }
+        StartExecResults::Detached => {
+            output.push_str("Command detached unexpectedly; no output captured.");
+        }
+    }
+
+    // The exit code only appears on the exec once it has finished.
+    let exit_code = docker
+        .inspect_exec(&exec_id)
+        .await
+        .ok()
+        .and_then(|i| i.exit_code);
+
+    Ok(CommandOutcome { exit_code, output })
+}

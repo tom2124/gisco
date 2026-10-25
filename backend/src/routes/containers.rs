@@ -5,7 +5,9 @@ use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 
+use crate::docker::exec::run_command;
 use crate::docker::stats::{get_bulk_stats, get_single_stats};
+use crate::modules;
 use crate::routes::error::docker_error;
 use crate::routes::AppState;
 
@@ -35,6 +37,10 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}", delete(remove_container))
         .route("/{id}/{action}", post(container_action))
         .route("/{id}/metrics", get(container_metrics))
+        .route(
+            "/{id}/modules/{module_id}/actions/{action_id}",
+            post(run_module_action),
+        )
 }
 
 async fn list_containers(
@@ -43,7 +49,10 @@ async fn list_containers(
 ) -> impl IntoResponse {
     let all = query.all.unwrap_or(true);
     match state.docker.list_containers(all).await {
-        Ok(containers) => (StatusCode::OK, Json(serde_json::json!(containers))),
+        Ok(containers) => {
+            let with_modules = modules::containers_with_modules(&state.docker, containers).await;
+            (StatusCode::OK, Json(serde_json::json!(with_modules)))
+        }
         Err(e) => docker_error(e),
     }
 }
@@ -56,6 +65,52 @@ async fn inspect_container(
         Ok(inspect) => (StatusCode::OK, Json(serde_json::json!(inspect))),
         Err(e) => (
             StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        ),
+    }
+}
+
+/// Run a module action against a container.
+///
+/// The client names a module and an action; the registry decides what that
+/// means. The command is never taken from the client.
+async fn run_module_action(
+    Path((id, module_id, action_id)): Path<(String, String, String)>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let Some(module) = modules::find_module(&module_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": format!("Unknown module '{}'", module_id) })),
+        );
+    };
+    let Some(action) = module.actions().iter().find(|a| a.id == action_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": format!("Unknown action '{}'", action_id) })),
+        );
+    };
+    // The container has to actually be one this module applies to.
+    if !modules::container_matches(&state.docker, module, &id).await {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Container does not match module '{}'", module_id)
+            })),
+        );
+    }
+
+    match run_command(&state.docker.client, &id, action.command, None).await {
+        Ok(outcome) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "ok": outcome.succeeded(),
+                "exit_code": outcome.exit_code,
+                "output": outcome.output,
+            })),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": e.to_string() })),
         ),
     }

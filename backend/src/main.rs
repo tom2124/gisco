@@ -7,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 mod compose;
 mod config;
 mod docker;
+mod modules;
 mod network_graph;
 mod routes;
 mod templates;

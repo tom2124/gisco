@@ -106,6 +106,14 @@ export const api = {
   listContainers: (all = true) =>
     request<ContainerSummary[]>(`${API_BASE}/containers?all=${all}`),
   inspectContainer: (id: string) => request<any>(`${API_BASE}/containers/${pathSegment(id)}`),
+  /** Run a module action against a container. */
+  runModuleAction: (containerId: string, moduleId: string, actionId: string) =>
+    request<{ ok: boolean; exit_code: number | null; output: string }>(
+      `${API_BASE}/containers/${pathSegment(containerId)}/modules/${pathSegment(
+        moduleId
+      )}/actions/${pathSegment(actionId)}`,
+      { method: 'POST' }
+    ),
   containerAction: (id: string, action: 'start' | 'stop' | 'restart' | 'pause' | 'unpause') =>
     request<{ status: string; action: string }>(`${API_BASE}/containers/${pathSegment(id)}/${action}`, {
       method: 'POST',
