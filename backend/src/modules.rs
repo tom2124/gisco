@@ -189,6 +189,23 @@ pub trait Module: Send + Sync {
 
     /// The operations offered for a matching container.
     fn actions(&self) -> &'static [ModuleAction];
+
+    /// Priority for selection when multiple modules match. Higher wins.
+    fn priority(&self) -> i32 {
+        0
+    }
+
+    /// If Some, this is a submodule extending the named parent module.
+    fn parent_id(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// Whether this submodule inherits its parent's actions (merged with
+    /// overrides/additions from `actions()`). Only meaningful when
+    /// `parent_id()` is Some.
+    fn inherits_actions(&self) -> bool {
+        true
+    }
 }
 
 /// A module that matched a container, as sent to the client.
@@ -224,6 +241,27 @@ pub fn registry() -> &'static [Box<dyn Module>] {
     REGISTRY.get_or_init(built_in)
 }
 
+/// Resolve the full action list for a module, handling submodule inheritance.
+/// Searches `registry` for the parent when inheritance is requested.
+pub fn resolve_actions(module: &dyn Module, registry: &[Box<dyn Module>]) -> Vec<ModuleAction> {
+    if let Some(parent_id) = module.parent_id() {
+        if module.inherits_actions() {
+            if let Some(parent) = registry.iter().find(|m| m.id() == parent_id).map(|m| m.as_ref()) {
+                let mut actions: Vec<ModuleAction> = parent.actions().to_vec();
+                for sub_action in module.actions() {
+                    if let Some(pos) = actions.iter().position(|a| a.id == sub_action.id) {
+                        actions[pos] = *sub_action;
+                    } else {
+                        actions.push(*sub_action);
+                    }
+                }
+                return actions;
+            }
+        }
+    }
+    module.actions().to_vec()
+}
+
 /// Find a module by id.
 pub fn find_module(id: &str) -> Option<&'static dyn Module> {
     registry().iter().find(|m| m.id() == id).map(|m| m.as_ref())
@@ -254,17 +292,47 @@ pub fn detect_with(
         if id.is_empty() {
             continue;
         }
-        let mut matched = Vec::new();
+        let mut matched_base = Vec::new();
+        let mut matched_sub = Vec::new();
         for module in modules {
             let ctx = DetectCtx::new(container, env.get(&id));
             if !module.detect(&ctx) {
                 continue;
             }
+            if module.parent_id().is_some() {
+                matched_sub.push(module.as_ref());
+            } else {
+                matched_base.push(module.as_ref());
+            }
+        }
+
+        // Submodules replace their parent when matched; pick by priority.
+        let mut matched = Vec::new();
+        if !matched_sub.is_empty() {
+            matched_sub.sort_by_key(|m| -(m.priority() as i32));
+            let best = matched_sub[0];
             matched.push(DetectedModule {
-                id: module.id().to_string(),
-                label: module.label().to_string(),
-                icon: module.icon().to_string(),
-                actions: module
+                id: best.id().to_string(),
+                label: best.label().to_string(),
+                icon: best.icon().to_string(),
+                actions: resolve_actions(best, modules)
+                    .iter()
+                    .map(|a| DetectedModuleAction {
+                        id: a.id.to_string(),
+                        label: a.label.to_string(),
+                        confirm: a.confirm.map(|c| c.to_string()),
+                        dangerous: a.dangerous,
+                    })
+                    .collect(),
+            });
+        } else if !matched_base.is_empty() {
+            matched_base.sort_by_key(|m| -(m.priority() as i32));
+            let best = matched_base[0];
+            matched.push(DetectedModule {
+                id: best.id().to_string(),
+                label: best.label().to_string(),
+                icon: best.icon().to_string(),
+                actions: best
                     .actions()
                     .iter()
                     .map(|a| DetectedModuleAction {
@@ -594,5 +662,140 @@ mod tests {
         assert!(ctx.image_or_name_contains("mssql"));
         assert!(ctx.image_or_name_contains("MSSQL"));
         assert!(!ctx.image_or_name_contains("postgres"));
+    }
+
+    /// A submodule test structure.
+    struct SubTestModule {
+        id: &'static str,
+        parent: Option<&'static str>,
+        needle: &'static str,
+        priority: i32,
+        actions_override: &'static [ModuleAction],
+        inherit: bool,
+    }
+
+    impl Module for SubTestModule {
+        fn id(&self) -> &'static str { self.id }
+        fn label(&self) -> &'static str { "Sub Test" }
+        fn icon(&self) -> &'static str { "sparkles" }
+        fn detect(&self, ctx: &DetectCtx<'_>) -> bool {
+            ctx.image_or_name_contains(self.needle)
+        }
+        fn actions(&self) -> &'static [ModuleAction] {
+            self.actions_override
+        }
+        fn priority(&self) -> i32 { self.priority }
+        fn parent_id(&self) -> Option<&'static str> { self.parent }
+        fn inherits_actions(&self) -> bool { self.inherit }
+    }
+
+    #[test]
+    fn submodule_replaces_parent_when_matched() {
+        let containers = vec![summary("ignition:8.3", &[])];
+        let parent = TestModule {
+            id: "ignition",
+            needle: "ignition",
+            want_env: false,
+        };
+        let sub = SubTestModule {
+            id: "ignition-v83",
+            parent: Some("ignition"),
+            needle: "ignition:8.3",
+            priority: 10,
+            actions_override: &[ModuleAction {
+                id: "upgrade",
+                label: "Upgrade",
+                command: "upgrade",
+                confirm: None,
+                dangerous: false,
+            }],
+            inherit: true,
+        };
+        let modules: Vec<Box<dyn Module>> = vec![
+            Box::new(parent),
+            Box::new(sub),
+        ];
+        let detected = detect_with(&modules, &containers, &HashMap::new());
+        assert_eq!(detected.len(), 1);
+        let found = &detected["abc123"][0];
+        assert_eq!(found.id, "ignition-v83");
+        assert_eq!(found.actions.len(), 2); // parent "run" + sub "upgrade"
+    }
+
+    #[test]
+    fn submodule_priority_selects_highest() {
+        let containers = vec![summary("ignition:8.3", &[])];
+        let parent = TestModule { id: "ignition", needle: "ignition", want_env: false };
+        let sub_low = SubTestModule {
+            id: "ignition-v81",
+            parent: Some("ignition"),
+            needle: "ignition:8.1",
+            priority: 1,
+            actions_override: &[],
+            inherit: false,
+        };
+        let sub_high = SubTestModule {
+            id: "ignition-v83",
+            parent: Some("ignition"),
+            needle: "ignition:8.3",
+            priority: 5,
+            actions_override: &[],
+            inherit: false,
+        };
+        let modules: Vec<Box<dyn Module>> = vec![
+            Box::new(parent),
+            Box::new(sub_low),
+            Box::new(sub_high),
+        ];
+        let detected = detect_with(&modules, &containers, &HashMap::new());
+        assert_eq!(detected["abc123"][0].id, "ignition-v83");
+    }
+
+    #[test]
+    fn base_module_priority_selects_highest() {
+        let containers = vec![summary("ignition:8.3", &[])];
+        let low_base = SubTestModule {
+            id: "low",
+            parent: None,
+            needle: "low",
+            priority: 1,
+            actions_override: &[],
+            inherit: false,
+        };
+        let high_sub = SubTestModule {
+            id: "high",
+            parent: None,
+            needle: "ignition",
+            priority: 5,
+            actions_override: &[],
+            inherit: false,
+        };
+        let modules: Vec<Box<dyn Module>> = vec![Box::new(low_base), Box::new(high_sub)];
+        let detected = detect_with(&modules, &containers, &HashMap::new());
+        assert!(detected.contains_key("abc123"));
+        assert_eq!(detected["abc123"][0].id, "high");
+    }
+
+    #[test]
+    fn resolve_actions_merges_submodule_override() {
+        let parent = TestModule { id: "ignition", needle: "x", want_env: false };
+        let sub = SubTestModule {
+            id: "ignition-v83",
+            parent: Some("ignition"),
+            needle: "x",
+            priority: 1,
+            actions_override: &[ModuleAction {
+                id: "run",
+                label: "Run v8.3",
+                command: "run-v83",
+                confirm: None,
+                dangerous: false,
+            }],
+            inherit: true,
+        };
+        let registry: Vec<Box<dyn Module>> = vec![Box::new(parent)];
+        let actions = resolve_actions(&sub, &registry);
+        assert!(actions.iter().any(|a| a.id == "run" && a.command == "run-v83"));
+        assert!(actions.iter().any(|a| a.id == "run"));
     }
 }

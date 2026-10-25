@@ -84,7 +84,10 @@ async fn run_module_action(
             Json(serde_json::json!({ "error": format!("Unknown module '{}'", module_id) })),
         );
     };
-    let Some(action) = module.actions().iter().find(|a| a.id == action_id) else {
+    let actions = modules::resolve_actions(module, modules::registry());
+    let Some(action) = actions
+        .iter()
+        .find(|a| a.id == action_id) else {
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({ "error": format!("Unknown action '{}'", action_id) })),
