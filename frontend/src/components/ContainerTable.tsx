@@ -541,11 +541,11 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
             <th>State</th>
             <th>Uptime</th>
             {showStackCol && <th>Stack</th>}
-            <th>CPU / Memory</th>
+            <th style={{ width: '230px' }}>CPU / Memory</th>
             <th>Ports</th>
             {showNetworks && <th>Networks</th>}
-            <th>Actions</th>
-            {detailRenderer && <th style={{ width: '44px' }} />}
+            <th style={{ width: '260px' }}>Actions</th>
+            {detailRenderer && <th style={{ width: '66px' }} />}
           </tr>
         </thead>
         <tbody>

@@ -1011,7 +1011,6 @@ table {
    the row changes height — the table appears to twitch under the reader. */
 .container-table {
   table-layout: fixed;
-  min-width: 1120px;
 }
 
 /* Digits that change on every poll must not change width either: tabular
@@ -1050,8 +1049,8 @@ table {
    from the name column and makes long container names wrap, which changes
    the row height on every poll. */
 .actions-cell {
-  width: 200px !important;
-  min-width: 200px;
+  width: 260px !important;
+  overflow: hidden;
 }
 
 th {
