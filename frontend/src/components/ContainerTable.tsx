@@ -157,7 +157,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   // sort, but flatten the table (with its Stack column) for name sorting.
   const grouped = groupByStack && !isStackView && sortMode === 'state';
   const showStackCol = showStackColumn && !grouped;
-  const colCount = 6 + (showStackCol ? 1 : 0) + (showNetworks ? 1 : 0) + (detailRenderer ? 1 : 0);
+  const colCount = 7 + (showStackCol ? 1 : 0) + (showNetworks ? 1 : 0) + (detailRenderer ? 1 : 0);
 
   const sortedItems = sorted(containers, sortMode, {
     stateRank: rankOf(CONTAINER_STATE_RANK),
@@ -224,7 +224,22 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           className={focusId === id ? 'list-row-focus' : undefined}
           style={detailRenderer ? { cursor: 'pointer' } : undefined}
         >
-        <td style={{ boxShadow: `inset 3px 0 0 ${accent}` }}>
+        <td style={{ width: '68px', padding: 0 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            {onModuleAction &&
+              modules.map((module) => (
+                <ModuleMenu
+                  key={`${id}:${module.id}`}
+                  title={module.label}
+                  icon={module.icon}
+                  items={module.actions}
+                  disabled={moduleActionLoading === `${id}:${module.id}`}
+                  onSelect={(action) => onModuleAction(id, module.id, action)}
+                />
+              ))}
+          </div>
+        </td>
+        <td>
           <div title={name} style={{ fontWeight: 600, fontSize: '0.95rem' }}>
             {name}
           </div>
@@ -488,21 +503,9 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                       />
                     )}
 
-                    {/* Module operations. These show whenever the module
-                        matched the container, running or not: the module's own
-                        predicate decides whether a stopped container
-                        qualifies, and some operations are meaningful on one. */}
-                    {onModuleAction &&
-                      modules.map((module) => (
-                        <ModuleMenu
-                          key={`${id}:${module.id}`}
-                          title={module.label}
-                          icon={module.icon}
-                          items={module.actions}
-                          disabled={moduleActionLoading === `${id}:${module.id}`}
-                          onSelect={(action) => onModuleAction(id, module.id, action)}
-                        />
-                      ))}
+                    {
+                      /* Module buttons relocated to the left of the container name. */
+                    }
                   </div>
                 </td>
                 {detailRenderer && (
@@ -537,9 +540,10 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
       <table className="container-table">
         <thead>
           <tr>
+            <th style={{ width: '68px' }}></th>
             <th>Container</th>
-            <th>State</th>
-            <th>Uptime</th>
+            <th style={{ width: '20ch' }}>State</th>
+            <th style={{ width: '30ch' }}>Uptime</th>
             {showStackCol && <th>Stack</th>}
             <th style={{ width: '230px' }}>CPU / Memory</th>
             <th>Ports</th>

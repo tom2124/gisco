@@ -231,8 +231,79 @@ pub struct DetectedModuleAction {
 /// The built-in modules.
 ///
 /// Empty for now: the framework is in place, and modules are added here.
+/// Ignition module: detects containers running Inductive Automation's Ignition
+/// by checking for the IGNITION_INSTALL_LOCATION environment variable.
+struct IgnitionModule;
+
+impl Module for IgnitionModule {
+    fn id(&self) -> &'static str { "ignition" }
+    fn label(&self) -> &'static str { "Ignition" }
+    fn icon(&self) -> &'static str { "ignition-standard" }
+    fn needs_env(&self) -> bool { true }
+    fn detect(&self, ctx: &DetectCtx<'_>) -> bool {
+        ctx.env_var("IGNITION_INSTALL_LOCATION").is_some()
+    }
+    fn actions(&self) -> &'static [ModuleAction] {
+        &[ModuleAction {
+            id: "reset-password",
+            label: "[gwcmd] reset password",
+            command: "\"$IGNITION_INSTALL_LOCATION/gwcmd.sh\" -p && \"$IGNITION_INSTALL_LOCATION/gwcmd.sh\" -r",
+            confirm: None,
+            dangerous: false,
+        }]
+    }
+    fn priority(&self) -> i32 { 0 }
+}
+
+struct IgnitionEdgeModule;
+impl Module for IgnitionEdgeModule {
+    fn id(&self) -> &'static str { "ignition-edge" }
+    fn label(&self) -> &'static str { "Ignition Edge" }
+    fn icon(&self) -> &'static str { "ignition-edge" }
+    fn needs_env(&self) -> bool { true }
+    fn detect(&self, ctx: &DetectCtx<'_>) -> bool {
+        ctx.env_var("IGNITION_EDITION").map_or(false, |v| v == "edge")
+    }
+    fn actions(&self) -> &'static [ModuleAction] { &[] }
+    fn parent_id(&self) -> Option<&'static str> { Some("ignition") }
+    fn priority(&self) -> i32 { 0 }
+}
+
+struct IgnitionMakerModule;
+impl Module for IgnitionMakerModule {
+    fn id(&self) -> &'static str { "ignition-maker" }
+    fn label(&self) -> &'static str { "Ignition Maker" }
+    fn icon(&self) -> &'static str { "ignition-maker" }
+    fn needs_env(&self) -> bool { true }
+    fn detect(&self, ctx: &DetectCtx<'_>) -> bool {
+        ctx.env_var("IGNITION_EDITION").map_or(false, |v| v == "maker")
+    }
+    fn actions(&self) -> &'static [ModuleAction] { &[] }
+    fn parent_id(&self) -> Option<&'static str> { Some("ignition") }
+    fn priority(&self) -> i32 { 0 }
+}
+
+struct IgnitionCloudModule;
+impl Module for IgnitionCloudModule {
+    fn id(&self) -> &'static str { "ignition-cloud" }
+    fn label(&self) -> &'static str { "Ignition Cloud" }
+    fn icon(&self) -> &'static str { "ignition-cloud" }
+    fn needs_env(&self) -> bool { true }
+    fn detect(&self, ctx: &DetectCtx<'_>) -> bool {
+        ctx.env_var("IGNITION_EDITION").map_or(false, |v| v == "cloud")
+    }
+    fn actions(&self) -> &'static [ModuleAction] { &[] }
+    fn parent_id(&self) -> Option<&'static str> { Some("ignition") }
+    fn priority(&self) -> i32 { 0 }
+}
+
 fn built_in() -> Vec<Box<dyn Module>> {
-    Vec::new()
+    vec![
+        Box::new(IgnitionModule),
+        Box::new(IgnitionEdgeModule),
+        Box::new(IgnitionMakerModule),
+        Box::new(IgnitionCloudModule),
+    ]
 }
 
 /// The module registry.
@@ -293,16 +364,34 @@ pub fn detect_with(
             continue;
         }
         let mut matched_base = Vec::new();
-        let mut matched_sub = Vec::new();
         for module in modules {
             let ctx = DetectCtx::new(container, env.get(&id));
             if !module.detect(&ctx) {
                 continue;
             }
             if module.parent_id().is_some() {
+                continue; // Submodules evaluated only after parent check
+            }
+            matched_base.push(module.as_ref());
+        }
+
+        let parent_ids: std::collections::HashSet<&str> = matched_base
+            .iter()
+            .map(|m| m.id())
+            .collect();
+
+        let mut matched_sub = Vec::new();
+        for module in modules {
+            let parent = module.parent_id();
+            if parent.is_none() {
+                continue;
+            }
+            if !parent_ids.contains(parent.unwrap()) {
+                continue; // Only check submodules when parent matched
+            }
+            let ctx = DetectCtx::new(container, env.get(&id));
+            if module.detect(&ctx) {
                 matched_sub.push(module.as_ref());
-            } else {
-                matched_base.push(module.as_ref());
             }
         }
 

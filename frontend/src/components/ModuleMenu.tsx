@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { ContainerModuleAction } from '../types';
 
+const CustomSvgIcon = ({ src, size }: { src: string; size?: number; color?: string }) => (
+  <img src={src} alt="" style={{ width: size ?? 14, height: size ?? 14, display: 'inline-block' }} />
+);
+
 /**
  * Icons a module may name.
  *
@@ -29,6 +33,10 @@ const MODULE_ICONS: Record<string, React.ElementType> = {
   box: Box,
   terminal: Terminal,
   sparkles: Sparkles,
+  'ignition-standard': (props: { size?: number }) => <CustomSvgIcon src="/ignition-standard.svg" size={props.size} />,
+  'ignition-edge': (props: { size?: number }) => <CustomSvgIcon src="/ignition-edge.svg" size={props.size} />,
+  'ignition-maker': (props: { size?: number }) => <CustomSvgIcon src="/ignition-maker.svg" size={props.size} />,
+  'ignition-cloud': (props: { size?: number }) => <CustomSvgIcon src="/ignition-cloud.svg" size={props.size} />,
 };
 
 export type ModuleMenuItem = ContainerModuleAction;
@@ -112,7 +120,7 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
           setPending(null);
         }}
       >
-        <Icon size={14} color="var(--primary)" />
+        <Icon size={36} color="var(--primary)" />
       </button>
 
       {open && (
@@ -121,18 +129,19 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
           role="menu"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 6px)',
-            right: 0,
+            top: 'calc(100% + 8px)',
+            left: 0,
             zIndex: 'var(--z-dropdown)',
-            minWidth: '220px',
+            minWidth: '240px',
             background: 'var(--bg-card)',
             border: 'var(--border-width) solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-modal)',
-            padding: 'var(--space-4)',
+            padding: 'var(--space-6)',
             display: 'flex',
             flexDirection: 'column',
             gap: 'var(--space-2)',
+            backdropFilter: 'var(--glass-blur)',
           }}
         >
           {pending ? (
@@ -173,7 +182,31 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
               </div>
             </>
           ) : (
-            items.map((item) => (
+            <>
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  color: 'var(--text-dim)',
+                  padding: 'var(--space-4) var(--space-6)',
+                  textTransform: 'var(--text-transform-headers)',
+                  letterSpacing: '0.06em',
+                  whiteSpace: 'nowrap',
+                  marginBottom: 'var(--space-2)',
+                  textAlign: 'center',
+                }}
+              >
+                {title}
+              </div>
+              <div
+                style={{
+                  height: 'var(--border-width)',
+                  background: 'var(--border-subtle)',
+                  margin: '0 var(--space-2) var(--space-2)',
+                  borderRadius: 'var(--radius-full)',
+                }}
+              />
+              {items.map((item) => (
               <button
                 key={item.id}
                 role="menuitem"
@@ -182,16 +215,18 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
                   alignItems: 'center',
                   justifyContent: 'flex-start',
                   textAlign: 'left',
-                  fontSize: '0.78rem',
+                  fontSize: '0.82rem',
                   fontWeight: 500,
                   fontFamily: 'inherit',
-                  padding: 'var(--space-6) var(--space-8)',
+                  padding: 'var(--space-8) var(--space-12)',
                   color: item.dangerous ? 'var(--status-error)' : 'var(--text-main)',
                   background: 'transparent',
-                  border: 'none',
+                  border: 'var(--border-width) solid transparent',
                   borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
+                  transition: 'background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard)',
+                  lineHeight: 1.4,
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -199,14 +234,34 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'var(--accent-tint)';
+                  e.currentTarget.style.borderColor = 'var(--accent-border)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
                 }}
               >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px',
+                    flexShrink: 0,
+                    marginRight: 'var(--space-8)',
+                    color: item.dangerous ? 'var(--status-error)' : 'var(--primary)',
+                    opacity: 0.9,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </span>
                 {item.label}
               </button>
-            ))
+            ))}
+            </>
           )}
         </div>
       )}

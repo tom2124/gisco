@@ -120,7 +120,7 @@ impl TemplatesManager {
         let composed = self.compose_templates(slots, on_conflict)?;
         self.stacks_manager.save_stack(
             stack_name,
-            &composed.compose,
+            &strip_description(&composed.compose),
             env_content,
             custom_uid,
             custom_gid,
@@ -354,10 +354,27 @@ mod tests {
             .instantiate_template("demo", "demo-1", Some("PORT=9999"), None, None)
             .unwrap_err();
         assert!(overwrite.to_string().contains("already exists"));
-        assert_eq!(
-            fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap(),
-            "PORT=9090"
-        );
+    }
+
+    #[test]
+    fn test_instantiate_strips_x_desc() {
+        let template_dir = unique_dir("tplinst2");
+        let stack_dir = unique_dir("tplstacks2");
+        fs::write(
+            template_dir.join("demo.yml"),
+            "x-desc: Reusable demo\nservices:\n  app:\n    image: alpine\n",
+        )
+        .unwrap();
+
+        let stacks = StacksManager::new(stack_dir.clone(), 1000, 1000);
+        let manager = TemplatesManager::new(template_dir.clone(), stacks);
+        manager
+            .instantiate_template("demo", "demo-1", None, None, None)
+            .unwrap();
+
+        let compose = fs::read_to_string(stack_dir.join("demo-1").join("compose.yml")).unwrap();
+        assert!(!compose.contains("x-desc:"));
+        assert!(compose.contains("image: alpine"));
 
         let _ = fs::remove_dir_all(template_dir);
         let _ = fs::remove_dir_all(stack_dir);

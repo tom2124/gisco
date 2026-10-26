@@ -869,8 +869,9 @@ textarea:focus-visible {
 }
 
 .btn-icon {
-  min-height: 30px;
-  padding: var(--space-8);
+  min-height: 52px;
+  width: 52px;
+  padding: var(--space-4);
   border-radius: var(--radius-sm);
 }
 
@@ -984,7 +985,7 @@ textarea:focus-visible {
 
 /* Tables */
 .table-container {
-  overflow-x: auto;
+  overflow: visible;
   border-radius: var(--radius-lg);
   border: var(--border-width) solid var(--border-subtle);
   background: var(--bg-card);
