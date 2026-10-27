@@ -542,7 +542,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
               <span>Up</span>
             </button>
           )}
-            {!details?.external && (
+            {!details?.external && details?.has_build && (
               <button
                 className="btn btn-secondary"
                 onClick={() => handleActionStream('up-build')}

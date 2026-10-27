@@ -103,7 +103,7 @@ export const EditorDockProvider: React.FC<EditorDockProviderProps> = ({ children
       {sessions.map((session, index) => {
         const dockOffset = sessions
           .slice(0, index)
-          .filter((other) => other.minimized).length * 56;
+          .filter((other) => other.minimized).length * 92;
         const controls: EditorDockControls = {
           isMinimized: session.minimized,
           isDirty: session.dirty,

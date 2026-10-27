@@ -69,6 +69,7 @@ export interface StackDetails {
   file_mode: number;
   external: boolean;
   description?: string;
+  has_build?: boolean;
 }
 
 export interface TemplateSummary {

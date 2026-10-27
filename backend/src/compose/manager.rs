@@ -89,6 +89,9 @@ pub struct StackDetails {
     /// From a top-level `# desc: ...` comment in the compose file, if any.
     #[serde(default)]
     pub description: Option<String>,
+    /// True when at least one service defines a `build` section.
+    #[serde(default)]
+    pub has_build: bool,
 }
 
 #[derive(Clone)]
@@ -268,6 +271,7 @@ impl StacksManager {
                 file_mode: 0,
                 external: true,
                 description: None,
+                has_build: false,
             });
         }
 
@@ -314,6 +318,7 @@ impl StacksManager {
         let total = containers_info.len();
         let status = stack_status(total, running_count);
         let description = description(&compose_content);
+        let has_build = has_build_blocks(&compose_content);
 
         Ok(StackDetails {
             name: name.to_string(),
@@ -329,6 +334,7 @@ impl StacksManager {
             file_mode,
             external: false,
             description,
+            has_build,
         })
     }
 
@@ -1030,6 +1036,22 @@ fn extract_services_from_yaml(yaml_content: &str) -> Vec<String> {
         }
     }
     services
+}
+
+/// Returns true when at least one service in the compose file defines a
+/// `build` section. `docker compose up --build` is only useful in that case;
+/// otherwise the flag is a no-op.
+pub fn has_build_blocks(yaml_content: &str) -> bool {
+    if let Ok(val) = serde_yaml::from_str::<serde_json::Value>(yaml_content) {
+        if let Some(svc_map) = val.get("services").and_then(|s| s.as_object()) {
+            for svc in svc_map.values() {
+                if svc.get("build").is_some() {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]

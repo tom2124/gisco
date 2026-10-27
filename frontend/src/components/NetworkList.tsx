@@ -130,13 +130,15 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                           height: '32px',
                           borderRadius: 'var(--radius-md)',
                           background: hasContainers
-                            ? 'var(--gradient-success)'
+                            ? 'var(--accent-wash)'
                             : 'transparent',
-                          border: hasContainers ? 'none' : '1px solid var(--border-subtle)',
+                          border: hasContainers
+                            ? '1px solid var(--accent-border)'
+                            : '1px solid var(--border-subtle)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: hasContainers ? 'var(--text-on-accent)' : 'var(--text-dim)',
+                          color: hasContainers ? 'var(--primary)' : 'var(--text-dim)',
                           flexShrink: 0,
                         }}
                       >

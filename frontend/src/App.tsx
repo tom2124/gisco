@@ -252,15 +252,15 @@ export const App: React.FC = () => {
 
   const minimizedTerminalCount = terminalSessions.filter((session) => session.minimized).length;
 
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--terminal-dock-height',
+      `${minimizedTerminalCount * 76}px`
+    );
+  }, [minimizedTerminalCount]);
+
   return (
-    <div
-      className="app-container"
-      style={
-        {
-          '--terminal-dock-height': `${minimizedTerminalCount * 56}px`,
-        } as React.CSSProperties
-      }
-    >
+    <div className="app-container">
       <Sidebar
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
@@ -365,7 +365,7 @@ export const App: React.FC = () => {
         const dockOffset =
           terminalSessions
             .slice(0, index)
-            .filter((other) => other.minimized).length * 56;
+            .filter((other) => other.minimized).length * 76;
 
         return (
           <Suspense key={session.id} fallback={<ModalLoading />}>

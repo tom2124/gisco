@@ -108,7 +108,7 @@ export const ModuleMenu: React.FC<ModuleMenuProps> = ({
   return (
     <div ref={rootRef} style={{ position: 'relative', display: 'inline-flex' }}>
       <button
-        className="btn btn-secondary btn-icon"
+        className="btn btn-secondary btn-icon-lg"
         title={title}
         aria-label={title}
         aria-haspopup="menu"
