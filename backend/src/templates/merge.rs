@@ -919,8 +919,7 @@ pub fn compose(
         }
     }
 
-    let compose = serde_yaml::to_string(&Value::Mapping(merged))
-        .map_err(|e| anyhow!("Failed to serialise merged compose file: {}", e))?;
+    let compose = fmt_yaml_with_flow(&Value::Mapping(merged), 35);
 
     Ok(Composition {
         compose,
@@ -930,8 +929,102 @@ pub fn compose(
     })
 }
 
+/// Render a YAML value, collapsing collections whose flow form fits within
+/// `threshold` characters into inline flow style (`[...]` / `{...}`).
+fn fmt_yaml_with_flow(value: &Value, threshold: usize) -> String {
+    let mut out = fmt_value(value, threshold, false);
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+fn fmt_value(value: &Value, threshold: usize, allow_flow: bool) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Tagged(t) => fmt_value(&t.value, threshold, true),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::String(s) => serde_yaml::to_string(value)
+            .unwrap_or_else(|_| format!("{:?}", s))
+            .trim()
+            .to_string(),
+        Value::Sequence(seq) => {
+            let flow_items: Vec<String> = seq.iter().map(|x| fmt_value(x, threshold, true)).collect();
+            let flow = format!("[{}]", flow_items.join(", "));
+            if allow_flow && !seq.is_empty() && flow.len() <= threshold && !flow.contains('\n') {
+                return flow;
+            }
+            if seq.is_empty() {
+                return "[]".to_string();
+            }
+            let mut out = String::new();
+            for item in seq {
+                let rendered = fmt_value(item, threshold, true);
+                let mut lines = rendered.lines();
+                let first = lines.next().unwrap_or("");
+                out.push_str(&format!("- {}", first));
+                for line in lines {
+                    out.push_str(&format!("\n  {}", line));
+                }
+                out.push('\n');
+            }
+            out.trim_end_matches('\n').to_string()
+        }
+        Value::Mapping(map) => {
+            let flow_pairs: Vec<String> = map
+                .iter()
+                .map(|(k, v)| format!("{}: {}", fmt_value(k, threshold, true), fmt_value(v, threshold, true)))
+                .collect();
+            let flow = format!("{{{}}}", flow_pairs.join(", "));
+            if allow_flow && !map.is_empty() && flow.len() <= threshold && !flow.contains('\n') {
+                return flow;
+            }
+            if map.is_empty() {
+                return "{}".to_string();
+            }
+            let mut out = String::new();
+            for (k, v) in map {
+                let key = fmt_value(k, threshold, true);
+                let val = fmt_value(v, threshold, true);
+                let inline_safe = !val.contains('\n')
+                    && (val.starts_with('[')
+                        || val.starts_with('{')
+                        || val.starts_with('"')
+                        || val.starts_with('\'')
+                        || !val.contains(": "));
+                if !inline_safe {
+                    out.push_str(&format!("{}:\n", key));
+                    for line in val.lines() {
+                        out.push_str(&format!("  {}\n", line));
+                    }
+                    out = out.trim_end_matches('\n').to_string();
+                    out.push('\n');
+                } else {
+                    out.push_str(&format!("{}: {}\n", key, val));
+                }
+            }
+            out.trim_end_matches('\n').to_string()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::fmt_yaml_with_flow;
+    use serde_yaml::Value;
+
+    #[test]
+    fn test_flow_collapse_small() {
+        let yaml = "services:\n  web:\n    image: nginx\n    ports:\n    - \"80:80\"\n";
+        let v: Value = serde_yaml::from_str(yaml).unwrap();
+        let out = fmt_yaml_with_flow(&v, 35);
+        println!("OUT:\n{}", out);
+        assert!(out.contains("[80:80]"), "small list should be flow-collapsed");
+        // round-trips
+        let reparsed: Value = serde_yaml::from_str(&out).unwrap();
+        assert_eq!(v, reparsed);
+    }
     use super::*;
 
     fn src(id: &str, raw: &str) -> TemplateSource {
