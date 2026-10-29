@@ -37,8 +37,8 @@ interface ContainerTableProps {
   externalStackNames?: Set<string>;
   /** Row ordering within each group (or the flat list). Defaults to state, then name. */
   sortMode?: SortMode;
-  /** Show a Networks column (IPs + aliases per interface). For detail views carrying interface data. */
-  showNetworks?: boolean;
+  /** Show a Traefik column (route URL, when present). */
+  showTraefik?: boolean;
   /** Render an expandable detail row per container (stack detail view). */
   detailRenderer?: (c: ContainerSummary | StackContainerInfo) => React.ReactNode;
   /**
@@ -95,10 +95,6 @@ const getContainerLabels = (c: ContainerSummary | StackContainerInfo) => {
   return (c as StackContainerInfo).labels;
 };
 
-const getContainerInterfaces = (c: ContainerSummary | StackContainerInfo) => {
-  return 'interfaces' in c ? c.interfaces : [];
-};
-
 const getContainerStack = (c: ContainerSummary | StackContainerInfo): string | undefined => {
   return getContainerLabels(c)?.['com.docker.compose.project'];
 };
@@ -124,7 +120,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   groupByStack = true,
   externalStackNames = new Set<string>(),
   sortMode = 'state',
-  showNetworks = false,
+  showTraefik = false,
   detailRenderer,
   focusId,
   onModuleAction,
@@ -157,7 +153,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   // sort, but flatten the table (with its Stack column) for name sorting.
   const grouped = groupByStack && !isStackView && sortMode === 'state';
   const showStackCol = showStackColumn && !grouped;
-  const colCount = 7 + (showStackCol ? 1 : 0) + (showNetworks ? 1 : 0) + (detailRenderer ? 1 : 0);
+  const colCount = 7 + (showStackCol ? 1 : 0) + (showTraefik ? 1 : 0) + (detailRenderer ? 1 : 0);
 
   const sortedItems = sorted(containers, sortMode, {
     stateRank: rankOf(CONTAINER_STATE_RANK),
@@ -390,10 +386,9 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                   )}
                 </td>
 
-                {showNetworks && (
+                {showTraefik && (
                   <td className="font-mono" style={{ fontSize: '0.78rem' }}>
                     {(() => {
-                      const ifaces = getContainerInterfaces(c);
                       const route = (parseTraefikLabels(getContainerLabels(c))?.routers ?? []).find(
                         (r) => r.protocol === 'http' && r.hosts.length > 0
                       );
@@ -414,26 +409,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                           </a>
                         );
                       }
-                      return ifaces.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                          {ifaces.map((iface) => (
-                            <div key={iface.network_id}>
-                              <div>
-                                <span style={{ color: 'var(--primary)' }}>{iface.network_name}</span>
-                                <span style={{ color: 'var(--text-dim)' }}>: </span>
-                                <span style={{ color: 'var(--text-success)' }}>{iface.ip_address || 'host'}</span>
-                              </div>
-                              {iface.aliases.length > 0 && (
-                                <div style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>
-                                  {iface.aliases.join(', ')}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-dim)' }}>—</span>
-                      );
+                      return <span style={{ color: 'var(--text-dim)' }}>—</span>;
                     })()}
                   </td>
                 )}
@@ -547,7 +523,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
             {showStackCol && <th>Stack</th>}
             <th style={{ width: '230px' }}>CPU / Memory</th>
             <th>Ports</th>
-            {showNetworks && <th>Networks</th>}
+            {showTraefik && <th>Traefik</th>}
             <th style={{ width: '260px' }}>Actions</th>
             {detailRenderer && <th style={{ width: '66px' }} />}
           </tr>
