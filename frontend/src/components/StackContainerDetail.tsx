@@ -66,7 +66,7 @@ export const StackContainerDetail: React.FC<StackContainerDetailProps> = ({ cont
 
       <ContainerDns container={node} />
       <ContainerHostPorts containerHostPorts={container.host_ports ?? []} />
-      <ContainerTraefik labels={container.labels} />
+      <ContainerTraefik labels={container.labels} containerName={container.name} />
     </div>
   );
 };

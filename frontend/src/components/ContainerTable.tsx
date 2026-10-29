@@ -15,6 +15,7 @@ import DeleteButton from './DeleteButton';
 import { ModuleMenu, ModuleMenuItem } from './ModuleMenu';
 import { stackColor, STANDALONE_COLOR } from '../utils/stackColors';
 import { parseTraefikLabels } from '../utils/traefik';
+import { api } from '../api/client';
 import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 import { formatBytes } from '../utils/docker';
 
@@ -127,6 +128,15 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   moduleActionLoading,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [traefikRouters, setTraefikRouters] = useState<any[]>([]);
+  useEffect(() => {
+    if (!showTraefik) return;
+    let cancelled = false;
+    api.getTraefik().then((res) => {
+      if (!cancelled && res.enabled) setTraefikRouters(res.routers || []);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [showTraefik]);
 
   // Global search deep-links to a container: expand and scroll to it.
   const focusRowRef = useRef<HTMLTableRowElement | null>(null);
@@ -389,10 +399,26 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                 {showTraefik && (
                   <td className="font-mono" style={{ fontSize: '0.78rem' }}>
                     {(() => {
-                      const route = (parseTraefikLabels(getContainerLabels(c))?.routers ?? []).find(
+                      const containerName = (getContainerName(c) || '').replace(/^\/+/, '');
+                      const composeService = getContainerService(c);
+                      const labelInfo = parseTraefikLabels(getContainerLabels(c));
+                      const labelRoute = (labelInfo?.routers ?? []).find(
                         (r) => r.protocol === 'http' && r.hosts.length > 0
                       );
-                      const routeUrl = route
+                      // Prefer a router from a running Traefik instance (covers
+                      // defaultRule-generated routes that have no labels).
+                      const apiRoute = traefikRouters.find((r: any) => {
+                        if (r.container) return r.container === containerName;
+                        const svc = String(r.service || '').replace(/@.*$/, '');
+                        const nm = String(r.name || '').replace(/@.*$/, '');
+                        return [containerName, composeService].filter(Boolean).some((n) =>
+                          svc === n || nm === n || svc.startsWith(n + '-') || nm.startsWith(n + '-')
+                        );
+                      });
+                      const route = apiRoute
+                        ? { tls: !!apiRoute.tls, hosts: apiRoute.hosts || [] }
+                        : labelRoute;
+                      const routeUrl = route && route.hosts && route.hosts.length > 0
                         ? `${route.tls ? 'https' : 'http'}://${route.hosts[0]}`
                         : null;
                       if (routeUrl) {

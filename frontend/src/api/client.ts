@@ -15,6 +15,7 @@ import {
   TemplateDetails,
   TemplateSlot,
   TemplateSummary,
+  TraefikResponse,
   VolumeUsageSnapshot,
   VolumePruneResult,
 } from '../types';
@@ -49,6 +50,7 @@ export const api = {
   // System
   getSystemStatus: () => request<SystemStatus>(`${API_BASE}/system/status`),
   pingDocker: () => request<{ status: string }>(`${API_BASE}/system/ping`),
+  getTraefik: () => request<TraefikResponse>(`${API_BASE}/traefik`),
 
   // Stacks
   listStacks: () => request<StackSummary[]>(`${API_BASE}/stacks`),

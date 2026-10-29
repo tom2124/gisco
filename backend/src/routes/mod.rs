@@ -5,6 +5,7 @@ pub mod networks;
 pub mod stacks;
 pub mod system;
 pub mod templates;
+pub mod traefik;
 pub mod volumes;
 pub mod ws_logs;
 pub mod ws_stats;
@@ -32,6 +33,7 @@ pub fn api_routes(state: AppState) -> Router {
         .nest("/api/containers", containers::routes())
         .nest("/api/templates", templates::routes())
         .nest("/api/networks", networks::routes())
+        .nest("/api/traefik", traefik::routes())
         .nest("/api/images", images::routes())
         .nest("/api/volumes", volumes::routes())
         .nest("/api/ws", ws_routes())

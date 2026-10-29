@@ -72,6 +72,22 @@ export interface StackDetails {
   has_build?: boolean;
 }
 
+export interface TraefikRouter {
+  name: string;
+  protocol: 'http' | 'tcp';
+  rule: string;
+  hosts: string[];
+  entrypoints: string[];
+  tls: boolean;
+  service: string;
+  container?: string | null;
+}
+
+export interface TraefikResponse {
+  enabled: boolean;
+  routers: TraefikRouter[];
+}
+
 export interface TemplateSummary {
   id: string;
   name: string;

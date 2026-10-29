@@ -72,7 +72,7 @@ export const NetworkContainerDetail: React.FC<NetworkContainerDetailProps> = ({
       )}
 
       <ContainerHostPorts containerHostPorts={containerHostPorts} />
-      <ContainerTraefik labels={container.labels} />
+      <ContainerTraefik labels={container.labels} containerName={container.name} />
 
       <div
         style={{

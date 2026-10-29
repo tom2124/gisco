@@ -7,6 +7,7 @@ import Copyable from './Copyable';
 import { parseTraefikLabels } from '../utils/traefik';
 import { CONTAINER_STATE_RANK, rankOf, sorted, type SortMode } from '../utils/sort';
 import { filterUserNetworks } from '../utils/networks';
+import { api } from '../api/client';
 
 interface NetworkListProps {
   graph: NetworkGraph;
@@ -32,6 +33,14 @@ export const NetworkList: React.FC<NetworkListProps> = ({
 }) => {
   const [expandedNetworks, setExpandedNetworks] = useState<Set<string>>(new Set());
   const [expandedContainer, setExpandedContainer] = useState<string | null>(null);
+  const [traefikRouters, setTraefikRouters] = useState<any[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    api.getTraefik().then((res) => {
+      if (!cancelled && res.enabled) setTraefikRouters(res.routers || []);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // Global search deep-links to a network: expand it and scroll it into view.
   const focusRowRef = useRef<HTMLTableRowElement | null>(null);
@@ -235,10 +244,12 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                             const containerHostPorts = graph.host_ports.filter(
                               (hp) => hp.target_container_id === c.id
                             );
-                            const traefik = parseTraefikLabels(c.labels);
-                            const traefikRouters = (traefik?.routers ?? []).filter(
-                              (r) => r.hosts.length > 0
-                            );
+                            const apiRoutes = traefikRouters.filter((r: any) => r.container === c.name);
+                            const labelInfo = parseTraefikLabels(c.labels);
+                            const labelRoutes = (labelInfo?.routers ?? []).filter((r) => r.hosts.length > 0);
+                            const effectiveTraefik = apiRoutes.length > 0
+                              ? apiRoutes.map((r: any) => ({ ...r, protocol: r.protocol, hosts: r.hosts }))
+                              : labelRoutes;
                             const detailKey = `${net.id}:${c.id}`;
                             const showDetail = expandedContainer === detailKey;
 
@@ -304,10 +315,10 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                                     })()}
                                   </td>
                                   <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-success)' }}>
-                                    {traefikRouters.length > 0 ? (
+                                    {effectiveTraefik.length > 0 ? (
                                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4) var(--space-12)' }}>
-                                        {traefikRouters.flatMap((r) =>
-                                          r.hosts.map((host) => (
+                                        {effectiveTraefik.flatMap((r: any) =>
+                                          r.hosts.map((host: string) => (
                                             <span key={`${r.name}:${host}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-8)' }}>
                                               <Copyable text={host}>
                                                 <span>{host}</span>
