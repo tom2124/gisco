@@ -274,11 +274,14 @@ async fn delete_stack(
             if let Err(e) =
                 ComposeRunner::run_compose(&dir, &project_dir, &file, "down", None).await
             {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({
-                        "error": format!("Failed to stop stack before deletion: {}", e)
-                    })),
+                // `down` can fail for stacks that were never brought up (or whose
+                // resources are already gone / in use by something else). Treat
+                // it as best-effort so deletion still succeeds; the directory is
+                // removed below regardless.
+                tracing::warn!(
+                    "compose down before deleting stack '{}' failed (continuing): {}",
+                    name,
+                    e
                 );
             }
             match state.stacks.delete_stack(&name) {
