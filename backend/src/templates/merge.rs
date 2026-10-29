@@ -919,7 +919,7 @@ pub fn compose(
         }
     }
 
-    let compose = fmt_yaml_with_flow(&Value::Mapping(merged), 35);
+    let compose = fmt_yaml_with_flow(&Value::Mapping(merged), 50);
 
     Ok(Composition {
         compose,
@@ -939,16 +939,41 @@ fn fmt_yaml_with_flow(value: &Value, threshold: usize) -> String {
     out
 }
 
+fn fmt_string(s: &str) -> String {
+    let base = serde_yaml::to_string(&Value::String(s.to_string()))
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if base.starts_with('"') || base.starts_with('\'') {
+        return base;
+    }
+    let needs_quote = s.chars().any(|c| matches!(c, '{' | '}' | '[' | ']' | ',' | '#' | '&'))
+        || s.contains(": ")
+        || s.starts_with('-')
+        || s.starts_with('?')
+        || s.starts_with(':')
+        || s.starts_with('*')
+        || s.starts_with('!')
+        || s.starts_with('%')
+        || s.starts_with('@')
+        || s.starts_with('`')
+        || s.starts_with(' ')
+        || s.ends_with(' ')
+        || s.is_empty();
+    if needs_quote {
+        let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+        return format!("\"{}\"", escaped);
+    }
+    base
+}
+
 fn fmt_value(value: &Value, threshold: usize, allow_flow: bool) -> String {
     match value {
         Value::Null => "null".to_string(),
         Value::Tagged(t) => fmt_value(&t.value, threshold, true),
         Value::Bool(b) => b.to_string(),
         Value::Number(n) => n.to_string(),
-        Value::String(s) => serde_yaml::to_string(value)
-            .unwrap_or_else(|_| format!("{:?}", s))
-            .trim()
-            .to_string(),
+        Value::String(s) => fmt_string(s),
         Value::Sequence(seq) => {
             let flow_items: Vec<String> = seq.iter().map(|x| fmt_value(x, threshold, true)).collect();
             let flow = format!("[{}]", flow_items.join(", "));
@@ -988,6 +1013,7 @@ fn fmt_value(value: &Value, threshold: usize, allow_flow: bool) -> String {
                 let key = fmt_value(k, threshold, true);
                 let val = fmt_value(v, threshold, true);
                 let inline_safe = !val.contains('\n')
+                    && !val.starts_with("- ")
                     && (val.starts_with('[')
                         || val.starts_with('{')
                         || val.starts_with('"')
@@ -1011,6 +1037,7 @@ fn fmt_value(value: &Value, threshold: usize, allow_flow: bool) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use super::fmt_yaml_with_flow;
     use serde_yaml::Value;
 
@@ -1018,14 +1045,35 @@ mod tests {
     fn test_flow_collapse_small() {
         let yaml = "services:\n  web:\n    image: nginx\n    ports:\n    - \"80:80\"\n";
         let v: Value = serde_yaml::from_str(yaml).unwrap();
-        let out = fmt_yaml_with_flow(&v, 35);
+        let out = fmt_yaml_with_flow(&v, 50);
         println!("OUT:\n{}", out);
         assert!(out.contains("[80:80]"), "small list should be flow-collapsed");
         // round-trips
         let reparsed: Value = serde_yaml::from_str(&out).unwrap();
         assert_eq!(v, reparsed);
     }
-    use super::*;
+
+    #[test]
+    fn test_flow_quoted_string_preserved() {
+        let yaml = "arr:\n- \"${VAR}\"\n";
+        let v: Value = serde_yaml::from_str(yaml).unwrap();
+        let out = fmt_yaml_with_flow(&v, 50);
+        println!("OUT3:\n{}", out);
+        assert!(out.contains("\"${VAR}\""), "quoted flow string must stay quoted");
+        let reparsed: Value = serde_yaml::from_str(&out).unwrap();
+        assert_eq!(v, reparsed);
+    }
+
+    #[test]
+    fn test_volume_list_not_inlined() {
+        let yaml = "services:\n  web:\n    image: nginx\n    volumes:\n    - data:/data\n";
+        let v: Value = serde_yaml::from_str(yaml).unwrap();
+        let out = fmt_yaml_with_flow(&v, 50);
+        println!("OUT2:\n{}", out);
+        assert!(!out.contains("volumes: -"), "volume list must not be inlined");
+        let reparsed: Value = serde_yaml::from_str(&out).unwrap();
+        assert_eq!(v, reparsed);
+    }
 
     fn src(id: &str, raw: &str) -> TemplateSource {
         TemplateSource {
@@ -1081,7 +1129,7 @@ mod tests {
         assert!(out.compose.contains("data-cache_a:"));
         assert!(out.compose.contains("data-cache_b:"));
         // Runtime vars keep their names: renaming them would break compose.
-        assert!(out.compose.contains("PROJECT: ${COMPOSE_PROJECT_NAME}"));
+        assert!(out.compose.contains("PROJECT: \"${COMPOSE_PROJECT_NAME}\""));
         // Compose derives container names itself; we never pin one.
         assert!(!out.compose.contains("container_name"));
     }
