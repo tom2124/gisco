@@ -246,19 +246,20 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
           </div>
         </td>
         <td>
-          <div title={name} style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+          <div
+            title={`${id} · ${image}`}
+            style={{ fontWeight: 600, fontSize: '0.95rem' }}
+          >
             {name}
           </div>
-          <div
-            title={`${service ? `service: ${service} · ` : ''}${id.substring(0, 12)} · ${image}`}
-            className="font-mono"
-            style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}
-          >
-            {service && `service: ${service} · `}
-            <span>{id.substring(0, 12)}</span>
-            {' · '}
-            <span>{image}</span>
-          </div>
+          {service && (
+            <div
+              className="font-mono"
+              style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}
+            >
+              {service}
+            </div>
+          )}
         </td>
 
         <td>
