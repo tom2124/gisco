@@ -185,9 +185,36 @@ async fn fetch_routers(
                 .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
                 .unwrap_or_default();
             let hosts = hosts_from_rule(&rule);
-            let container = service_to_container
+            let mut container = service_to_container
                 .get(service.trim_end_matches("@docker"))
                 .cloned();
+            // Fallback: match by token overlap when IP-based resolution missed
+            // (e.g. containers extending an external compose file whose
+            // Traefik service IP isn't captured). Traefik names look like
+            // "<service>-<project>@docker"; container names like
+            // "<project>-<service>-<replica>", so compare token sets.
+            if container.is_none() {
+                let rname = name.trim_end_matches("@docker");
+                let svc = service.trim_end_matches("@docker");
+                let router_tokens: std::collections::HashSet<&str> =
+                    rname.split(|c: char| !c.is_alphanumeric()).filter(|t| !t.is_empty()).collect();
+                for cname in ip_to_container.values() {
+                    let cont_tokens: std::collections::HashSet<&str> =
+                        cname.split(|c: char| !c.is_alphanumeric()).filter(|t| !t.is_empty()).collect();
+                    // Accept if all router tokens (or all service tokens) are
+                    // present in the container name's tokens.
+                    let router_ok = !router_tokens.is_empty()
+                        && router_tokens.iter().all(|t| cont_tokens.contains(t));
+                    let svc_tokens: std::collections::HashSet<&str> =
+                        svc.split(|c: char| !c.is_alphanumeric()).filter(|t| !t.is_empty()).collect();
+                    let svc_ok = !svc_tokens.is_empty()
+                        && svc_tokens.iter().all(|t| cont_tokens.contains(t));
+                    if router_ok || svc_ok {
+                        container = Some(cname.clone());
+                        break;
+                    }
+                }
+            }
             out.push(TraefikRouter {
                 name,
                 protocol: protocol.to_string(),

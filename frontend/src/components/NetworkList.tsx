@@ -244,7 +244,17 @@ export const NetworkList: React.FC<NetworkListProps> = ({
                             const containerHostPorts = graph.host_ports.filter(
                               (hp) => hp.target_container_id === c.id
                             );
-                            const apiRoutes = traefikRouters.filter((r: any) => r.container === c.name);
+                            const tokenize = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+                            const apiRoutes = traefikRouters.filter((r: any) => {
+                              if (r.container) return r.container === c.name;
+                              const svc = String(r.service || '').replace(/@.*$/, '');
+                              const nm = String(r.name || '').replace(/@.*$/, '');
+                              const cTokens = new Set(tokenize(c.name));
+                              const svcTokens = tokenize(svc);
+                              const nmTokens = tokenize(nm);
+                              return (svcTokens.length > 0 && svcTokens.every((t) => cTokens.has(t))) ||
+                                (nmTokens.length > 0 && nmTokens.every((t) => cTokens.has(t)));
+                            });
                             const labelInfo = parseTraefikLabels(c.labels);
                             const labelRoutes = (labelInfo?.routers ?? []).filter((r) => r.hosts.length > 0);
                             const effectiveTraefik = apiRoutes.length > 0

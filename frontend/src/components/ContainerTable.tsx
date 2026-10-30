@@ -133,8 +133,11 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
     if (!showTraefik) return;
     let cancelled = false;
     api.getTraefik().then((res) => {
-      if (!cancelled && res.enabled) setTraefikRouters(res.routers || []);
-    }).catch(() => {});
+      if (!cancelled && res.enabled) {
+
+        setTraefikRouters(res.routers || []);
+      }
+    }).catch((e) => console.error('traefik fetch err', e));
     return () => { cancelled = true; };
   }, [showTraefik]);
 
@@ -408,13 +411,20 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
                       );
                       // Prefer a router from a running Traefik instance (covers
                       // defaultRule-generated routes that have no labels).
+                      const tokenize = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
                       const apiRoute = traefikRouters.find((r: any) => {
                         if (r.container) return r.container === containerName;
                         const svc = String(r.service || '').replace(/@.*$/, '');
                         const nm = String(r.name || '').replace(/@.*$/, '');
-                        return [containerName, composeService].filter(Boolean).some((n) =>
-                          svc === n || nm === n || svc.startsWith(n + '-') || nm.startsWith(n + '-')
-                        );
+                        const cTokens = new Set(tokenize(containerName));
+                        const svcTokens = tokenize(svc);
+                        const nmTokens = tokenize(nm);
+                        const svcOk = svcTokens.length > 0 && svcTokens.every((t) => cTokens.has(t));
+                        const nmOk = nmTokens.length > 0 && nmTokens.every((t) => cTokens.has(t));
+                        return svcOk || nmOk ||
+                          [containerName, composeService].filter(Boolean).some((n) =>
+                            svc === n || nm === n || svc.startsWith(n + '-') || nm.startsWith(n + '-')
+                          );
                       });
                       const route = apiRoute
                         ? { tls: !!apiRoute.tls, hosts: apiRoute.hosts || [] }
