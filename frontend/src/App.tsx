@@ -151,6 +151,12 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Warm the Traefik API so container/network tables render routes without
+  // waiting for their own mount-time fetch.
+  useEffect(() => {
+    void api.getTraefik().catch(() => {});
+  }, []);
+
   // Warm the one genuinely slow endpoint while the user reads the dashboard.
   // Volume sizes come from Docker's `/system/df`, which walks every image and
   // costs seconds on a cold cache. Kicking it off here means the Volumes page

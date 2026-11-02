@@ -50,7 +50,19 @@ export const api = {
   // System
   getSystemStatus: () => request<SystemStatus>(`${API_BASE}/system/status`),
   pingDocker: () => request<{ status: string }>(`${API_BASE}/system/ping`),
-  getTraefik: () => request<TraefikResponse>(`${API_BASE}/traefik`),
+  getTraefik: (() => {
+    let cache: { promise: Promise<TraefikResponse>; ts: number } | null = null;
+    const TTL = 10000;
+    return (force = false) => {
+      const now = Date.now();
+      if (!force && cache && now - cache.ts < TTL) return cache.promise;
+      const url = `${API_BASE}/traefik${force ? '?refresh=1' : ''}`;
+      const promise = request<TraefikResponse>(url);
+      cache = { promise, ts: now };
+      promise.catch(() => { cache = null; });
+      return promise;
+    };
+  })(),
 
   // Stacks
   listStacks: () => request<StackSummary[]>(`${API_BASE}/stacks`),

@@ -209,6 +209,7 @@ export const Containers: React.FC<ContainersProps> = ({
         onDeleteContainer={handleDelete}
         actionLoading={actionLoading}
         showStackColumn={true}
+        refreshToken={refreshToken}
         onSelectStack={onSelectStack}
         isStackView={false}
         externalStackNames={externalStackNames}

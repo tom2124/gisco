@@ -1,4 +1,5 @@
-use axum::{extract::State, Json};
+use axum::{extract::Query, extract::State, Json};
+use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -19,7 +20,7 @@ pub struct TraefikRouter {
     pub container: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct TraefikResponse {
     pub enabled: bool,
     pub routers: Vec<TraefikRouter>,
@@ -29,9 +30,38 @@ pub fn routes() -> axum::Router<AppState> {
     axum::Router::new().route("/", axum::routing::get(get_traefik))
 }
 
-async fn get_traefik(State(state): State<AppState>) -> Json<TraefikResponse> {
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+static CACHE: Mutex<Option<(Instant, TraefikResponse)>> = Mutex::new(None);
+
+#[derive(Deserialize, Default)]
+struct TraefikQuery {
+    #[serde(default)]
+    refresh: Option<String>,
+}
+
+async fn get_traefik(
+    State(state): State<AppState>,
+    Query(q): Query<TraefikQuery>,
+) -> Json<TraefikResponse> {
+    let force = q.refresh.as_deref() == Some("1");
+    // Serve a short-lived cache to avoid hammering the Traefik API.
+    if !force {
+        if let Ok(guard) = CACHE.lock() {
+            if let Some((ts, resp)) = guard.as_ref() {
+                if ts.elapsed() < Duration::from_secs(5) {
+                    return Json(resp.clone());
+                }
+            }
+        }
+    }
     let (enabled, routers) = fetch_traefik(&state.docker).await;
-    Json(TraefikResponse { enabled, routers })
+    let resp = TraefikResponse { enabled, routers };
+    if let Ok(mut guard) = CACHE.lock() {
+        *guard = Some((Instant::now(), resp.clone()));
+    }
+    Json(resp)
 }
 
 async fn fetch_traefik(docker: &DockerService) -> (bool, Vec<TraefikRouter>) {

@@ -749,6 +749,7 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             showStackColumn={false}
             groupByStack={false}
             showTraefik={true}
+            refreshToken={refreshToken}
             detailRenderer={(c) => <StackContainerDetail container={c as StackContainerInfo} />}
           />
         </div>

@@ -40,6 +40,8 @@ interface ContainerTableProps {
   sortMode?: SortMode;
   /** Show a Traefik column (route URL, when present). */
   showTraefik?: boolean;
+  /** Bump to re-fetch Traefik routers (e.g. after a stack action). */
+  refreshToken?: number;
   /** Render an expandable detail row per container (stack detail view). */
   detailRenderer?: (c: ContainerSummary | StackContainerInfo) => React.ReactNode;
   /**
@@ -122,6 +124,7 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   externalStackNames = new Set<string>(),
   sortMode = 'state',
   showTraefik = false,
+  refreshToken,
   detailRenderer,
   focusId,
   onModuleAction,
@@ -132,14 +135,15 @@ export const ContainerTable: React.FC<ContainerTableProps> = ({
   useEffect(() => {
     if (!showTraefik) return;
     let cancelled = false;
-    api.getTraefik().then((res) => {
-      if (!cancelled && res.enabled) {
-
-        setTraefikRouters(res.routers || []);
-      }
-    }).catch((e) => console.error('traefik fetch err', e));
-    return () => { cancelled = true; };
-  }, [showTraefik]);
+    const load = (force = false) => {
+      api.getTraefik(force).then((res) => {
+        if (!cancelled && res.enabled) setTraefikRouters(res.routers || []);
+      }).catch(() => {});
+    };
+    load();
+    const t = setTimeout(() => load(true), 3000);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [showTraefik, refreshToken]);
 
   // Global search deep-links to a container: expand and scroll to it.
   const focusRowRef = useRef<HTMLTableRowElement | null>(null);
