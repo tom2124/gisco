@@ -83,6 +83,34 @@ impl ComposeRunner {
         action: &str,
         tx: Option<mpsc::Sender<String>>,
     ) -> Result<bool> {
+        // `pull` alone leaves the running containers on the old image; a
+        // subsequent manual `up` can race with them and produce duplicate,
+        // hash-prefixed containers. Pull and recreate atomically instead.
+        if action == "pull" {
+            info!(
+                "Running docker compose down+pull+up in {:?} (project dir {:?}) with file '{}'",
+                stack_dir, project_dir, compose_file
+            );
+            let down_args = compose_args(stack_dir, project_dir, compose_file, &["down"]);
+            let down_full: Vec<&str> = down_args.iter().map(|s| s.as_str()).collect();
+            // down is best-effort here: a never-up stack has nothing to stop.
+            let _ = Self::execute(stack_dir, &down_full, "down", tx.clone()).await;
+            let pull_args = compose_args(stack_dir, project_dir, compose_file, &["pull"]);
+            let pull_full: Vec<&str> = pull_args.iter().map(|s| s.as_str()).collect();
+            let ok = Self::execute(stack_dir, &pull_full, "pull", tx.clone()).await?;
+            if !ok {
+                return Ok(false);
+            }
+            let up_args = compose_args(
+                stack_dir,
+                project_dir,
+                compose_file,
+                &["up", "-d", "--remove-orphans"],
+            );
+            let up_full: Vec<&str> = up_args.iter().map(|s| s.as_str()).collect();
+            return Self::execute(stack_dir, &up_full, "up", tx).await;
+        }
+
         let args = action_args(action)?;
 
         info!(
