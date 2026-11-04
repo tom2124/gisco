@@ -10,19 +10,23 @@ import {
   Terminal,
   FileText,
   Box,
+  HardDrive,
 } from 'lucide-react';
 import {
   BindMountWarning,
   StackDetails,
   StackContainerInfo,
   ContainerMetrics,
+  DockerVolume,
 } from '../types';
 import { api } from '../api/client';
 import { CodeEditor } from '../components/CodeEditor';
 import { ContainerTable } from '../components/ContainerTable';
+import DeleteButton from '../components/DeleteButton';
 import StackContainerDetail from '../components/StackContainerDetail';
 import { getErrorMessage, useToast } from '../components/ToastProvider';
 import { extractEnvVars } from '../utils/composeEnv';
+import { formatBytes } from '../utils/docker';
 import { appendTerminalOutput } from '../utils/terminalOutput';
 
 interface StackDetailProps {
@@ -88,7 +92,9 @@ export const StackDetail: React.FC<StackDetailProps> = ({
   const [lastSavedCompose, setLastSavedCompose] = useState('');
   const [lastSavedEnv, setLastSavedEnv] = useState('');
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'containers' | 'logs'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'containers' | 'volumes' | 'logs'>('files');
+  const [stackVolumes, setStackVolumes] = useState<DockerVolume[]>([]);
+  const [volumesLoading, setVolumesLoading] = useState(false);
   const [actionLogs, setActionLogs] = useState<string[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionHistoryItem[]>([]);
   const [isRunningAction, setIsRunningAction] = useState(false);
@@ -183,6 +189,37 @@ export const StackDetail: React.FC<StackDetailProps> = ({
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [actionLogs, activeTab]);
+
+  const fetchStackVolumes = async () => {
+    setVolumesLoading(true);
+    try {
+      const list = await api.listVolumes();
+      const filtered = list.filter((v) => v.Labels?.['com.docker.compose.project'] === stackName);
+      setStackVolumes(filtered);
+      // Pull sizes/refs the same way the Volumes page does.
+      try {
+        const usage = await api.getVolumeUsage();
+        setStackVolumes((vs) =>
+          vs.map((v) => ({ ...v, UsageData: usage.values[v.Name] ?? v.UsageData }))
+        );
+        if (usage.pending) {
+          window.setTimeout(() => void fetchStackVolumes(), 1500);
+        }
+      } catch {
+        /* sizes optional */
+      }
+    } catch {
+      setStackVolumes([]);
+    } finally {
+      setVolumesLoading(false);
+    }
+  };
+  useEffect(() => {
+    void fetchStackVolumes();
+  }, [stackName]);
+  useEffect(() => {
+    if (activeTab === 'volumes') void fetchStackVolumes();
+  }, [activeTab]);
 
   // Poll metrics for running containers in this stack
   useEffect(() => {
@@ -620,6 +657,14 @@ export const StackDetail: React.FC<StackDetailProps> = ({
           <Terminal size={16} />
           <span>Action Stream {isRunningAction && '●'}</span>
         </button>
+        <button
+          className={`nav-item ${activeTab === 'volumes' ? 'active' : ''}`}
+          style={{ borderRadius: 'var(--radius-md) var(--radius-md) 0 0' }}
+          onClick={() => setActiveTab('volumes')}
+        >
+          <HardDrive size={16} />
+          <span>Volumes ({stackVolumes.length})</span>
+        </button>
       </div>
 
       {/* Tab Contents */}
@@ -752,6 +797,77 @@ export const StackDetail: React.FC<StackDetailProps> = ({
             refreshToken={refreshToken}
             detailRenderer={(c) => <StackContainerDetail container={c as StackContainerInfo} />}
           />
+        </div>
+      )}
+
+      {activeTab === 'volumes' && (
+        <div>
+          {stackVolumes.length === 0 && !volumesLoading ? (
+            <div className="card empty-state">
+              <HardDrive size={32} style={{ opacity: 0.3, marginBottom: 'var(--space-12)' }} />
+              <h3>No Volumes Found</h3>
+              <p>This stack has no tagged volumes.</p>
+            </div>
+          ) : (
+            <div className="table-container">
+              <table className="volume-table">
+                <thead>
+                  <tr>
+                    <th>Volume Name</th>
+                    <th>Driver</th>
+                    <th>Size</th>
+                    <th>References</th>
+                    <th>Scope</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stackVolumes.map((volume) => (
+                    <tr key={volume.Name}>
+                      <td style={{ overflowWrap: 'anywhere', minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{volume.Name}</div>
+                        {volume.CreatedAt && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                            Created: {new Date(volume.CreatedAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge badge-neutral">{volume.Driver || 'local'}</span>
+                      </td>
+                      <td className="font-mono" style={{ fontSize: '0.85rem' }}>
+                        {formatBytes(volume.UsageData?.Size ?? -1)}
+                      </td>
+                      <td>
+                        {volume.UsageData?.RefCount === undefined || volume.UsageData.RefCount < 0 ? (
+                          <span className="badge badge-neutral">Unknown</span>
+                        ) : (
+                          <span className={`badge ${volume.UsageData.RefCount === 0 ? 'badge-warning' : 'badge-running'}`}>
+                            {volume.UsageData.RefCount} container{volume.UsageData.RefCount === 1 ? '' : 's'}
+                          </span>
+                        )}
+                      </td>
+                      <td>{volume.Scope || 'local'}</td>
+                      <td>
+                        <DeleteButton
+                          title="Delete Volume"
+                          onConfirm={async () => {
+                            try {
+                              await api.removeVolume(volume.Name, true);
+                              await fetchStackVolumes();
+                              showToast(`Volume ${volume.Name} deleted.`, 'success');
+                            } catch (err: unknown) {
+                              showToast(`Delete failed: ${getErrorMessage(err, 'Unknown error')}`, 'error');
+                            }
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
