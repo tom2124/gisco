@@ -692,6 +692,7 @@ pub fn valid_stack_name(name: &str) -> bool {
 /// to add to any compose file: no warning, no validation error, and it survives
 /// `docker compose config` untouched.
 pub const DESC_KEY: &str = "x-desc";
+pub const STACK_DESC_KEY: &str = "x-stack-desc";
 
 /// Read the top-level `x-desc` extension field from compose text.
 ///
@@ -758,19 +759,19 @@ pub fn description(content: &str) -> Option<String> {
 /// Drop the top-level `x-desc:` line, and the indented body if it opens a block
 /// scalar (`|` or `>`). Without the body handling, stripping `x-desc: >` would
 /// leave its continuation lines behind and corrupt the file.
-fn strip_extension_key(content: &str) -> String {
+fn strip_extension_key(content: &str, key: &str) -> String {
     let mut out: Vec<&str> = Vec::new();
     let mut lines = content.lines().peekable();
     while let Some(line) = lines.next() {
         // A top-level key starts at column 0, so a match here cannot be inside a
         // block scalar or a service body — those are indented.
         let matched = line
-            .strip_prefix(DESC_KEY)
+            .strip_prefix(key)
             .and_then(|tail| tail.trim_start_matches([' ', '\t']).strip_prefix(':'));
         match matched {
             Some(value) => {
                 let value = value.trim_start_matches([' ', '\t']);
-                if value.starts_with('|') || value.starts_with('>') {
+                if value.starts_with('|') || value.starts_with('>') || value.is_empty() {
                     while let Some(next) = lines.peek() {
                         if next.trim().is_empty() || next.starts_with([' ', '\t']) {
                             lines.next();
@@ -806,7 +807,7 @@ pub fn strip_description(content: &str) -> String {
         .filter(|line| !(line.starts_with('#') && re.is_match(line)))
         .collect::<Vec<_>>()
         .join("\n");
-    let mut out = strip_extension_key(&without_comments);
+    let mut out = strip_extension_key(&without_comments, DESC_KEY);
     // The intermediate joins drop a trailing newline; restore the original one.
     if content.ends_with('\n') && !out.ends_with('\n') {
         out.push('\n');
@@ -814,6 +815,245 @@ pub fn strip_description(content: &str) -> String {
     out
 }
 
+/// Transform a template's compose content for instantiation: drop the template's
+/// own description (`# desc:` / `x-desc`) and promote `x-stack-desc` (a
+/// parameterised description) to the stack's `x-desc`.
+/// Remove env entries whose variable is used only inside description fields
+/// (`x-desc` / `x-stack-desc` / `# desc:`), so description-only params don't
+/// leak into the stack's `.env`.
+pub fn filter_desc_env_vars(content: &str, env_content: Option<&str>) -> Option<String> {
+    let env = env_content?;
+    // Remove env entries for underscore-prefixed params (baked into compose).
+    let mut out = Vec::new();
+    for line in env.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            out.push(line.to_string());
+            continue;
+        }
+        if let Some((k, _)) = trimmed.split_once('=') {
+            if k.trim().starts_with('_') {
+                continue;
+            }
+        }
+        out.push(line.to_string());
+    }
+    Some(out.join("\n"))
+}
+
+pub fn instantiate_description(content: &str, env_content: Option<&str>) -> String {
+    let env = parse_env_map(env_content);
+
+    // Drop template-blurb `# desc:` comments.
+    let without_comments = content
+        .lines()
+        .filter(|line| {
+            static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+            let re = RE.get_or_init(|| regex::Regex::new(r"^#[ \t]*desc[ \t]*:.*$").unwrap());
+            !(line.starts_with('#') && re.is_match(line))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let mut out = without_comments;
+    if content.ends_with('\n') && !out.ends_with('\n') {
+        out.push('\n');
+    }
+
+    // Strip x-desc if it's a template blurb (no underscore params) BEFORE
+    // promoting x-stack-desc, so the promoted value doesn't collide.
+    let xdesc_val = extract_extension_value(&out, DESC_KEY);
+    let xdesc_has_underscore = xdesc_val
+        .as_ref()
+        .map(|v| crate::templates::merge::scan_params(v).iter().any(|p| p.starts_with('_')))
+        .unwrap_or(false);
+    if !xdesc_has_underscore {
+        out = strip_extension_key(&out, DESC_KEY);
+    }
+
+    // Promote x-stack-desc -> x-desc (stack description from template).
+    out = rename_extension_key(&out, STACK_DESC_KEY, DESC_KEY);
+
+    // Re-emit x-desc cleanly with baked underscore params (if it has them).
+    let xdesc_val = extract_extension_value(&out, DESC_KEY);
+    if let Some(val) = xdesc_val {
+        if crate::templates::merge::scan_params(&val).iter().any(|p| p.starts_with('_')) {
+            out = strip_extension_key(&out, DESC_KEY);
+            let interpolated = bake_underscore_params(&interpolate_str(&val, &env), &env);
+            let trimmed = interpolated.trim().to_string();
+            let yaml_val = if trimmed.contains('\n') {
+                let mut body = String::new();
+                for line in trimmed.lines() {
+                    body.push_str("  ");
+                    body.push_str(line);
+                    body.push('\n');
+                }
+                format!("{}\n{}", "x-desc: >", body.trim_end_matches('\n'))
+            } else if trimmed.contains(':') || trimmed.contains('#') || trimmed.is_empty() {
+                format!("\"{}\"", trimmed.replace('\\', "\\\\").replace('"', "\\\""))
+            } else {
+                trimmed
+            };
+            if out.is_empty() {
+                out = format!("x-desc: {}\n", yaml_val);
+            } else {
+                out = format!("x-desc: {}\n{}", yaml_val, out);
+            }
+        }
+    }
+
+    // Bake underscore params into the rest of the compose file.
+    out = bake_underscore_params(&out, &env);
+
+    if content.ends_with('\n') && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+/// Replace `${_VAR}` / `${_VAR:-default}` references with the provided env
+/// value (when non-empty), baking them into the compose file.
+/// Rename a top-level extension key (`from` -> `to`), preserving its value and
+/// any block-scalar body. Line-based, so comments and formatting survive.
+fn rename_extension_key(content: &str, from: &str, to: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for line in content.lines() {
+        let matched = line
+            .strip_prefix(from)
+            .and_then(|tail| tail.trim_start_matches([' ', '\t']).strip_prefix(':'))
+            .is_some();
+        if matched {
+            out.push(format!("{}{}", to, &line[from.len()..]));
+        } else {
+            out.push(line.to_string());
+        }
+    }
+    let mut joined = out.join("\n");
+    if content.ends_with('\n') && !joined.ends_with('\n') {
+        joined.push('\n');
+    }
+    joined
+}
+
+fn bake_underscore_params(content: &str, env: &std::collections::HashMap<String, String>) -> String {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"\$\{(_[A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}").unwrap()
+    });
+    re.replace_all(content, |caps: &regex::Captures| {
+        let name = &caps[1];
+        if let Some(val) = env.get(name) {
+            if !val.is_empty() {
+                return val.clone();
+            }
+        }
+        if let Some(def) = caps.get(2) {
+            return def.as_str().to_string();
+        }
+        caps[0].to_string()
+    })
+    .to_string()
+}
+
+fn parse_env_map(env_content: Option<&str>) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    if let Some(content) = env_content {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((k, v)) = line.split_once('=') {
+                let k = k.trim();
+                let v = v.trim();
+                // strip surrounding quotes
+                let v = v.trim_matches('"').trim_matches('\'');
+                if !k.is_empty() {
+                    map.insert(k.to_string(), v.to_string());
+                }
+            }
+        }
+    }
+    map
+}
+
+fn interpolate_str(s: &str, env: &std::collections::HashMap<String, String>) -> String {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}").unwrap()
+    });
+    re.replace_all(s, |caps: &regex::Captures| {
+        let name = &caps[1];
+        if let Some(val) = env.get(name) {
+            val.clone()
+        } else if let Some(def) = caps.get(2) {
+            def.as_str().to_string()
+        } else {
+            caps[0].to_string()
+        }
+    })
+    .to_string()
+}
+
+/// Extract the string value of a top-level extension key, handling block
+/// scalars (`|` / `>`). Returns None when absent.
+fn extract_extension_value(content: &str, key: &str) -> Option<String> {
+    let mut lines = content.lines().peekable();
+    while let Some(line) = lines.next() {
+        let matched = line
+            .strip_prefix(key)
+            .and_then(|tail| tail.trim_start_matches([' ', '\t']).strip_prefix(':'));
+        if let Some(value) = matched {
+            let value = value.trim_start_matches([' ', '\t']);
+            if value.starts_with('|') || value.starts_with('>') {
+                let folded = value.starts_with('>');
+                let mut body: Vec<String> = Vec::new();
+                while let Some(next) = lines.peek() {
+                    if next.trim().is_empty() || next.starts_with([' ', '\t']) {
+                        let l = lines.next().unwrap();
+                        if !l.trim().is_empty() {
+                            body.push(l.trim().to_string());
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if folded {
+                    return Some(body.join(" "));
+                } else {
+                    return Some(body.join("\n"));
+                }
+            } else if value.is_empty() {
+                // Value on following lines (e.g. a quoted multi-line string).
+                let mut body: Vec<String> = Vec::new();
+                while let Some(next) = lines.peek() {
+                    if next.trim().is_empty() || next.starts_with([' ', '\t']) {
+                        let l = lines.next().unwrap();
+                        if !l.trim().is_empty() {
+                            body.push(l.trim().to_string());
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                let joined = body.join(" ");
+                let v = joined.trim_matches('"').trim_matches('\'').trim();
+                if v.is_empty() {
+                    return None;
+                }
+                return Some(v.to_string());
+            } else {
+                // single-line value (possibly quoted)
+                let v = value.trim();
+                let v = v.trim_matches('"').trim_matches('\'');
+                if v.is_empty() {
+                    return None;
+                }
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
 pub fn find_compose_file(dir: &Path) -> Option<PathBuf> {
     for filename in COMPOSE_FILENAMES {
         let p = dir.join(filename);
@@ -1303,6 +1543,34 @@ mod tests {
         let stack = "x-desc: this is traefik :)\nservices:\n  traefik:\n    image: traefik\n";
         assert_eq!(description(template), Some("Reusable demo".to_string()));
         assert_eq!(description(stack), Some("this is traefik :)".to_string()));
+    }
+
+    #[test]
+    fn test_promote_x_stack_desc() {
+        let input = "x-desc: template blurb\nx-stack-desc: Static stack desc\nservices:\n  app:\n    image: alpine\n";
+        let out = instantiate_description(input, None);
+        assert!(!out.contains("template blurb"), "blurb stripped: {}", out);
+        assert!(out.contains("Static stack desc"), "promoted: {}", out);
+        assert!(!out.contains("x-stack-desc"), "old key gone: {}", out);
+    }
+
+    #[test]
+    fn test_instantiate_description_promotes_stack_desc() {
+        let input = "x-desc: >\n  Stack ${_NAME}\nservices:\n  app:\n    image: alpine\n";
+        let out = instantiate_description(input, Some("_NAME=foo\n"));
+        assert!(out.contains("x-desc:"), "x-desc present: {}", out);
+        assert!(out.contains("Stack foo"), "stack desc promoted+interpolated: {}", out);
+        assert!(!out.contains("x-stack-desc"), "old key gone: {}", out);
+    }
+
+    #[test]
+    fn test_user_interp() {
+        let input = "x-desc: ${_Organisation} (${_CusomerName}): ${_Subject}\nservices:\n  app:\n    image: alpine\n    ports:\n      - \"${SERVICE_PORT:-8080}:80\"\n";
+        let env = "_Organisation=Acme\n_CusomerName=Bob\n_Subject=Hello\n";
+        let out = instantiate_description(input, Some(env));
+        println!("OUT:\n{}", out);
+        assert!(out.contains("x-desc:"), "key: {}", out);
+        assert!(out.contains("Acme (Bob): Hello"), "interp: {}", out);
     }
 
     #[test]

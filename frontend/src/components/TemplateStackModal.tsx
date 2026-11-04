@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AlertTriangle, Copy, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { DockableEditorModal, useEditorDock } from './EditorDock';
 import { api } from '../api/client';
@@ -446,18 +446,7 @@ interface ParamFieldProps {
 
 const ParamField: React.FC<ParamFieldProps> = ({ name, value, onChange }) => (
   <label className="compose-param-field">
-    <span className="compose-param-name">
-      {name}
-      <button
-        className="compose-param-copy"
-        title={`Copy $${name} reference`}
-        onClick={() => {
-          void navigator.clipboard?.writeText(`\${${name}}`);
-        }}
-      >
-        <Copy size={11} />
-      </button>
-    </span>
+    <span className="compose-param-name">{name}</span>
     <input
       type="text"
       placeholder="optional"

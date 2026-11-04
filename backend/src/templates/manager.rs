@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
-use crate::compose::{description, strip_description, valid_path_component, StacksManager};
+use crate::compose::{description, instantiate_description, valid_path_component, StacksManager};
 use crate::templates::merge::{
     self, Composition, MergeConflict, OnConflict, Slot, SlotPlan, TemplateSource,
 };
@@ -118,10 +118,11 @@ impl TemplatesManager {
             anyhow::bail!("Stack '{}' already exists", stack_name);
         }
         let composed = self.compose_templates(slots, on_conflict)?;
+        let filtered_env = crate::compose::filter_desc_env_vars(&composed.compose, env_content);
         self.stacks_manager.save_stack(
             stack_name,
-            &strip_description(&composed.compose),
-            env_content,
+            &instantiate_description(&composed.compose, env_content.as_deref()),
+            filtered_env.as_deref(),
             custom_uid,
             custom_gid,
         )?;
@@ -241,10 +242,11 @@ impl TemplatesManager {
             anyhow::bail!("Stack '{}' already exists", stack_name);
         }
 
+        let filtered_env = crate::compose::filter_desc_env_vars(&template.raw_content, env_content);
         self.stacks_manager.save_stack(
             stack_name,
-            &strip_description(&template.raw_content),
-            env_content,
+            &instantiate_description(&template.raw_content, env_content.as_deref()),
+            filtered_env.as_deref(),
             custom_uid,
             custom_gid,
         )?;
@@ -376,6 +378,59 @@ mod tests {
         assert!(!compose.contains("x-desc:"));
         assert!(compose.contains("image: alpine"));
 
+        let _ = fs::remove_dir_all(template_dir);
+        let _ = fs::remove_dir_all(stack_dir);
+    }
+
+    #[test]
+    fn test_user_stack_desc_interp() {
+        // composition path
+        let template_dir = unique_dir("tpluser2");
+        let stack_dir = unique_dir("tplstacksuser2");
+        fs::write(
+            template_dir.join("demo.yml"),
+            "x-desc: >\n  ${_Organisation} (${_CusomerName}): ${_Subject}\nservices:\n  app:\n    image: alpine\n    ports:\n      - \"${SERVICE_PORT:-8080}:80\"\n",
+        )
+        .unwrap();
+        let stacks = StacksManager::new(stack_dir.clone(), 1000, 1000);
+        let manager = TemplatesManager::new(template_dir.clone(), stacks);
+        let slot = Slot { template_id: "demo".to_string(), instance: None };
+        let composed = manager.compose_templates(std::slice::from_ref(&slot), OnConflict::Error).unwrap();
+        println!("MERGED:\\n{}", composed.compose);
+        println!("INSTANTIATED:\\n{}", crate::compose::instantiate_description(&composed.compose, Some("_Organisation=Acme\n_CusomerName=Bob\n_Subject=Hello\nSERVICE_PORT=9000")));
+        manager
+            .instantiate_composition(&[slot], "demo-2", Some("_Organisation=Acme\n_CusomerName=Bob\n_Subject=Hello\nSERVICE_PORT=9000"), OnConflict::Error, None, None)
+            .unwrap();
+        let compose = fs::read_to_string(stack_dir.join("demo-2").join("compose.yml")).unwrap();
+        println!("COMPOSE2:\\n{}", compose);
+        assert!(compose.contains("Acme (Bob): Hello"), "interpolated2: {}", compose);
+        let _ = fs::remove_dir_all(template_dir);
+        let _ = fs::remove_dir_all(stack_dir);
+    }
+
+    #[test]
+    fn test_user_stack_desc_interp_single() {
+        let template_dir = unique_dir("tpluser3");
+        let stack_dir = unique_dir("tplstacksuser3");
+        fs::write(
+            template_dir.join("demo.yml"),
+            "x-desc: >\n  ${_Organisation} (${_CusomerName}): ${_Subject}\nservices:\n  app:\n    image: alpine\n    ports:\n      - \"${SERVICE_PORT:-8080}:80\"\n",
+        )
+        .unwrap();
+        let stacks = StacksManager::new(stack_dir.clone(), 1000, 1000);
+        let manager = TemplatesManager::new(template_dir.clone(), stacks);
+        manager
+            .instantiate_template("demo", "demo-1", Some("_Organisation=Acme\n_CusomerName=Bob\n_Subject=Hello\nSERVICE_PORT=9000"), None, None)
+            .unwrap();
+        let compose = fs::read_to_string(stack_dir.join("demo-1").join("compose.yml")).unwrap();
+        let env = fs::read_to_string(stack_dir.join("demo-1").join(".env")).unwrap();
+        println!("COMPOSE:\\n{}", compose);
+        println!("ENV:\\n{}", env);
+        assert!(compose.contains("Acme (Bob): Hello"), "interpolated");
+        assert!(!env.contains("_Organisation="), "_Organisation removed from .env");
+        assert!(!env.contains("_CusomerName="), "_CusomerName removed from .env");
+        assert!(!env.contains("_Subject="), "_Subject removed from .env");
+        assert!(env.contains("SERVICE_PORT=9000"), "SERVICE_PORT kept");
         let _ = fs::remove_dir_all(template_dir);
         let _ = fs::remove_dir_all(stack_dir);
     }

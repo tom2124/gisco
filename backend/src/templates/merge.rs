@@ -917,6 +917,14 @@ pub fn compose(
                 }
             }
         }
+        // Rewrite ${VAR} references in extension description fields too, so
+        // renamed params stay consistent with the (renamed) .env keys.
+        if let Some(Value::String(s)) = merged.get_mut(Value::String("x-stack-desc".into())) {
+            *s = rewrite_params_in_str(s, &par_alias);
+        }
+        if let Some(Value::String(s)) = merged.get_mut(Value::String("x-desc".into())) {
+            *s = rewrite_params_in_str(s, &par_alias);
+        }
     }
 
     let compose = fmt_yaml_with_flow(&Value::Mapping(merged), 50);
